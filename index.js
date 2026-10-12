@@ -79,7 +79,7 @@ client.on('guildMemberAdd', async member => {
     const embedConfig = config.embed || {
       title: '**✨· NEW Member!·✨**',
       description: '🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!',
-      color: '#900'
+      color: '#66FFFF'
     };
 
     const finalTitle = embedConfig.title
@@ -90,11 +90,11 @@ client.on('guildMemberAdd', async member => {
       .replace('{user}', `${member}`)
       .replace('{server}', member.guild.name);
 
-    let embedColor = '#900';
+    let embedColor = '#66FFFF';
     try {
       embedColor = embedConfig.color;
     } catch (e) {
-      embedColor = '#900';
+      embedColor = '#66FFFF';
     }
 
     const embed = new EmbedBuilder()
@@ -120,7 +120,7 @@ client.on('interactionCreate', async interaction => {
       embed: {
         title: '**✨· NEW Member!·✨**',
         description: '🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!',
-        color: '#900'
+        color: '#66FFFF'
       }
     };
   }
@@ -162,11 +162,11 @@ client.on('interactionCreate', async interaction => {
             .replace('{user}', `${interaction.user}`)
             .replace('{server}', interaction.guild.name);
 
-          let embedColor = '#2f6363';
+          let embedColor = '#66FFFF';
           try {
             embedColor = embedConfig.color;
           } catch (e) {
-            embedColor = '#2f6363';
+            embedColor = '#66FFFF';
           }
 
           const embed = new EmbedBuilder()
@@ -204,9 +204,9 @@ client.on('interactionCreate', async interaction => {
 
       const colorInput = new TextInputBuilder()
         .setCustomId('embedColor')
-        .setLabel('Hex Color (เช่น #2f6363)')
+        .setLabel('Hex Color (เช่น #66FFFF)')
         .setStyle(TextInputStyle.Short)
-        .setValue(config.embed.color || '#2f6363')
+        .setValue(config.embed.color || '#66FFFF')
         .setRequired(true);
 
       modal.addComponents(
