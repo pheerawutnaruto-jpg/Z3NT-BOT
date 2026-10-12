@@ -2,7 +2,6 @@ const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuild
 const http = require('http');
 const fs = require('fs');
 
-// 1. สร้างเว็บเซิร์ฟเวอร์จำลองสำหรับ Render
 const httpServer = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('Bot is running!\n');
@@ -16,7 +15,6 @@ const client = new Client({
   ]
 });
 
-// ไฟล์สำหรับบันทึกข้อมูลการตั้งค่าแบบปลอดภัย
 const CONFIG_FILE = './config.json';
 
 function loadConfigs() {
@@ -43,7 +41,6 @@ function saveConfigs(configs) {
 
 let serverConfigs = loadConfigs();
 
-// 2. ลงทะเบียนคำสั่ง Slash Command
 client.once('ready', async () => {
   console.log(`Bot Online แล้วจ้า: ${client.user.tag}`);
 
@@ -69,40 +66,42 @@ client.once('ready', async () => {
   }
 });
 
-// 3. ระบบต้อนรับสมาชิกใหม่
-client.on('guildMemberAdd', member => {
+client.on('guildMemberAdd', async member => {
   const guildId = member.guild.id;
   const config = serverConfigs[guildId];
 
   if (!config || !config.welcomeEnabled || !config.channelId) return;
 
-  const channel = member.guild.channels.cache.get(config.channelId);
-  if (!channel) return;
+  try {
+    const channel = await member.guild.channels.fetch(config.channelId);
+    if (!channel) return;
 
-  const embedConfig = config.embed || {
-    title: '**✨· NEW Member!·✨**',
-    description: '🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!',
-    color: '#2f636'
-  };
+    const embedConfig = config.embed || {
+      title: '**✨· NEW Member!·✨**',
+      description: '🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!',
+      color: '#2f636'
+    };
 
-  const finalTitle = embedConfig.title
-    .replace('{user}', member.user.username)
-    .replace('{server}', member.guild.name);
-    
-  const finalDesc = embedConfig.description
-    .replace('{user}', `${member}`)
-    .replace('{server}', member.guild.name);
+    const finalTitle = embedConfig.title
+      .replace('{user}', member.user.username)
+      .replace('{server}', member.guild.name);
+      
+    const finalDesc = embedConfig.description
+      .replace('{user}', `${member}`)
+      .replace('{server}', member.guild.name);
 
-  const embed = new EmbedBuilder()
-    .setTitle(finalTitle)
-    .setDescription(finalDesc)
-    .setColor(embedConfig.color || '#2f636')
-    .setTimestamp();
+    const embed = new EmbedBuilder()
+      .setTitle(finalTitle)
+      .setDescription(finalDesc)
+      .setColor(embedConfig.color || '#2f636')
+      .setTimestamp();
 
-  channel.send({ embeds: [embed] }).catch(err => console.error('Send welcome error:', err));
+    await channel.send({ embeds: [embed] });
+  } catch (err) {
+    console.error('Send welcome error:', err);
+  }
 });
 
-// 4. จัดการคำสั่งและปุ่มกดต่างๆ
 client.on('interactionCreate', async interaction => {
   const guildId = interaction.guildId;
   if (!guildId) return;
@@ -120,12 +119,10 @@ client.on('interactionCreate', async interaction => {
   }
   const config = serverConfigs[guildId];
 
-  // คำสั่ง /ping
   if (interaction.isChatInputCommand() && interaction.commandName === 'ping') {
     return await interaction.reply({ content: 'Pong! 🏓 บอททำงานระบบ Slash Command ปกติบน Render ครับ 🚀', ephemeral: true });
   }
 
-  // คำสั่ง /set-welcom
   if (interaction.isChatInputCommand() && interaction.commandName === 'set-welcom') {
     if (!interaction.member.permissions.has('Administrator')) {
       return await interaction.reply({ content: '❌ คุณต้องเป็น Administrator ถึงจะใช้งานได้ครับ', ephemeral: true });
@@ -133,7 +130,6 @@ client.on('interactionCreate', async interaction => {
     return await sendDashboard(interaction);
   }
 
-  // กดปุ่มต่างๆ
   if (interaction.isButton()) {
     if (interaction.customId === 'toggle_welcome') {
       config.welcomeEnabled = !config.welcomeEnabled;
@@ -146,19 +142,22 @@ client.on('interactionCreate', async interaction => {
         return await interaction.reply({ content: '❌ กรุณาเลือกช่อง (Channel) สำหรับส่งข้อความต้อนรับก่อนกดทดสอบครับ!', ephemeral: true });
       }
 
-      // ตอบกลับผู้กดปุ่มทันทีเพื่อป้องกัน Timeout (มองเห็นคนเดียว)
       await interaction.reply({ content: `🔄 กำลังส่งข้อความทดสอบไปที่ห้อง <#${config.channelId}>...`, ephemeral: true });
 
-      const channel = interaction.guild.channels.cache.get(config.channelId);
-      if (channel) {
-        const embedConfig = config.embed;
-        const embed = new EmbedBuilder()
-          .setTitle(embedConfig.title.replace('{user}', interaction.user.username).replace('{server}', interaction.guild.name))
-          .setDescription(embedConfig.description.replace('{user}', `${interaction.user}`).replace('{server}', interaction.guild.name))
-          .setColor(embedConfig.color)
-          .setTimestamp();
-        
-        await channel.send({ embeds: [embed] }).catch(err => console.error('Test welcome send error:', err));
+      try {
+        const channel = await interaction.guild.channels.fetch(config.channelId);
+        if (channel) {
+          const embedConfig = config.embed;
+          const embed = new EmbedBuilder()
+            .setTitle(embedConfig.title.replace('{user}', interaction.user.username).replace('{server}', interaction.guild.name))
+            .setDescription(embedConfig.description.replace('{user}', `${interaction.user}`).replace('{server}', interaction.guild.name))
+            .setColor(embedConfig.color)
+            .setTimestamp();
+          
+          await channel.send({ embeds: [embed] });
+        }
+      } catch (err) {
+        console.error('Test welcome send error:', err);
       }
       return;
     }
@@ -199,7 +198,6 @@ client.on('interactionCreate', async interaction => {
     }
   }
 
-  // เลือกห้องแชทจากเมนู
   if (interaction.isChannelSelectMenu() && interaction.customId === 'select_channel') {
     await interaction.deferUpdate();
     config.channelId = interaction.values[0];
@@ -207,18 +205,16 @@ client.on('interactionCreate', async interaction => {
     return await updateDashboardAfterDefer(interaction);
   }
 
-  // บันทึก Modal
   if (interaction.isModalSubmit() && interaction.customId === 'editEmbedModal') {
     config.embed.title = interaction.fields.getTextInputValue('embedTitle');
     config.embed.description = interaction.fields.getTextInputValue('embedDesc');
     config.embed.color = interaction.fields.getTextInputValue('embedColor');
     saveConfigs(serverConfigs);
 
-    return await interaction.reply({ content: '✅ บันทึกรูปแบบ Embed เรียบร้อยแล้ว! (ข้อมูลถูกบันทึกปลอดภัย)', ephemeral: true });
+    return await interaction.reply({ content: '✅ บันทึกรูปแบบ Embed เรียบร้อยแล้ว!', ephemeral: true });
   }
 });
 
-// ฟังก์ชันสร้างหน้าตาแผงควบคุม
 function getDashboardContent(config) {
   const channelName = config.channelId ? `<#${config.channelId}>` : 'ยังไม่ได้เลือกช่อง';
   const statusText = config.welcomeEnabled ? '✅ เปิดอยู่' : '❌ ปิดอยู่';
