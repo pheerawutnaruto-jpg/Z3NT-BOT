@@ -165,11 +165,13 @@ client.on('interactionCreate', async interaction => {
   if (!interaction.guild) return;
   const settings = getSettings(interaction.guild.id);
 
+  // แก้ไขจุดรับคำสั่ง /setwelcome ให้ตอบรับทันทีเพื่อป้องกัน Timeout
   if (interaction.isChatInputCommand() && interaction.commandName === 'setwelcome') {
     if (!interaction.member.permissions.has('Administrator')) {
       return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์ใช้งานคำสั่งนี้', ephemeral: true });
     }
-    await interaction.reply({ ...getControlPanelComponents(interaction.guild.id), ephemeral: true });
+    await interaction.deferReply({ ephemeral: true });
+    return await interaction.editReply(getControlPanelComponents(interaction.guild.id));
   }
 
   if (interaction.isButton()) {
