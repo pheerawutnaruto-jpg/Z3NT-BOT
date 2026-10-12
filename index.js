@@ -42,6 +42,9 @@ function saveConfigs(configs) {
 
 let serverConfigs = loadConfigs();
 
+// เก็บ Task ของ Cron แต่ละเซิร์ฟเวอร์ไว้จัดการเปิด/ปิด
+let activeCronJobs = {};
+
 client.once('ready', async () => {
   console.log(`Bot Online แล้วจ้า: ${client.user.tag}`);
 
@@ -60,6 +63,20 @@ client.once('ready', async () => {
           .setDescription('จำนวนข้อความที่ต้องการลบ (1-100)')
           .setRequired(true)
       ),
+    new SlashCommandBuilder()
+      .setName('set-autoclear')
+      .setDescription('ตั้งเวลาระบบลบข้อความอัตโนมัติ')
+      .addStringOption(option =>
+        option.setName('time')
+          .setDescription('ระบุเวลาในรูปแบบ HH:MM เช่น 08:59')
+          .setRequired(true)
+      )
+      .addChannelOption(option =>
+        option.setName('channel')
+          .setDescription('เลือกห้องที่ต้องการให้ลบข้อความอัตโนมัติ')
+          .addChannelTypes(ChannelType.GuildText)
+          .setRequired(true)
+      ),
   ].map(command => command.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
@@ -74,32 +91,47 @@ client.once('ready', async () => {
     console.error(error);
   }
 
-  // ตั้งเวลารันทุกวันตอน 08:59 น. (เวลาเซิร์ฟเวอร์ UTC / หรือปรับตาม Timezone)
-  // รูปแบบ Cron: นาที ชั่วโมง วัน เดือน วันในสัปดาห์ ('59 8 * * *' คือ 08:59 ทุกวัน)
-  cron.schedule('59 8 * * *', async () => {
-    console.log('⏳ กำลังรันงานตั้งเวลาลบข้อความตอน 08:59...');
-    for (const guildId in serverConfigs) {
-      const config = serverConfigs[guildId];
-      if (config && config.channelId) {
-        try {
-          const guild = await client.guilds.fetch(guildId);
-          if (!guild) continue;
-          const channel = await guild.channels.fetch(config.channelId);
-          if (channel && channel.isTextBased()) {
-            // ดึงข้อความมาลบสูงสุด 100 ข้อความล่าสุด
-            const fetched = await channel.messages.fetch({ limit: 100 });
-            await channel.bulkDelete(fetched, true);
-            console.log(`✅ ลบข้อความอัตโนมัติเวลา 08:59 สำเร็จในห้อง #${channel.name}`);
-          }
-        } catch (err) {
-          console.error(`❌ เกิดข้อผิดพลาดในการลบข้อความอัตโนมัติ (Guild: ${guildId}):`, err);
-        }
+  // โหลดระบบตั้งเวลาเดิมที่เคยบันทึกไว้กลับมาทำงานตอนบอทรีสตาร์ท
+  for (const guildId in serverConfigs) {
+    const config = serverConfigs[guildId];
+    if (config && config.autoClear && config.autoClear.enabled && config.autoClear.time && config.autoClear.channelId) {
+      setupCronJob(guildId, config.autoClear.time, config.autoClear.channelId);
+    }
+  }
+});
+
+// ฟังก์ชันเปิดใช้งาน Cron Job สำหรับเซิร์ฟเวอร์นั้นๆ
+function setupCronJob(guildId, timeStr, channelId) {
+  if (activeCronJobs[guildId]) {
+    activeCronJobs[guildId].stop();
+    delete activeCronJobs[guildId];
+  }
+
+  const [hour, minute] = timeStr.split(':');
+  if (!hour || !minute) return;
+
+  // รูปแบบ cron: นาที ชั่วโมง * * *
+  const cronExpression = `${minute} ${hour} * * *`;
+
+  activeCronJobs[guildId] = cron.schedule(cronExpression, async () => {
+    try {
+      const guild = await client.guilds.fetch(guildId);
+      if (!guild) return;
+      const channel = await guild.channels.fetch(channelId);
+      if (channel && channel.isTextBased()) {
+        const fetched = await channel.messages.fetch({ limit: 100 });
+        await channel.bulkDelete(fetched, true);
+        console.log(`✅ ลบข้อความอัตโนมัติเวลา ${timeStr} สำเร็จในห้อง #${channel.name}`);
       }
+    } catch (err) {
+      console.error(`❌ เกิดข้อผิดพลาดในการลบข้อความอัตโนมัติ (Guild: ${guildId}):`, err);
     }
   }, {
-    timezone: "Asia/Bangkok" // ตั้งเวลาให้ตรงกับเวลาประเทศไทย (GMT+7)
+    timezone: "Asia/Bangkok"
   });
-});
+
+  console.log(`⏰ ตั้งเวลา Auto-Clear สำเร็จสำหรับ Guild ${guildId} เวลา ${timeStr} ในห้องช่อง ID: ${channelId}`);
+}
 
 // ระบบต้อนรับสมาชิกใหม่
 client.on('guildMemberAdd', async member => {
@@ -114,7 +146,7 @@ client.on('guildMemberAdd', async member => {
 
     const embedConfig = config.embed || {
       title: '',
-      description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!',
+      description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢-ber!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!',
       color: '#66FFFF',
       image: ''
     };
@@ -165,6 +197,11 @@ client.on('interactionCreate', async interaction => {
         description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!',
         color: '#66FFFF',
         image: ''
+      },
+      autoClear: {
+        enabled: false,
+        time: '08:59',
+        channelId: null
       }
     };
   }
@@ -175,7 +212,7 @@ client.on('interactionCreate', async interaction => {
     return await interaction.reply({ content: 'Pong! 🏓 บอททำงานระบบ Slash Command ปกติบน Render ครับ 🚀', ephemeral: true });
   }
 
-  // คำสั่ง /clear (ลบข้อความทันที)
+  // คำสั่ง /clear (ลบข้อความด่วน)
   if (interaction.isChatInputCommand() && interaction.commandName === 'clear') {
     if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
       return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์จัดการข้อความ (Manage Messages) ครับ', ephemeral: true });
@@ -199,7 +236,37 @@ client.on('interactionCreate', async interaction => {
     return;
   }
 
-  // คำสั่ง /set-welcom
+  // คำสั่ง /set-autoclear (ตั้งเวลาลบข้อความเอง)
+  if (interaction.isChatInputCommand() && interaction.commandName === 'set-autoclear') {
+    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+      return await interaction.reply({ content: '❌ คุณต้องเป็น Administrator ถึงจะใช้งานคำสั่งนี้ได้ครับ', ephemeral: true });
+    }
+
+    const timeInput = interaction.options.getString('time'); // เช่น 08:59
+    const channelInput = interaction.options.getChannel('channel');
+
+    // ตรวจสอบรูปแบบเวลา HH:MM
+    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    if (!timeRegex.test(timeInput)) {
+      return await interaction.reply({ content: '❌ รูปแบบเวลาไม่ถูกต้อง กรุณาใส่ในรูปแบบ **HH:MM** (เช่น `08:59` หรือ `23:30`)', ephemeral: true });
+    }
+
+    if (!config.autoClear) {
+      config.autoClear = {};
+    }
+
+    config.autoClear.enabled = true;
+    config.autoClear.time = timeInput;
+    config.autoClear.channelId = channelInput.id;
+    saveConfigs(serverConfigs);
+
+    // เปิดใช้งานตั้งเวลาทันที
+    setupCronJob(guildId, timeInput, channelInput.id);
+
+    return await interaction.reply({ content: `✅ ตั้งค่าระบบ Auto-Clear สำเร็จ!\n⏰ เวลา: **${timeInput} น.** (ทุกวัน)\n📢 ช่อง: <#${channelInput.id}>`, ephemeral: true });
+  }
+
+  // คำสั่ง /set-welcom (ล็อคไว้สมบูรณ์ ไม่แก้ใขส่วนนี้)
   if (interaction.isChatInputCommand() && interaction.commandName === 'set-welcom') {
     if (!interaction.member.permissions.has('Administrator')) {
       return await interaction.reply({ content: '❌ คุณต้องเป็น Administrator ถึงจะใช้งานได้ครับ', ephemeral: true });
