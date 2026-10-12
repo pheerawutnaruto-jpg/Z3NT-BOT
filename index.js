@@ -52,23 +52,30 @@ function getControlPanel(guildId) {
     .setDescription(`สถานะ: ${s.enabled ? '🟢 เปิดอยู่' : '🔴 ปิดอยู่'}\nห้อง: ${s.channelId ? `<#${s.channelId}>` : 'ยังไม่ได้เลือก'}`)
     .setColor('#2f636');
 
+  // แถวที่ 1: ปุ่มเปิด/ปิด และทดสอบ
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('toggle').setLabel(s.enabled ? 'ปิด Welcome' : 'เปิด Welcome').setStyle(s.enabled ? ButtonStyle.Danger : ButtonStyle.Success),
     new ButtonBuilder().setCustomId('test').setLabel('ทดสอบ Welcome').setStyle(ButtonStyle.Primary),
   );
 
+  // แถวที่ 2: ปุ่มแต่ง Basic กับ Author
   const row2 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('edit_basic').setLabel('Edit Basic').setStyle(ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId('edit_author').setLabel('Edit Author').setStyle(ButtonStyle.Secondary),
+  );
+
+  // แถวที่ 3: ปุ่มแต่ง Footer กับ Images
+  const row3 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('edit_footer').setLabel('Edit Footer').setStyle(ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId('edit_images').setLabel('Edit Images').setStyle(ButtonStyle.Secondary),
   );
 
-  const row3 = new ActionRowBuilder().addComponents(
+  // แถวที่ 4: เมนูดรอปดาวน์เลือกห้อง
+  const row4 = new ActionRowBuilder().addComponents(
     new ChannelSelectMenuBuilder().setCustomId('select_channel').setPlaceholder('📂 เลือกห้อง Welcome').addChannelTypes(ChannelType.GuildText)
   );
 
-  return { embeds: [embed], components: [row1, row2, row3] };
+  return { embeds: [embed], components: [row1, row2, row3, row4] };
 }
 
 function buildEmbed(member, s) {
@@ -171,28 +178,7 @@ client.on('interactionCreate', async interaction => {
 });
 
 client.login(process.env.DISCORD_TOKEN);
-วน์
-  if (interaction.isChannelSelectMenu() && interaction.customId === 'select_welcome_channel') {
-    if (!interaction.member.permissions.has('Administrator')) {
-      return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์เลือกห้องนี้', ephemeral: true });
-    }
-    settings.channelId = interaction.values[0];
-    await interaction.update(getControlPanelComponents(interaction.guild.id));
-  }
-
-  // รับค่าจากการ Submit Modal แต่ละหมวดหมู่
-  if (interaction.isModalSubmit()) {
-    if (interaction.customId === 'modal_basic') {
-      settings.title = interaction.fields.getTextInputValue('title');
-      settings.description = interaction.fields.getTextInputValue('description');
-      settings.color = interaction.fields.getTextInputValue('color');
-    } else if (interaction.customId === 'modal_author') {
-      settings.authorText = interaction.fields.getTextInputValue('authorText');
-      settings.authorIcon = interaction.fields.getTextInputValue('authorIcon');
-    } else if (interaction.customId === 'modal_footer') {
-      settings.footerText = interaction.fields.getTextInputValue('footerText');
-    } else if (interaction.customId === 'modal_images') {
-      settings.mainImage = interaction.fields.getTextInputValue('mainImage');
+');
       settings.thumbnail = interaction.fields.getTextInputValue('thumbnail');
     }
 
