@@ -42,7 +42,6 @@ function saveConfigs(configs) {
 
 let serverConfigs = loadConfigs();
 
-// เก็บ Task ของ Cron แต่ละเซิร์ฟเวอร์ไว้จัดการเปิด/ปิด
 let activeCronJobs = {};
 
 client.once('ready', async () => {
@@ -68,7 +67,7 @@ client.once('ready', async () => {
       .setDescription('ตั้งเวลาระบบลบข้อความอัตโนมัติ')
       .addStringOption(option =>
         option.setName('time')
-          .setDescription('ระบุเวลาในรูปแบบ HH:MM เช่น 08:59')
+          .setDescription('ระบุเวลาในรูปแบบ HH:MM เช่น 06:00')
           .setRequired(true)
       )
       .addChannelOption(option =>
@@ -91,7 +90,6 @@ client.once('ready', async () => {
     console.error(error);
   }
 
-  // โหลดระบบตั้งเวลาเดิมที่เคยบันทึกไว้กลับมาทำงานตอนบอทรีสตาร์ท
   for (const guildId in serverConfigs) {
     const config = serverConfigs[guildId];
     if (config && config.autoClear && config.autoClear.enabled && config.autoClear.time && config.autoClear.channelId) {
@@ -100,7 +98,6 @@ client.once('ready', async () => {
   }
 });
 
-// ฟังก์ชันเปิดใช้งาน Cron Job สำหรับเซิร์ฟเวอร์นั้นๆ
 function setupCronJob(guildId, timeStr, channelId) {
   if (activeCronJobs[guildId]) {
     activeCronJobs[guildId].stop();
@@ -110,7 +107,6 @@ function setupCronJob(guildId, timeStr, channelId) {
   const [hour, minute] = timeStr.split(':');
   if (!hour || !minute) return;
 
-  // รูปแบบ cron: นาที ชั่วโมง * * *
   const cronExpression = `${minute} ${hour} * * *`;
 
   activeCronJobs[guildId] = cron.schedule(cronExpression, async () => {
@@ -133,7 +129,6 @@ function setupCronJob(guildId, timeStr, channelId) {
   console.log(`⏰ ตั้งเวลา Auto-Clear สำเร็จสำหรับ Guild ${guildId} เวลา ${timeStr} ในห้องช่อง ID: ${channelId}`);
 }
 
-// ระบบต้อนรับสมาชิกใหม่
 client.on('guildMemberAdd', async member => {
   const guildId = member.guild.id;
   const config = serverConfigs[guildId];
@@ -146,7 +141,7 @@ client.on('guildMemberAdd', async member => {
 
     const embedConfig = config.embed || {
       title: '',
-      description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢-ber!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!',
+      description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!',
       color: '#66FFFF',
       image: ''
     };
@@ -200,19 +195,17 @@ client.on('interactionCreate', async interaction => {
       },
       autoClear: {
         enabled: false,
-        time: '08:59',
+        time: '06:00',
         channelId: null
       }
     };
   }
   const config = serverConfigs[guildId];
 
-  // คำสั่ง /ping
   if (interaction.isChatInputCommand() && interaction.commandName === 'ping') {
     return await interaction.reply({ content: 'Pong! 🏓 บอททำงานระบบ Slash Command ปกติบน Render ครับ 🚀', ephemeral: true });
   }
 
-  // คำสั่ง /clear (ลบข้อความด่วน)
   if (interaction.isChatInputCommand() && interaction.commandName === 'clear') {
     if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
       return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์จัดการข้อความ (Manage Messages) ครับ', ephemeral: true });
@@ -236,19 +229,17 @@ client.on('interactionCreate', async interaction => {
     return;
   }
 
-  // คำสั่ง /set-autoclear (ตั้งเวลาลบข้อความเอง)
   if (interaction.isChatInputCommand() && interaction.commandName === 'set-autoclear') {
     if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
       return await interaction.reply({ content: '❌ คุณต้องเป็น Administrator ถึงจะใช้งานคำสั่งนี้ได้ครับ', ephemeral: true });
     }
 
-    const timeInput = interaction.options.getString('time'); // เช่น 08:59
+    const timeInput = interaction.options.getString('time');
     const channelInput = interaction.options.getChannel('channel');
 
-    // ตรวจสอบรูปแบบเวลา HH:MM
     const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
     if (!timeRegex.test(timeInput)) {
-      return await interaction.reply({ content: '❌ รูปแบบเวลาไม่ถูกต้อง กรุณาใส่ในรูปแบบ **HH:MM** (เช่น `08:59` หรือ `23:30`)', ephemeral: true });
+      return await interaction.reply({ content: '❌ รูปแบบเวลาไม่ถูกต้อง กรุณาใส่ในรูปแบบ **HH:MM** (เช่น `06:00` หรือ `23:30`)', ephemeral: true });
     }
 
     if (!config.autoClear) {
@@ -260,13 +251,11 @@ client.on('interactionCreate', async interaction => {
     config.autoClear.channelId = channelInput.id;
     saveConfigs(serverConfigs);
 
-    // เปิดใช้งานตั้งเวลาทันที
     setupCronJob(guildId, timeInput, channelInput.id);
 
     return await interaction.reply({ content: `✅ ตั้งค่าระบบ Auto-Clear สำเร็จ!\n⏰ เวลา: **${timeInput} น.** (ทุกวัน)\n📢 ช่อง: <#${channelInput.id}>`, ephemeral: true });
   }
 
-  // คำสั่ง /set-welcom (ล็อคไว้สมบูรณ์ ไม่แก้ใขส่วนนี้)
   if (interaction.isChatInputCommand() && interaction.commandName === 'set-welcom') {
     if (!interaction.member.permissions.has('Administrator')) {
       return await interaction.reply({ content: '❌ คุณต้องเป็น Administrator ถึงจะใช้งานได้ครับ', ephemeral: true });
@@ -434,20 +423,20 @@ function getDashboardContent(config) {
 }
 
 async function sendDashboard(interaction) {
-  const config = serverConfigs[interaction.guildId];
-  const content = getDashboardContent(config);
+  const codeConfig = serverConfigs[interaction.guildId];
+  const content = getDashboardContent(codeConfig);
   await interaction.reply({ ...content, ephemeral: true });
 }
 
 async function updateDashboard(interaction) {
-  const config = serverConfigs[interaction.guildId];
-  const content = getDashboardContent(config);
+  const codeConfig = serverConfigs[interaction.guildId];
+  const content = getDashboardContent(codeConfig);
   await interaction.update({ ...content });
 }
 
 async function updateDashboardAfterDefer(interaction) {
-  const config = serverConfigs[interaction.guildId];
-  const content = getDashboardContent(config);
+  const codeConfig = serverConfigs[interaction.guildId];
+  const content = getDashboardContent(codeConfig);
   await interaction.editReply({ ...content });
 }
 
