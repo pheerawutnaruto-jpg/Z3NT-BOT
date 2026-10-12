@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, ChannelType, PermissionFlagsBits, StringSelectMenuBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
 const http = require('http');
 const fs = require('fs');
 const cron = require('node-cron');
@@ -55,29 +55,29 @@ client.once('ready', async () => {
       .setDescription('เช็กความเร็วและสถานะของบอท'),
     new SlashCommandBuilder()
       .setName('set-welcom')
-      .setDescription('เปิดแผงควบคุมระบบต้อนรับ (Welcome Dashboard)'),
+      .setDescription('เปิดแผงควบคุมระบบต้อนรับ'),
     new SlashCommandBuilder()
       .setName('antispam-panel')
-      .setDescription('เปิดแผงควบคุมระบบป้องกันและกันสแปมเซิร์ฟเวอร์'),
+      .setDescription('เปิดแผงควบคุมระบบป้องกัน'),
     new SlashCommandBuilder()
       .setName('clear')
-      .setDescription('ลบข้อความในแชทจำนวน 1-100 ข้อความ')
+      .setDescription('ลบข้อความในแชท 1-100 ข้อความ')
       .addIntegerOption(option =>
         option.setName('amount')
-          .setDescription('จำนวนข้อความที่ต้องการลบ (1-100)')
+          .setDescription('จำนวนข้อความ')
           .setRequired(true)
       ),
     new SlashCommandBuilder()
       .setName('set-autoclear')
-      .setDescription('ตั้งเวลาระบบลบข้อความอัตโนมัติ')
+      .setDescription('ตั้งเวลาลบข้อความอัตโนมัติ')
       .addStringOption(option =>
         option.setName('time')
-          .setDescription('ระบุเวลาในรูปแบบ HH:MM เช่น 06:00')
+          .setDescription('เวลา เช่น 06:00')
           .setRequired(true)
       )
       .addChannelOption(option =>
         option.setName('channel')
-          .setDescription('เลือกห้องที่ต้องการให้ลบข้อความอัตโนมัติ')
+          .setDescription('เลือกห้อง')
           .addChannelTypes(ChannelType.GuildText)
           .setRequired(true)
       ),
@@ -109,10 +109,9 @@ function setupCronJob(guildId, timeStr, channelId) {
     delete activeCronJobs[guildId];
   }
 
-  const [hour, minute] = timeStr.split(':');
-  if (!hour || !minute) return;
-
-  const cronExpression = `${minute}${hour} * * *`;
+  const parts = timeStr.split(':');
+  if (parts.length !== 2) return;
+  const cronExpression = `${parts[1]} ${parts[0]} * * *`;
 
   activeCronJobs[guildId] = cron.schedule(cronExpression, async () => {
     try {
@@ -122,17 +121,15 @@ function setupCronJob(guildId, timeStr, channelId) {
       if (channel && channel.isTextBased()) {
         const fetched = await channel.messages.fetch({ limit: 100 });
         await channel.bulkDelete(fetched, true);
-        console.log(`✅ ลบข้อความอัตโนมัติเวลา ${timeStr} สำเร็จในห้อง #${channel.name}`);
       }
     } catch (err) {
-      console.error(`❌ เกิดข้อผิดพลาดในการลบข้อความอัตโนมัติ (Guild: ${guildId}):`, err);
+      console.error('Cron error:', err);
     }
   }, {
     timezone: "Asia/Bangkok"
   });
 }
 
-// ระบบต้อนรับสมาชิกใหม่
 client.on('guildMemberAdd', async member => {
   const guildId = member.guild.id;
   const config = serverConfigs[guildId];
@@ -145,7 +142,7 @@ client.on('guildMemberAdd', async member => {
 
     const embedConfig = config.embed || {
       title: '',
-      description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!',
+      description: 'ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ {server}',
       color: '#66FFFF',
       image: ''
     };
@@ -156,124 +153,29 @@ client.on('guildMemberAdd', async member => {
       
     const finalDesc = embedConfig.description
       .replace('{user}', `${member}`)
-      .replace('{server}`, member.guild.name);
-
-    let embedColor = '#66FFFF';
-    try {
-      embedColor = embedConfig.color;
-    } catch (e) {
-      embedColor = '#66FFFF';
-    }
+      .replace('{server}', member.guild.name);
 
     const embed = new EmbedBuilder()
       .setDescription(finalDesc)
-      .setColor(embedColor);
+      .setColor(embedConfig.color || '#66FFFF');
 
     if (finalTitle) embed.setTitle(finalTitle);
     if (embedConfig.image && embedConfig.image.trim() !== '') embed.setImage(embedConfig.image.trim());
 
     await channel.send({ embeds: [embed] });
   } catch (err) {
-    console.error('Send welcome error:', err);
+    console.error('Welcome error:', err);
   }
 });
 
-// ระบบป้องกันเซิร์ฟเวอร์ขั้นสูง (Anti-Spam, Anti-Invite, Anti-MrBeast)
 client.on('messageCreate', async message => {
   if (!message.guild || message.author.bot) return;
   if (message.member.permissions.has(PermissionFlagsBits.ManageMessages)) return;
 
   const guildId = message.guild.id;
   if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
-  const security = serverConfigs[guildId].security || {
-    enabled: true,
-    inviteLink: true,
-    messageSpam: true,
-    mrBeastSpam: true,
-    spamLimit: 3,
-    spamSeconds: 6,
-    timeoutDuration: 3000,
-    action: 'timeout' // timeout, kick, ban
-  };
-
-  if (!security.enabled) return;
-
-  const content = message.content;
-
-  // 1. ตรวจจับลิงก์เชิญ / ลิงก์อันตราย
-  if (security.inviteLink && (content.includes('discord.gg/') || content.includes('https://') || content.includes('http://'))) {
-    try {
-      await message.delete();
-      const warning = await message.channel.send(`⚠️ <@${message.author.id}> ห้ามส่งลิงก์หรือคำเชิญในห้องนี้!`);
-      setTimeout(() => warning.delete().catch(() => {}), 4000);
-
-      if (security.action === 'timeout' && message.member.moderatable) {
-        await message.member.timeout(security.timeoutDuration * 1000, 'Anti-Invite Violation');
-      } else if (security.action === 'kick' && message.member.kickable) {
-        await message.member.kick('Anti-Invite Violation');
-      }
-      return;
-    } catch (err) {
-      console.error('Security invite action error:', err);
-    }
-  }
-
-  // 2. ตรวจจับสแปม MrBeast หรือคีย์เวิร์ดอันตราย
-  if (security.mrBeastSpam && (content.toLowerCase().includes('mrbeast') || content.toLowerCase().includes('free nitro'))) {
-    try {
-      await message.delete();
-      const warning = await message.channel.send(`⚠️ <@${message.author.id}> ตรวจพบข้อความสแปมต้องสงสัย (MrBeast/Scam)!`);
-      setTimeout(() => warning.delete().catch(() => {}), 4000);
-
-      if (message.member.moderatable) {
-        await message.member.timeout(security.timeoutDuration * 1000, 'MrBeast Scam Spam');
-      }
-      return;
-    } catch (err) {
-      console.error('MrBeast spam error:', err);
-    }
-  }
-
-  // 3. ระบบ Anti-Spam ตามจำนวนและเวลาที่ตั้งค่า
-  if (security.messageSpam) {
-    const userId = message.author.id;
-    const currentTime = Date.now();
-    
-    if (!spamTracker.has(userId)) spamTracker.set(userId, []);
-    const timestamps = spamTracker.get(userId);
-    timestamps.push(currentTime);
-
-    const timeWindow = security.spamSeconds * 1000;
-    const recentTimestamps = timestamps.filter(time => currentTime - time < timeWindow);
-    spamTracker.set(userId, recentTimestamps);
-
-    if (recentTimestamps.length >= security.spamLimit) {
-      try {
-        await message.delete();
-        const warning = await message.channel.send(`⚠️ <@${message.author.id}> กรุณาอย่าพิมพ์ข้อความสแปมหรือรัวแชท!`);
-        setTimeout(() => warning.delete().catch(() => {}), 4000);
-        spamTracker.set(userId, []);
-
-        if (message.member.moderatable) {
-          await message.member.timeout(security.timeoutDuration * 1000, 'Message Spam Violation');
-        }
-      } catch (err) {
-        console.error('Anti-spam action error:', err);
-      }
-    }
-  }
-});
-
-// แผงควบคุมระบบป้องกัน (Antispam Panel)
-client.on('interactionCreate', async interaction => {
-  const guildId = interaction.guildId;
-  if (!guildId) return;
-
-  if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
-  const config = serverConfigs[guildId];
-
-  if (!config.security) {
-    config.security = {
+  if (!serverConfigs[guildId].security) {
+    serverConfigs[guildId].security = {
       enabled: true,
       inviteLink: true,
       messageSpam: true,
@@ -281,59 +183,93 @@ client.on('interactionCreate', async interaction => {
       spamLimit: 3,
       spamSeconds: 6,
       timeoutDuration: 3000,
-      action: 'timeout'
+      inviteAction: 'Timeout + Kick',
+      spamAction: 'Timeout + Kick',
+      mrBeastAction: 'Timeout + Kick'
     };
   }
+  const security = serverConfigs[guildId].security;
+  if (!security.enabled) return;
 
-  // คำสั่ง /antispam-panel
+  const content = message.content;
+
+  if (security.inviteLink && (content.includes('discord.gg/') || content.includes('https://') || content.includes('http://'))) {
+    try {
+      await message.delete();
+      const warning = await message.channel.send(`⚠️ <@${message.author.id}> ห้ามส่งลิงก์ในห้องนี้!`);
+      setTimeout(() => warning.delete().catch(() => {}), 4000);
+      return;
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  if (security.mrBeastSpam && (content.toLowerCase().includes('mrbeast') || content.toLowerCase().includes('free nitro'))) {
+    try {
+      await message.delete();
+      const warning = await message.channel.send(`⚠️ <@${message.author.id}> ตรวจพบข้อความสแปมต้องสงสัย!`);
+      setTimeout(() => warning.delete().catch(() => {}), 4000);
+      return;
+    } catch (err) {
+      console.error(err);
+    }
+  }
+});
+
+client.on('interactionCreate', async interaction => {
+  const guildId = interaction.guildId;
+  if (!guildId) return;
+
+  if (!serverConfigs[guildId]) {
+    serverConfigs[guildId] = {
+      welcomeEnabled: false,
+      channelId: null,
+      embed: {
+        title: '',
+        description: 'ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ {server}',
+        color: '#66FFFF',
+        image: ''
+      },
+      autoClear: { enabled: false, time: '06:00', channelId: null },
+      security: {
+        enabled: true,
+        inviteLink: true,
+        messageSpam: true,
+        mrBeastSpam: true,
+        spamLimit: 3,
+        spamSeconds: 6,
+        timeoutDuration: 3000,
+        inviteAction: 'Timeout + Kick',
+        spamAction: 'Timeout + Kick',
+        mrBeastAction: 'Timeout + Kick'
+      }
+    };
+  }
+  const config = serverConfigs[guildId];
+
+  if (interaction.isChatInputCommand() && interaction.commandName === 'ping') {
+    return await interaction.reply({ content: 'Pong! 🏓 บอททำงานปกติบน Render ครับ', ephemeral: true });
+  }
+
   if (interaction.isChatInputCommand() && interaction.commandName === 'antispam-panel') {
     if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-      return await interaction.reply({ content: '❌ คุณต้องเป็น Administrator ถึงจะเปิดแผงควบคุมนี้ได้ครับ', ephemeral: true });
+      return await interaction.reply({ content: '❌ สำหรับ Administrator เท่านั้น', ephemeral: true });
     }
     return await sendAntiSpamDashboard(interaction);
   }
 
-  // ปุ่มกดจัดการแผงควบคุมระบบป้องกัน
-  if (interaction.isButton()) {
-    const sec = config.security;
-
-    if (interaction.customId === 'sec_toggle') {
-      sec.enabled = !sec.enabled;
-    } else if (interaction.customId === 'sec_invite') {
-      sec.inviteLink = !sec.inviteLink;
-    } else if (interaction.customId === 'sec_spam') {
-      sec.messageSpam = !sec.messageSpam;
-    } else if (interaction.customId === 'sec_mrbeast') {
-      sec.mrBeastSpam = !sec.mrBeastSpam;
-    } else if (interaction.customId === 'sec_action_timeout') {
-      sec.action = 'timeout';
-    } else if (interaction.customId === 'sec_action_kick') {
-      sec.action = 'kick';
-    } else if (interaction.customId === 'sec_reset') {
-      config.security = { enabled: true, inviteLink: true, messageSpam: true, mrBeastSpam: true, spamLimit: 3, spamSeconds: 6, timeoutDuration: 3000, action: 'timeout' };
-    }
-
-    saveConfigs(serverConfigs);
-    return await updateAntiSpamDashboard(interaction);
-  }
-
-  // คำสั่งอื่นๆ (เช่น /ping, /clear, /set-autoclear, /set-welcom) ทำงานปกติเหมือนเดิม
-  if (interaction.isChatInputCommand() && interaction.commandName === 'ping') {
-    return await interaction.reply({ content: 'Pong! 🏓 บอททำงานระบบ Slash Command ปกติบน Render ครับ 🚀', ephemeral: true });
-  }
-
   if (interaction.isChatInputCommand() && interaction.commandName === 'clear') {
     if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
-      return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์จัดการข้อความครับ', ephemeral: true });
+      return await interaction.reply({ content: '❌ ไม่มีสิทธิ์จัดการข้อความ', ephemeral: true });
     }
     const amount = interaction.options.getInteger('amount');
     await interaction.deferReply({ ephemeral: true });
     try {
       const messages = await interaction.channel.messages.fetch({ limit: amount });
       await interaction.channel.bulkDelete(messages, true);
-      await interaction.editReply({ content: `🧹 ลบข้อความจำนวน **${amount}** เรียบร้อยแล้ว!` });
+      await interaction.editReply({ content: `🧹 ลบข้อความจำนวน ${amount} ข้อความเรียบร้อย` });
     } catch (err) {
-      await interaction.editReply({ content: '❌ เกิดข้อผิดพลาด ไม่สามารถลบข้อความที่เก่าเกิน 14 วันได้ครับ' });
+      await interaction.editReply({ content: '❌ ลบข้อความไม่สำเร็จ' });
     }
     return;
   }
@@ -352,7 +288,7 @@ client.on('interactionCreate', async interaction => {
     saveConfigs(serverConfigs);
     setupCronJob(guildId, timeInput, channelInput.id);
 
-    return await interaction.reply({ content: `✅ ตั้งค่า Auto-Clear เวลา **${timeInput} น.** ในห้อง <#${channelInput.id}> สำเร็จ!`, ephemeral: true });
+    return await interaction.reply({ content: `✅ ตั้งค่า Auto-Clear เวลา ${timeInput} น. เรียบร้อย`, ephemeral: true });
   }
 
   if (interaction.isChatInputCommand() && interaction.commandName === 'set-welcom') {
@@ -362,15 +298,56 @@ client.on('interactionCreate', async interaction => {
     return await sendDashboard(interaction);
   }
 
-  // Button & Modal สำหรับ Welcome Dashboard เดิม
+  if (interaction.isButton() && interaction.customId.startsWith('sec_')) {
+    if (!config.security) {
+      config.security = {
+        enabled: true,
+        inviteLink: true,
+        messageSpam: true,
+        mrBeastSpam: true,
+        spamLimit: 3,
+        spamSeconds: 6,
+        timeoutDuration: 3000,
+        inviteAction: 'Timeout + Kick',
+        spamAction: 'Timeout + Kick',
+        mrBeastAction: 'Timeout + Kick'
+      };
+    }
+    const sec = config.security;
+
+    if (interaction.customId === 'sec_toggle') sec.enabled = !sec.enabled;
+    else if (interaction.customId === 'sec_invite') sec.inviteLink = !sec.inviteLink;
+    else if (interaction.customId === 'sec_spam') sec.messageSpam = !sec.messageSpam;
+    else if (interaction.customId === 'sec_mrbeast') sec.mrBeastSpam = !sec.mrBeastSpam;
+    else if (interaction.customId === 'sec_action_timeout') sec.inviteAction = sec.spamAction = sec.mrBeastAction = 'Timeout';
+    else if (interaction.customId === 'sec_action_kick') sec.inviteAction = sec.spamAction = sec.mrBeastAction = 'Kick';
+    else if (interaction.customId === 'sec_reset') {
+      config.security = {
+        enabled: true,
+        inviteLink: true,
+        messageSpam: true,
+        mrBeastSpam: true,
+        spamLimit: 3,
+        spamSeconds: 6,
+        timeoutDuration: 3000,
+        inviteAction: 'Timeout + Kick',
+        spamAction: 'Timeout + Kick',
+        mrBeastAction: 'Timeout + Kick'
+      };
+    }
+
+    saveConfigs(serverConfigs);
+    return await updateAntiSpamDashboard(interaction);
+  }
+
   if (interaction.isButton() && interaction.customId === 'toggle_welcome') {
     config.welcomeEnabled = !config.welcomeEnabled;
     saveConfigs(serverConfigs);
     return await updateDashboard(interaction);
   }
   if (interaction.isButton() && interaction.customId === 'test_welcome') {
-    if (!config.channelId) return await interaction.reply({ content: '❌ กรุณาเลือกช่องต้อนรับก่อน!', ephemeral: true });
-    await interaction.reply({ content: `🔄 กำลังส่งข้อความทดสอบไปที่ห้อง <#${config.channelId}>...`, ephemeral: true });
+    if (!config.channelId) return await interaction.reply({ content: '❌ กรุณาเลือกช่องต้อนรับก่อน', ephemeral: true });
+    await interaction.reply({ content: '🔄 กำลังส่งข้อความทดสอบ...', ephemeral: true });
     try {
       const channel = await interaction.guild.channels.fetch(config.channelId);
       if (channel) {
@@ -407,21 +384,20 @@ client.on('interactionCreate', async interaction => {
     config.embed.color = interaction.fields.getTextInputValue('embedColor');
     config.embed.image = interaction.fields.getTextInputValue('embedImage');
     saveConfigs(serverConfigs);
-    return await interaction.reply({ content: '✅ บันทึกรูปแบบ Embed เรียบร้อย!', ephemeral: true });
+    return await interaction.reply({ content: '✅ บันทึกเรียบร้อย', ephemeral: true });
   }
 });
 
-// ฟังก์ชันสร้างหน้าตาแผงควบคุมระบบป้องกัน (Antispam Panel View)
 function getAntiSpamDashboardContent(sec) {
   const statusText = sec.enabled ? 'เปิด' : 'ปิด';
   const inviteText = sec.inviteLink ? 'เปิด' : 'ปิด';
   const spamText = sec.messageSpam ? 'เปิด' : 'ปิด';
   const mrBeastText = sec.mrBeastSpam ? 'เปิด' : 'ปิด';
 
-  const desc = `ตั้งค่าระบบกันสแปม\nสถานะ: **${statusText}**\nลบลิงก์เชิญ: **${inviteText}**\nลบข้อความสแปม: **${spamText}**\nลบสแปม MrBeast: **${mrBeastText}**\nสแปม: **${sec.spamLimit} ข้อความ / ${sec.spamSeconds} วินาที**\nระงับผู้ใช้: **${sec.timeoutDuration}วินาที**\nAction: **${sec.action.toUpperCase()}**`;
+  const desc = `ตั้งค่าระบบกันสแปม\nสถานะ: **${statusText}**\nลบลิงก์เชิญ: **${inviteText}**\nลบข้อความสแปม: **${spamText}**\nลบสแปม MrBeast: **${mrBeastText}**\nสแปม: **${sec.spamLimit} ข้อความ / ${sec.spamSeconds} วินาที**\nระงับผู้ใช้: **${sec.timeoutDuration} วินาที**\nInvite action: **${sec.inviteAction}**\nSpam action: **${sec.spamAction}**\nMrBeast action: **${sec.mrBeastAction}**`;
 
   const embed = new EmbedBuilder()
-    .setTitle('🛡️ แผงควบคุมระบบป้องกันความปลอดภัย (Anti-Spam & Nuke)')
+    .setTitle('🛡️ แผงควบคุมระบบป้องกันความปลอดภัย')
     .setDescription(desc)
     .setColor('#00FF99');
 
@@ -433,9 +409,9 @@ function getAntiSpamDashboardContent(sec) {
   );
 
   const row2 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('sec_action_timeout').setLabel('Action: Timeout').setStyle(sec.action === 'timeout' ? ButtonStyle.Primary : ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('sec_action_kick').setLabel('Action: Kick').setStyle(sec.action === 'kick' ? ButtonStyle.Primary : ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('sec_reset').setLabel('รีเซ็ตทั้งหมด').setStyle(ButtonStyle.Danger)
+    new ButtonBuilder().setCustomId('sec_action_timeout').setLabel('Timeout').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('sec_action_kick').setLabel('Kick').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('sec_reset').setLabel('รีเซ็ต').setStyle(ButtonStyle.Danger)
   );
 
   return { embeds: [embed], components: [row1, row2] };
@@ -453,7 +429,6 @@ async function updateAntiSpamDashboard(interaction) {
   await interaction.update({ ...content });
 }
 
-// ฟังก์ชัน Dashboard ของ Welcome เดิม
 function getDashboardConfig(config) {
   const channelName = config.channelId ? `<#${config.channelId}>` : 'ยังไม่ได้เลือกช่อง';
   const statusText = config.welcomeEnabled ? '✅ เปิดอยู่' : '❌ ปิดอยู่';
@@ -466,14 +441,17 @@ function getDashboardConfig(config) {
   const channelRow = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('select_channel').setPlaceholder('📂 เลือกช่องต้อนรับ').addChannelTypes(ChannelType.GuildText));
   return { embeds: [embed], components: [row1, channelRow] };
 }
+
 async function sendDashboard(interaction) {
   const config = serverConfigs[interaction.guildId];
   await interaction.reply({ ...getDashboardConfig(config), ephemeral: true });
 }
+
 async function updateDashboard(interaction) {
   const config = serverConfigs[interaction.guildId];
   await interaction.update({ ...getDashboardConfig(config) });
 }
+
 async function updateDashboardAfterDefer(interaction) {
   const config = serverConfigs[interaction.guildId];
   await interaction.editReply({ ...getDashboardConfig(config) });
