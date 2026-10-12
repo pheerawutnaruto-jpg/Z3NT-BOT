@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelSelectMenuBuilder, RoleSelectMenuBuilder, ChannelType, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelSelectMenuBuilder, ChannelType, EmbedBuilder } = require('discord.js');
 const http = require('http');
 
 const server = http.createServer((req, res) => {
@@ -14,22 +14,23 @@ const client = new Client({
   ]
 });
 
-// เก็บข้อมูลตั้งค่าแยกตามแต่ละเซิร์ฟเวอร์ (Guild ID -> Settings)
-const guildSettings = new Map();
+// ข้อมูลการตั้งค่าระบบ Welcome และ Goodbye
+let welcomeConfig = {
+  enabled: true,
+  channelId: null,
+  title: '💖 NEW Member! ✨',
+  description: '「 🎉 ยินดีต้อนรับคุณ {user} ! 」',
+  color: '#2f636',
+  image: '' // ลิงก์รูปภาพต้อนรับ (ถ้ามี)
+};
 
-function getSettings(guildId) {
-  if (!guildSettings.has(guildId)) {
-    guildSettings.set(guildId, {
-      enabled: true,
-      channelId: null,
-      roleId: null,
-      title: '💖 NEW Member! ✨',
-      description: '「 🎉 ยินดีต้อนรับคุณ {user} ! 」',
-      color: '#2f636'
-    });
-  }
-  return guildSettings.get(guildId);
-}
+let goodbyeConfig = {
+  enabled: true,
+  channelId: null,
+  title: '👋 Goodbye Member...',
+  description: '「 ขอให้โชคดีนะคุณ {user} 👋 」',
+  color: '#ed4245'
+};
 
 client.once('ready', async () => {
   console.log(`Bot Online แล้วจ้า: ${client.user.tag}`);
@@ -40,7 +41,7 @@ client.once('ready', async () => {
       .setDescription('เช็กความเร็วและสถานะของบอท'),
     new SlashCommandBuilder()
       .setName('setwelcome')
-      .setDescription('เปิดแผงควบคุมระบบต้อนรับสมาชิกใหม่ (Control Panel)'),
+      .setDescription('เปิดแผงควบคุมระบบ Welcome และ Goodbye'),
   ].map(command => command.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
@@ -58,76 +59,97 @@ client.once('ready', async () => {
   }
 });
 
-// ฟังก์ชันสร้างหน้าตาแผงควบคุมเฉพาะของแต่ละเซิร์ฟเวอร์
-function getControlPanelComponents(guildId) {
-  const settings = getSettings(guildId);
-  const statusText = settings.enabled ? '🟢 เปิดอยู่' : '🔴 ปิดอยู่';
-  const channelText = settings.channelId ? `<#${settings.channelId}>` : 'ยังไม่ได้เลือกห้อง';
-  const roleText = settings.roleId ? `<@&${settings.roleId}>` : 'ยังไม่ได้เลือกยศ';
+// ฟังก์ชันสร้างหน้าตาแผงควบคุม (Control Panel) แบบครบเครื่อง
+function getControlPanelComponents() {
+  const wStatus = welcomeConfig.enabled ? '🟢 เปิดอยู่' : '🔴 ปิดอยู่';
+  const wChan = welcomeConfig.channelId ? `<#${welcomeConfig.channelId}>` : 'ยังไม่ได้เลือกห้อง';
+  
+  const gStatus = goodbyeConfig.enabled ? '🟢 เปิดอยู่' : '🔴 ปิดอยู่';
+  const gChan = goodbyeConfig.channelId ? `<#${goodbyeConfig.channelId}>` : 'ยังไม่ได้เลือกห้อง';
 
   const embed = new EmbedBuilder()
-    .setTitle('⚙️ ตั้งค่าระบบ Welcome (Zen Bot)')
-    .setDescription(`เลือกห้อง เปิด/ปิดระบบ ตั้งค่า Embed และยศต้อนรับอัตโนมัติได้จากด้านล่าง\n\n**สถานะ:** ${statusText}\n**ห้องต้อนรับ:** ${channelText}\n**ยศอัตโนมัติ (Auto Role):** ${roleText}`)
+    .setTitle('⚙️ ตั้งค่าระบบ Welcome / Goodbye')
+    .setDescription(`เลือกห้อง เปิด/ปิดระบบ และตั้งค่า Embed ได้จากปุ่มด้านล่าง\n\n**Welcome**\nสถานะ: ${wStatus} \vert{} ห้อง: ${wChan}\n\n**Goodbye**\nสถานะ: ${gStatus} \vert{} ห้อง: ${gChan}`)
     .setColor('#2f636');
 
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('toggle_welcome')
-      .setLabel(settings.enabled ? 'ปิด Welcome' : 'เปิด Welcome')
-      .setStyle(settings.enabled ? ButtonStyle.Danger : ButtonStyle.Success),
+      .setLabel(welcomeConfig.enabled ? 'ปิด Welcome' : 'เปิด Welcome')
+      .setStyle(welcomeConfig.enabled ? ButtonStyle.Danger : ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId('toggle_goodbye')
+      .setLabel(goodbyeConfig.enabled ? 'ปิด Goodbye' : 'เปิด Goodbye')
+      .setStyle(goodbyeConfig.enabled ? ButtonStyle.Danger : ButtonStyle.Success),
     new ButtonBuilder()
       .setCustomId('edit_embed')
-      .setLabel('ตั้งค่า Embed')
+      .setLabel('ตั้งค่ารูป/Embed Welcome')
       .setStyle(ButtonStyle.Secondary),
+  );
+
+  const row2 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('test_welcome')
       .setLabel('ทดสอบ Welcome')
       .setStyle(ButtonStyle.Primary),
-  );
-
-  const row2 = new ActionRowBuilder().addComponents(
-    new ChannelSelectMenuBuilder()
-      .setCustomId('select_welcome_channel')
-      .setPlaceholder('📂 เลือกห้องส่งข้อความต้อนรับ')
-      .addChannelTypes(ChannelType.GuildText)
+    new ButtonBuilder()
+      .setCustomId('test_goodbye')
+      .setLabel('ทดสอบ Goodbye')
+      .setStyle(ButtonStyle.Primary),
   );
 
   const row3 = new ActionRowBuilder().addComponents(
-    new RoleSelectMenuBuilder()
-      .setCustomId('select_autorole')
-      .setPlaceholder('👑 เลือกยศที่จะแจกให้อัตโนมัติ')
+    new ChannelSelectMenuBuilder()
+      .setCustomId('select_welcome_channel')
+      .setPlaceholder('📂 เลือกห้อง Welcome')
+      .addChannelTypes(ChannelType.GuildText)
   );
 
-  return { embeds: [embed], components: [row1, row2, row3] };
+  const row4 = new ActionRowBuilder().addComponents(
+    new ChannelSelectMenuBuilder()
+      .setCustomId('select_goodbye_channel')
+      .setPlaceholder('📂 เลือกห้อง Goodbye')
+      .addChannelTypes(ChannelType.GuildText)
+  );
+
+  return { embeds: [embed], components: [row1, row2, row3, row4] };
 }
 
-// ระบบต้อนรับสมาชิกใหม่ + แจกยศอัตโนมัติ
-client.on('guildMemberAdd', async member => {
-  const settings = getSettings(member.guild.id);
-  if (!settings.enabled) return;
-
-  // 1. แจกยศอัตโนมัติ (ถ้ามีการตั้งค่าไว้)
-  if (settings.roleId) {
-    try {
-      await member.roles.add(settings.roleId);
-    } catch (err) {
-      console.error('ไม่สามารถแจกยศอัตโนมัติได้ (กรุณาเช็กสิทธิ์บอท):', err);
-    }
-  }
-
-  // 2. ส่งข้อความต้อนรับ Embed
-  if (!settings.channelId) return;
-  const channel = member.guild.channels.cache.get(settings.channelId);
+// 1. ระบบต้อนรับสมาชิกใหม่
+client.on('guildMemberAdd', member => {
+  if (!welcomeConfig.enabled || !welcomeConfig.channelId) return;
+  const channel = member.guild.channels.cache.get(welcomeConfig.channelId);
   if (!channel) return;
 
-  const finalTitle = settings.title.replace('{user}', member.user.username).replace('{server}', member.guild.name);
-  const finalDesc = settings.description.replace('{user}', `${member}`).replace('{server}`, member.guild.name);
+  const finalTitle = welcomeConfig.title.replace('{user}', member.user.username).replace('{server}', member.guild.name);
+  const finalDesc = welcomeConfig.description.replace('{user}', `${member}`).replace('{server}', member.guild.name);
 
   const embed = new EmbedBuilder()
     .setTitle(finalTitle)
     .setDescription(finalDesc)
-    .setThumbnail(member.user.displayAvatarURL({ dynamic: true })) // แนบรูปโปรไฟล์สมาชิกใหม่
-    .setColor(settings.color)
+    .setColor(welcomeConfig.color)
+    .setTimestamp();
+
+  if (welcomeConfig.image && welcomeConfig.image.startsWith('http')) {
+    embed.setImage(welcomeConfig.image);
+  }
+
+  channel.send({ embeds: [embed] });
+});
+
+// 2. ระบบอำลาสมาชิก (Goodbye)
+client.on('guildMemberRemove', member => {
+  if (!goodbyeConfig.enabled || !goodbyeConfig.channelId) return;
+  const channel = member.guild.channels.cache.get(goodbyeConfig.channelId);
+  if (!channel) return;
+
+  const finalTitle = goodbyeConfig.title.replace('{user}', member.user.username).replace('{server}', member.guild.name);
+  const finalDesc = goodbyeConfig.description.replace('{user}', member.user.username).replace('{server}', member.guild.name);
+
+  const embed = new EmbedBuilder()
+    .setTitle(finalTitle)
+    .setDescription(finalDesc)
+    .setColor(goodbyeConfig.color)
     .setTimestamp();
 
   channel.send({ embeds: [embed] });
@@ -135,14 +157,11 @@ client.on('guildMemberAdd', async member => {
 
 // จัดการปุ่ม เมนู และคำสั่ง
 client.on('interactionCreate', async interaction => {
-  if (!interaction.guild) return;
-  const settings = getSettings(interaction.guild.id);
-
   if (interaction.isChatInputCommand() && interaction.commandName === 'setwelcome') {
     if (!interaction.member.permissions.has('Administrator')) {
       return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์ใช้งานคำสั่งนี้', ephemeral: true });
     }
-    await interaction.reply({ ...getControlPanelComponents(interaction.guild.id), ephemeral: true });
+    await interaction.reply({ ...getControlPanelComponents(), ephemeral: true });
   }
 
   if (interaction.isButton()) {
@@ -151,92 +170,125 @@ client.on('interactionCreate', async interaction => {
     }
 
     if (interaction.customId === 'toggle_welcome') {
-      settings.enabled = !settings.enabled;
-      await interaction.update(getControlPanelComponents(interaction.guild.id));
+      welcomeConfig.enabled = !welcomeConfig.enabled;
+      await interaction.update(getControlPanelComponents());
     } 
+    else if (interaction.customId === 'toggle_goodbye') {
+      goodbyeConfig.enabled = !goodbyeConfig.enabled;
+      await interaction.update(getControlPanelComponents());
+    }
     else if (interaction.customId === 'edit_embed') {
       const modal = new ModalBuilder()
         .setCustomId('edit_welcome_modal')
-        .setTitle('Editing: welcome embed');
+        .setTitle('Editing: Welcome Embed & Image');
 
       const titleInput = new TextInputBuilder()
         .setCustomId('modal_title')
         .setLabel('Title')
         .setStyle(TextInputStyle.Short)
-        .setValue(settings.title)
+        .setValue(welcomeConfig.title)
         .setRequired(true);
 
       const descInput = new TextInputBuilder()
         .setCustomId('modal_desc')
         .setLabel('Description')
         .setStyle(TextInputStyle.Paragraph)
-        .setValue(settings.description)
+        .setValue(welcomeConfig.description)
         .setRequired(true);
 
       const colorInput = new TextInputBuilder()
         .setCustomId('modal_color')
         .setLabel('Hex Color (เช่น #2f636)')
         .setStyle(TextInputStyle.Short)
-        .setValue(settings.color)
+        .setValue(welcomeConfig.color)
         .setRequired(true);
+
+      const imageInput = new TextInputBuilder()
+        .setCustomId('modal_image')
+        .setLabel('Image URL (ลิงก์รูปภาพแบนเนอร์ ถ้ามี)')
+        .setStyle(TextInputStyle.Short)
+        .setValue(welcomeConfig.image || '')
+        .setRequired(false);
 
       modal.addComponents(
         new ActionRowBuilder().addComponents(titleInput),
         new ActionRowBuilder().addComponents(descInput),
         new ActionRowBuilder().addComponents(colorInput),
+        new ActionRowBuilder().addComponents(imageInput),
       );
 
       await interaction.showModal(modal);
     }
     else if (interaction.customId === 'test_welcome') {
-      if (!settings.channelId) {
-        return await interaction.reply({ content: '⚠️ กรุณาเลือกห้อง Welcome ก่อนทดสอบครับ!', ephemeral: true });
+      if (!welcomeConfig.channelId) {
+        return await interaction.reply({ content: '⚠️ กรุณาเลือกห้อง Welcome ก่อนทดสอบ!', ephemeral: true });
       }
-      const channel = interaction.guild.channels.cache.get(settings.channelId);
-      if (!channel) {
-        return await interaction.reply({ content: '❌ ไม่พบห้องที่ตั้งไว้', ephemeral: true });
-      }
+      const channel = interaction.guild.channels.cache.get(welcomeConfig.channelId);
+      if (!channel) return await interaction.reply({ content: '❌ ไม่พบห้องที่ตั้งไว้', ephemeral: true });
 
-      const finalTitle = settings.title.replace('{user}', interaction.user.username).replace('{server}', interaction.guild.name);
-      const finalDesc = settings.description.replace('{user}', `${interaction.member}`).replace('{server}`, interaction.guild.name);
+      const finalTitle = welcomeConfig.title.replace('{user}', interaction.user.username).replace('{server}', interaction.guild.name);
+      const finalDesc = welcomeConfig.description.replace('{user}', `${interaction.member}`).replace('{server}`, interaction.guild.name);
 
       const testEmbed = new EmbedBuilder()
         .setTitle(finalTitle)
         .setDescription(finalDesc)
-        .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true }))
-        .setColor(settings.color)
+        .setColor(welcomeConfig.color)
         .setTimestamp();
 
+      if (welcomeConfig.image && welcomeConfig.image.startsWith('http')) {
+        testEmbed.setImage(welcomeConfig.image);
+      }
+
       await channel.send({ content: '🧪 **[ทดสอบระบบ Welcome]**', embeds: [testEmbed] });
-      await interaction.reply({ content: '✅ ส่งข้อความทดสอบไปที่ห้องเรียบร้อยแล้ว!', ephemeral: true });
+      await interaction.reply({ content: '✅ ส่งข้อความทดสอบ Welcome ไปที่ห้องเรียบร้อย!', ephemeral: true });
+    }
+    else if (interaction.customId === 'test_goodbye') {
+      if (!goodbyeConfig.channelId) {
+        return await interaction.reply({ content: '⚠️ กรุณาเลือกห้อง Goodbye ก่อนทดสอบ!', ephemeral: true });
+      }
+      const channel = interaction.guild.channels.cache.get(goodbyeConfig.channelId);
+      if (!channel) return await interaction.reply({ content: '❌ ไม่พบห้องที่ตั้งไว้', ephemeral: true });
+
+      const finalTitle = goodbyeConfig.title.replace('{user}', interaction.user.username).replace('{server}', interaction.guild.name);
+      const finalDesc = goodbyeConfig.description.replace('{user}', interaction.user.username).replace('{server}', interaction.guild.name);
+
+      const testEmbed = new EmbedBuilder()
+        .setTitle(finalTitle)
+        .setDescription(finalDesc)
+        .setColor(goodbyeConfig.color)
+        .setTimestamp();
+
+      await channel.send({ content: '🧪 **[ทดสอบระบบ Goodbye]**', embeds: [testEmbed] });
+      await interaction.reply({ content: '✅ ส่งข้อความทดสอบ Goodbye ไปที่ห้องเรียบร้อย!', ephemeral: true });
     }
   }
 
-  // เลือกห้องจากเมนูดรอปดาวน์
+  // เลือกห้อง Welcome
   if (interaction.isChannelSelectMenu() && interaction.customId === 'select_welcome_channel') {
     if (!interaction.member.permissions.has('Administrator')) {
       return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์เลือกห้องนี้', ephemeral: true });
     }
-    settings.channelId = interaction.values[0];
-    await interaction.update(getControlPanelComponents(interaction.guild.id));
+    welcomeConfig.channelId = interaction.values[0];
+    await interaction.update(getControlPanelComponents());
   }
 
-  // เลือกยศอัตโนมัติจากเมนูดรอปดาวน์
-  if (interaction.isRoleSelectMenu() && interaction.customId === 'select_autorole') {
+  // เลือกห้อง Goodbye
+  if (interaction.isChannelSelectMenu() && interaction.customId === 'select_goodbye_channel') {
     if (!interaction.member.permissions.has('Administrator')) {
-      return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์เลือกยศนี้', ephemeral: true });
+      return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์เลือกห้องนี้', ephemeral: true });
     }
-    settings.roleId = interaction.values[0];
-    await interaction.update(getControlPanelComponents(interaction.guild.id));
+    goodbyeConfig.channelId = interaction.values[0];
+    await interaction.update(getControlPanelComponents());
   }
 
-  // บันทึกฟอร์ม Modal แต่ง Embed
+  // บันทึกฟอร์ม Modal ตั้งค่า Embed และ Image URL
   if (interaction.isModalSubmit() && interaction.customId === 'edit_welcome_modal') {
-    settings.title = interaction.fields.getTextInputValue('modal_title');
-    settings.description = interaction.fields.getTextInputValue('modal_desc');
-    settings.color = interaction.fields.getTextInputValue('modal_color');
+    welcomeConfig.title = interaction.fields.getTextInputValue('modal_title');
+    welcomeConfig.description = interaction.fields.getTextInputValue('modal_desc');
+    welcomeConfig.color = interaction.fields.getTextInputValue('modal_color');
+    welcomeConfig.image = interaction.fields.getTextInputValue('modal_image');
 
-    await interaction.reply({ content: '✨ **อัปเดตหน้าตา Embed เรียบร้อยแล้ว!**', ephemeral: true });
+    await interaction.reply({ content: '✨ **อัปเดตหน้าตา Embed และรูปภาพต้อนรับเรียบร้อยแล้ว!**', ephemeral: true });
   }
 
   if (interaction.isChatInputCommand() && interaction.commandName === 'ping') {
