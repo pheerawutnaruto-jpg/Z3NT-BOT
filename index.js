@@ -1,6 +1,7 @@
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, ChannelType } = require('discord.js');
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
 const http = require('http');
 const fs = require('fs');
+const cron = require('node-cron');
 
 const httpServer = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -51,6 +52,14 @@ client.once('ready', async () => {
     new SlashCommandBuilder()
       .setName('set-welcom')
       .setDescription('เปิดแผงควบคุมระบบต้อนรับ (Welcome Dashboard)'),
+    new SlashCommandBuilder()
+      .setName('clear')
+      .setDescription('ลบข้อความในแชทจำนวน 1-100 ข้อความ')
+      .addIntegerOption(option =>
+        option.setName('amount')
+          .setDescription('จำนวนข้อความที่ต้องการลบ (1-100)')
+          .setRequired(true)
+      ),
   ].map(command => command.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
@@ -64,8 +73,35 @@ client.once('ready', async () => {
   } catch (error) {
     console.error(error);
   }
+
+  // ตั้งเวลารันทุกวันตอน 08:59 น. (เวลาเซิร์ฟเวอร์ UTC / หรือปรับตาม Timezone)
+  // รูปแบบ Cron: นาที ชั่วโมง วัน เดือน วันในสัปดาห์ ('59 8 * * *' คือ 08:59 ทุกวัน)
+  cron.schedule('59 8 * * *', async () => {
+    console.log('⏳ กำลังรันงานตั้งเวลาลบข้อความตอน 08:59...');
+    for (const guildId in serverConfigs) {
+      const config = serverConfigs[guildId];
+      if (config && config.channelId) {
+        try {
+          const guild = await client.guilds.fetch(guildId);
+          if (!guild) continue;
+          const channel = await guild.channels.fetch(config.channelId);
+          if (channel && channel.isTextBased()) {
+            // ดึงข้อความมาลบสูงสุด 100 ข้อความล่าสุด
+            const fetched = await channel.messages.fetch({ limit: 100 });
+            await channel.bulkDelete(fetched, true);
+            console.log(`✅ ลบข้อความอัตโนมัติเวลา 08:59 สำเร็จในห้อง #${channel.name}`);
+          }
+        } catch (err) {
+          console.error(`❌ เกิดข้อผิดพลาดในการลบข้อความอัตโนมัติ (Guild: ${guildId}):`, err);
+        }
+      }
+    }
+  }, {
+    timezone: "Asia/Bangkok" // ตั้งเวลาให้ตรงกับเวลาประเทศไทย (GMT+7)
+  });
 });
 
+// ระบบต้อนรับสมาชิกใหม่
 client.on('guildMemberAdd', async member => {
   const guildId = member.guild.id;
   const config = serverConfigs[guildId];
@@ -134,10 +170,36 @@ client.on('interactionCreate', async interaction => {
   }
   const config = serverConfigs[guildId];
 
+  // คำสั่ง /ping
   if (interaction.isChatInputCommand() && interaction.commandName === 'ping') {
     return await interaction.reply({ content: 'Pong! 🏓 บอททำงานระบบ Slash Command ปกติบน Render ครับ 🚀', ephemeral: true });
   }
 
+  // คำสั่ง /clear (ลบข้อความทันที)
+  if (interaction.isChatInputCommand() && interaction.commandName === 'clear') {
+    if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
+      return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์จัดการข้อความ (Manage Messages) ครับ', ephemeral: true });
+    }
+
+    const amount = interaction.options.getInteger('amount');
+    if (amount < 1 || amount > 100) {
+      return await interaction.reply({ content: '⚠️ กรุณาระบุจำนวนข้อความระหว่าง 1 ถึง 100 ครับ', ephemeral: true });
+    }
+
+    await interaction.deferReply({ ephemeral: true });
+
+    try {
+      const messages = await interaction.channel.messages.fetch({ limit: amount });
+      await interaction.channel.bulkDelete(messages, true);
+      await interaction.editReply({ content: `🧹 ลบข้อความจำนวน **${amount}** ข้อความเรียบร้อยแล้ว!` });
+    } catch (err) {
+      console.error(err);
+      await interaction.editReply({ content: '❌ เกิดข้อผิดพลาด ไม่สามารถลบข้อความที่เก่าเกิน 14 วันได้ครับ' });
+    }
+    return;
+  }
+
+  // คำสั่ง /set-welcom
   if (interaction.isChatInputCommand() && interaction.commandName === 'set-welcom') {
     if (!interaction.member.permissions.has('Administrator')) {
       return await interaction.reply({ content: '❌ คุณต้องเป็น Administrator ถึงจะใช้งานได้ครับ', ephemeral: true });
