@@ -79,7 +79,8 @@ client.on('guildMemberAdd', async member => {
     const embedConfig = config.embed || {
       title: '',
       description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!',
-      color: '#66FFFF'
+      color: '#66FFFF',
+      image: ''
     };
 
     const finalTitle = embedConfig.title ? embedConfig.title
@@ -105,6 +106,10 @@ client.on('guildMemberAdd', async member => {
       embed.setTitle(finalTitle);
     }
 
+    if (embedConfig.image && embedConfig.image.trim() !== '') {
+      embed.setImage(embedConfig.image.trim());
+    }
+
     await channel.send({ embeds: [embed] });
   } catch (err) {
     console.error('Send welcome error:', err);
@@ -122,7 +127,8 @@ client.on('interactionCreate', async interaction => {
       embed: {
         title: '',
         description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!',
-        color: '#66FFFF'
+        color: '#66FFFF',
+        image: ''
       }
     };
   }
@@ -178,6 +184,10 @@ client.on('interactionCreate', async interaction => {
           if (finalTitle) {
             embed.setTitle(finalTitle);
           }
+
+          if (embedConfig.image && embedConfig.image.trim() !== '') {
+            embed.setImage(embedConfig.image.trim());
+          }
           
           await channel.send({ embeds: [embed] });
         }
@@ -213,10 +223,18 @@ client.on('interactionCreate', async interaction => {
         .setValue(config.embed.color || '#66FFFF')
         .setRequired(true);
 
+      const imageInput = new TextInputBuilder()
+        .setCustomId('embedImage')
+        .setLabel('Image URL (ลิงก์รูปภาพ หรือเว้นว่าง)')
+        .setStyle(TextInputStyle.Short)
+        .setValue(config.embed.image || '')
+        .setRequired(false);
+
       modal.addComponents(
         new ActionRowBuilder().addComponents(titleInput),
         new ActionRowBuilder().addComponents(descInput),
         new ActionRowBuilder().addComponents(colorInput),
+        new ActionRowBuilder().addComponents(imageInput),
       );
 
       return await interaction.showModal(modal);
@@ -233,17 +251,18 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isModalSubmit() && interaction.customId === 'editEmbedModal') {
     config.embed.title = interaction.fields.getTextInputValue('embedTitle');
     config.embed.description = interaction.fields.getTextInputValue('embedDesc');
+    
     let colorVal = interaction.fields.getTextInputValue('embedColor').trim();
     if (!colorVal.startsWith('#')) colorVal = '#' + colorVal;
-    
     if (colorVal.length === 4) {
       colorVal = '#' + colorVal[1] + colorVal[1] + colorVal[2] + colorVal[2] + colorVal[3] + colorVal[3];
     }
-    
     config.embed.color = colorVal;
+    
+    config.embed.image = interaction.fields.getTextInputValue('embedImage');
     saveConfigs(serverConfigs);
 
-    return await interaction.reply({ content: '✅ บันทึกรูปแบบ Embed เรียบร้อยแล้ว!', ephemeral: true });
+    return await interaction.reply({ content: '✅ บันทึกรูปแบบ Embed พร้อมรูปภาพเรียบร้อยแล้ว!', ephemeral: true });
   }
 });
 
