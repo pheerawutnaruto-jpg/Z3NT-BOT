@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelSelectMenuBuilder, RoleSelectMenuBuilder, ChannelType, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelSelectMenuBuilder, ChannelType, EmbedBuilder } = require('discord.js');
 const http = require('http');
 
 const server = http.createServer((req, res) => {
@@ -21,7 +21,6 @@ function getSettings(guildId) {
     guildSettings.set(guildId, {
       enabled: true,
       channelId: null,
-      roleId: null,
       title: '✨· NEW Member!·✨',
       description: '「 🎉 ยินดีต้อนรับคุณ {user} ! 」',
       color: '#2f636',
@@ -68,11 +67,10 @@ function getControlPanelComponents(guildId) {
   const settings = getSettings(guildId);
   const statusText = settings.enabled ? '🟢 เปิดอยู่' : '🔴 ปิดอยู่';
   const channelText = settings.channelId ? `<#${settings.channelId}>` : 'ยังไม่ได้เลือกห้อง';
-  const roleText = settings.roleId ? `<@&${settings.roleId}>` : 'ยังไม่ได้เลือกยศ';
 
   const embed = new EmbedBuilder()
     .setTitle('⚙️ ตั้งค่าระบบ Welcome (Zen Bot)')
-    .setDescription(`เลือกห้อง เปิด/ปิดระบบ ตั้งค่า Embed และเลือกยศอัตโนมัติได้จากด้านล่าง\n\n**สถานะ:** ${statusText}\n**ห้องต้อนรับ:** ${channelText}\n**ยศอัตโนมัติ (Auto Role):** ${roleText}`)
+    .setDescription(`เลือกห้อง เปิด/ปิดระบบ และกดปุ่มหมวดหมู่ด้านล่างเพื่อปรับแต่งหน้าตา Embed ได้เลยครับ\n\n**สถานะ:** ${statusText}\n**ห้องต้อนรับ:** ${channelText}`)
     .setColor('#2f636');
 
   const row1 = new ActionRowBuilder().addComponents(
@@ -100,13 +98,7 @@ function getControlPanelComponents(guildId) {
       .addChannelTypes(ChannelType.GuildText)
   );
 
-  const row4 = new ActionRowBuilder().addComponents(
-    new RoleSelectMenuBuilder()
-      .setCustomId('select_autorole')
-      .setPlaceholder('👑 เลือกยศแจกอัตโนมัติ (Auto Role)')
-  );
-
-  return { embeds: [embed], components: [row1, row2, row3, row4] };
+  return { embeds: [embed], components: [row1, row2, row3] };
 }
 
 function buildWelcomeEmbed(member, settings) {
@@ -161,15 +153,6 @@ client.on('guildMemberAdd', async member => {
   const settings = getSettings(member.guild.id);
   if (!settings.enabled) return;
 
-  // ระบบแจกยศอัตโนมัติ (Auto Role)
-  if (settings.roleId) {
-    try {
-      await member.roles.add(settings.roleId);
-    } catch (err) {
-      console.error('ไม่สามารถแจกยศอัตโนมัติได้ (กรุณาเช็กสิทธิ์บอทและลำดับยศ):', err);
-    }
-  }
-
   if (!settings.channelId) return;
   const channel = member.guild.channels.cache.get(settings.channelId);
   if (!channel) return;
@@ -189,4 +172,98 @@ client.on('interactionCreate', async interaction => {
     await interaction.reply({ ...getControlPanelComponents(interaction.guild.id), ephemeral: true });
   }
 
-  if (interaction.isButton())
+  if (interaction.isButton()) {
+    if (!interaction.member.permissions.has('Administrator')) {
+      return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์กดปุ่มนี้', ephemeral: true });
+    }
+
+    if (interaction.customId === 'toggle_welcome') {
+      settings.enabled = !settings.enabled;
+      await interaction.update(getControlPanelComponents(interaction.guild.id));
+    } 
+    else if (interaction.customId === 'test_welcome') {
+      if (!settings.channelId) {
+        return await interaction.reply({ content: '⚠️ กรุณาเลือกห้อง Welcome ก่อนทดสอบครับ!', ephemeral: true });
+      }
+      const channel = interaction.guild.channels.cache.get(settings.channelId);
+      if (!channel) {
+        return await interaction.reply({ content: '❌ ไม่พบห้องที่ตั้งไว้', ephemeral: true });
+      }
+
+      const testEmbed = buildWelcomeEmbed(interaction.member, settings);
+      await channel.send({ content: '🧪 **[ทดสอบระบบ Welcome]**', embeds: [testEmbed] });
+      await interaction.reply({ content: '✅ ส่งข้อความทดสอบไปที่ห้องเรียบร้อยแล้ว!', ephemeral: true });
+    }
+    else if (interaction.customId === 'edit_basic') {
+      const modal = new ModalBuilder().setCustomId('modal_edit_basic').setTitle('Edit Basic Information');
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('title').setLabel('Title').setStyle(TextInputStyle.Short).setValue(settings.title).setRequired(true)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('description').setLabel('Description').setStyle(TextInputStyle.Paragraph).setValue(settings.description).setRequired(true)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('color').setLabel('Hex Color (เช่น #2f636)').setStyle(TextInputStyle.Short).setValue(settings.color).setRequired(true))
+      );
+      await interaction.showModal(modal);
+    }
+    else if (interaction.customId === 'edit_author') {
+      const modal = new ModalBuilder().setCustomId('modal_edit_author').setTitle('Edit Author');
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('authorText').setLabel('Author Text').setStyle(TextInputStyle.Short).setValue(settings.authorText).setRequired(false)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('authorIcon').setLabel('Author Icon URL (optional)').setStyle(TextInputStyle.Short).setValue(settings.authorIcon).setRequired(false))
+      );
+      await interaction.showModal(modal);
+    }
+    else if (interaction.customId === 'edit_footer') {
+      const modal = new ModalBuilder().setCustomId('modal_edit_footer').setTitle('Edit Footer');
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('footerText').setLabel('Footer Text').setStyle(TextInputStyle.Short).setValue(settings.footerText).setRequired(false)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('timestamp').setLabel('Timestamp? (yes/no)').setStyle(TextInputStyle.Short).setValue(settings.useTimestamp ? 'yes' : 'no').setRequired(true))
+      );
+      await interaction.showModal(modal);
+    }
+    else if (interaction.customId === 'edit_images') {
+      const modal = new ModalBuilder().setCustomId('modal_edit_images').setTitle('Edit Images');
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('mainImage').setLabel('Main Image URL (optional)').setStyle(TextInputStyle.Short).setValue(settings.mainImage).setRequired(false)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('thumbnail').setLabel('Use User Avatar Thumbnail? (yes/no)').setStyle(TextInputStyle.Short).setValue(settings.useThumbnail ? 'yes' : 'no').setRequired(true))
+      );
+      await interaction.showModal(modal);
+    }
+  }
+
+  if (interaction.isModalSubmit()) {
+    if (interaction.customId === 'modal_edit_basic') {
+      settings.title = interaction.fields.getTextInputValue('title');
+      settings.description = interaction.fields.getTextInputValue('description');
+      settings.color = interaction.fields.getTextInputValue('color');
+      await interaction.reply({ content: '✨ อัปเดต Basic Information เรียบร้อย!', ephemeral: true });
+    } 
+    else if (interaction.customId === 'modal_edit_author') {
+      settings.authorText = interaction.fields.getTextInputValue('authorText');
+      settings.authorIcon = interaction.fields.getTextInputValue('authorIcon');
+      await interaction.reply({ content: '✨ อัปเดต Author เรียบร้อย!', ephemeral: true });
+    } 
+    else if (interaction.customId === 'modal_edit_footer') {
+      settings.footerText = interaction.fields.getTextInputValue('footerText');
+      const ts = interaction.fields.getTextInputValue('timestamp').toLowerCase();
+      settings.useTimestamp = (ts === 'yes' || ts === 'y' || ts === 'true');
+      await interaction.reply({ content: '✨ อัปเดต Footer เรียบร้อย!', ephemeral: true });
+    } 
+    else if (interaction.customId === 'modal_edit_images') {
+      settings.mainImage = interaction.fields.getTextInputValue('mainImage');
+      const thumb = interaction.fields.getTextInputValue('thumbnail').toLowerCase();
+      settings.useThumbnail = (thumb === 'yes' || thumb === 'y' || thumb === 'true');
+      await interaction.reply({ content: '✨ อัปเดต Images เรียบร้อย!', ephemeral: true });
+    }
+  }
+
+  if (interaction.isChannelSelectMenu() && interaction.customId === 'select_welcome_channel') {
+    if (!interaction.member.permissions.has('Administrator')) return;
+    settings.channelId = interaction.values[0];
+    await interaction.update(getControlPanelComponents(interaction.guild.id));
+  }
+
+  if (interaction.isChatInputCommand() && interaction.commandName === 'ping') {
+    await interaction.reply('Pong! 🏓 บอททำงานระบบ Slash Command ปกติบน Render ครับ 🚀');
+  }
+});
+
+client.login(process.env.DISCORD_TOKEN);
