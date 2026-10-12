@@ -77,14 +77,14 @@ client.on('guildMemberAdd', async member => {
     if (!channel) return;
 
     const embedConfig = config.embed || {
-      title: '**✨· NEW Member!·✨**',
-      description: '🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!',
+      title: '',
+      description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!',
       color: '#66FFFF'
     };
 
-    const finalTitle = embedConfig.title
+    const finalTitle = embedConfig.title ? embedConfig.title
       .replace('{user}', member.user.username)
-      .replace('{server}', member.guild.name);
+      .replace('{server}', member.guild.name) : null;
       
     const finalDesc = embedConfig.description
       .replace('{user}', `${member}`)
@@ -98,10 +98,13 @@ client.on('guildMemberAdd', async member => {
     }
 
     const embed = new EmbedBuilder()
-      .setTitle(finalTitle)
       .setDescription(finalDesc)
       .setColor(embedColor)
       .setTimestamp();
+
+    if (finalTitle) {
+      embed.setTitle(finalTitle);
+    }
 
     await channel.send({ embeds: [embed] });
   } catch (err) {
@@ -118,8 +121,8 @@ client.on('interactionCreate', async interaction => {
       welcomeEnabled: false,
       channelId: null,
       embed: {
-        title: '**✨· NEW Member!·✨**',
-        description: '🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!',
+        title: '',
+        description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!',
         color: '#66FFFF'
       }
     };
@@ -155,9 +158,9 @@ client.on('interactionCreate', async interaction => {
         const channel = await interaction.guild.channels.fetch(config.channelId);
         if (channel) {
           const embedConfig = config.embed;
-          const finalTitle = embedConfig.title
+          const finalTitle = embedConfig.title ? embedConfig.title
             .replace('{user}', interaction.user.username)
-            .replace('{server}', interaction.guild.name);
+            .replace('{server}', interaction.guild.name) : null;
           const finalDesc = embedConfig.description
             .replace('{user}', `${interaction.user}`)
             .replace('{server}', interaction.guild.name);
@@ -170,10 +173,13 @@ client.on('interactionCreate', async interaction => {
           }
 
           const embed = new EmbedBuilder()
-            .setTitle(finalTitle)
             .setDescription(finalDesc)
             .setColor(embedColor)
             .setTimestamp();
+
+          if (finalTitle) {
+            embed.setTitle(finalTitle);
+          }
           
           await channel.send({ embeds: [embed] });
         }
@@ -190,10 +196,10 @@ client.on('interactionCreate', async interaction => {
 
       const titleInput = new TextInputBuilder()
         .setCustomId('embedTitle')
-        .setLabel('Title')
+        .setLabel('Title (เว้นว่างได้)')
         .setStyle(TextInputStyle.Short)
-        .setValue(config.embed.title)
-        .setRequired(true);
+        .setValue(config.embed.title || '')
+        .setRequired(false);
 
       const descInput = new TextInputBuilder()
         .setCustomId('embedDesc')
@@ -204,7 +210,7 @@ client.on('interactionCreate', async interaction => {
 
       const colorInput = new TextInputBuilder()
         .setCustomId('embedColor')
-        .setLabel('Hex Color (เช่น #66FFFF)')
+        .setLabel('Hex Color (เช่น 66FFFF)')
         .setStyle(TextInputStyle.Short)
         .setValue(config.embed.color || '#66FFFF')
         .setRequired(true);
@@ -232,7 +238,6 @@ client.on('interactionCreate', async interaction => {
     let colorVal = interaction.fields.getTextInputValue('embedColor').trim();
     if (!colorVal.startsWith('#')) colorVal = '#' + colorVal;
     
-    // ป้องกันรหัสสีไม่ครบ 6 หลัก
     if (colorVal.length === 4) {
       colorVal = '#' + colorVal[1] + colorVal[1] + colorVal[2] + colorVal[2] + colorVal[3] + colorVal[3];
     }
@@ -240,64 +245,5 @@ client.on('interactionCreate', async interaction => {
     config.embed.color = colorVal;
     saveConfigs(serverConfigs);
 
-    return await interaction.reply({ content: '✅ บันทึกรูปแบบ Embed เรียบร้อยแล้ว!', ephemeral: true });
-  }
-});
-
-function getDashboardContent(config) {
-  const channelName = config.channelId ? `<#${config.channelId}>` : 'ยังไม่ได้เลือกช่อง';
-  const statusText = config.welcomeEnabled ? '✅ เปิดอยู่' : '❌ ปิดอยู่';
-
-  const embed = new EmbedBuilder()
-    .setTitle('⚙️ ตั้งค่าระบบ Welcome')
-    .setDescription('เลือกช่อง เปิด/ปิดระบบ และตั้งค่ารูป Embed ได้จากปุ่มด้านล่าง')
-    .setColor('#5865F2')
-    .addFields(
-      { name: '📥 Welcome Status', value: statusText, inline: true },
-      { name: '📢 ห้องต้อนรับ', value: channelName, inline: true }
-    );
-
-  const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('toggle_welcome')
-      .setLabel(config.welcomeEnabled ? 'ปิด Welcome' : 'เปิด Welcome')
-      .setStyle(config.welcomeEnabled ? ButtonStyle.Danger : ButtonStyle.Success),
-    new ButtonBuilder()
-      .setCustomId('edit_embed')
-      .setLabel('ตั้งค่ารูป Embed')
-      .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId('test_welcome')
-      .setLabel('ทดสอบ Welcome')
-      .setStyle(ButtonStyle.Secondary)
-  );
-
-  const channelRow = new ActionRowBuilder().addComponents(
-    new ChannelSelectMenuBuilder()
-      .setCustomId('select_channel')
-      .setPlaceholder('📂 เลือกช่องสำหรับส่งข้อความต้อนรับ')
-      .addChannelTypes(ChannelType.GuildText)
-  );
-
-  return { embeds: [embed], components: [row1, channelRow] };
-}
-
-async function sendDashboard(interaction) {
-  const config = serverConfigs[interaction.guildId];
-  const content = getDashboardContent(config);
-  await interaction.reply({ ...content, ephemeral: true });
-}
-
-async function updateDashboard(interaction) {
-  const config = serverConfigs[interaction.guildId];
-  const content = getDashboardContent(config);
-  await interaction.update({ ...content });
-}
-
-async function updateDashboardAfterDefer(interaction) {
-  const config = serverConfigs[interaction.guildId];
-  const content = getDashboardContent(config);
-  await interaction.editReply({ ...content });
-}
-
-client.login(process.env.DISCORD_TOKEN);
+    return await interaction.reply({ content: '✅ บันทึกรูปแบบ Embed เรียบร้อยแล้ว!', ephemeral
+                                    
