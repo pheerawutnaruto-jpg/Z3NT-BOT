@@ -1,6 +1,7 @@
 const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelSelectMenuBuilder, ChannelType, EmbedBuilder } = require('discord.js');
 const http = require('http');
 
+// สร้างเว็บเซิร์ฟเวอร์จำลองเพื่อให้ Render มองเห็น Port และรันออนไลน์ได้ 24 ชม.
 const server = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('Bot is running!\n');
@@ -14,7 +15,7 @@ const client = new Client({
   ]
 });
 
-// อัปเดตข้อความ Description ให้สั้นลงตามที่ต้องการครับ
+// ค่าตั้งค่าเริ่มต้นของระบบต้อนรับ (แบบสั้นกระชับ)
 let welcomeConfig = {
   enabled: true,
   channelId: null,
@@ -23,6 +24,7 @@ let welcomeConfig = {
   color: '#2f636'
 };
 
+// ลงทะเบียนคำสั่ง Slash Commands
 client.once('ready', async () => {
   console.log(`Bot Online แล้วจ้า: ${client.user.tag}`);
 
@@ -50,6 +52,7 @@ client.once('ready', async () => {
   }
 });
 
+// ฟังก์ชันสร้างหน้าตาแผงควบคุม (Control Panel)
 function getControlPanelComponents() {
   const statusText = welcomeConfig.enabled ? '🟢 เปิดอยู่' : '🔴 ปิดอยู่';
   const channelText = welcomeConfig.channelId ? `<#${welcomeConfig.channelId}>` : 'ยังไม่ได้เลือกห้อง';
@@ -84,6 +87,7 @@ function getControlPanelComponents() {
   return { embeds: [embed], components: [row1, row2] };
 }
 
+// ระบบต้อนรับสมาชิกใหม่เมื่อกดเข้าเซิร์ฟเวอร์
 client.on('guildMemberAdd', member => {
   if (!welcomeConfig.enabled || !welcomeConfig.channelId) return;
 
@@ -102,6 +106,7 @@ client.on('guildMemberAdd', member => {
   channel.send({ embeds: [embed] });
 });
 
+// จัดการการกดปุ่ม, เมนูดรอปดาวน์, ฟอร์ม Modal และคำสั่ง Slash Commands
 client.on('interactionCreate', async interaction => {
   if (interaction.isChatInputCommand() && interaction.commandName === 'setwelcome') {
     if (!interaction.member.permissions.has('Administrator')) {
