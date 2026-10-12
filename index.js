@@ -1,4 +1,12 @@
 const { Client, GatewayIntentBits } = require('discord.js');
+const http = require('http');
+
+// สร้างเว็บเซิร์ฟเวอร์จำลองเพื่อให้ Render มองเห็น Port
+const server = http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('Bot is running!\n');
+});
+server.listen(process.env.PORT || 3000);
 
 const client = new Client({
   intents: [
@@ -20,5 +28,4 @@ client.on('messageCreate', message => {
   }
 });
 
-// ใช้ Token จาก Environment Variable บน Render
 client.login(process.env.DISCORD_TOKEN);
