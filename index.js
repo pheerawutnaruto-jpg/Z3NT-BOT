@@ -8,6 +8,7 @@ const server = http.createServer((req, res) => {
 });
 server.listen(process.env.PORT || 3000);
 
+// 2. สร้าง Client และเปิด Intent สำหรับอ่านสมาชิก
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -15,6 +16,7 @@ const client = new Client({
   ]
 });
 
+// 3. ลงทะเบียนคำสั่ง Slash Command (/ping)
 client.once('ready', async () => {
   console.log(`Bot Online แล้วจ้า: ${client.user.tag}`);
 
@@ -37,26 +39,35 @@ client.once('ready', async () => {
   }
 });
 
-// 2. ระบบต้อนรับสมาชิกใหม่แบบกล่อง Embed สุดสวย
+// 4. ระบบต้อนรับสมาชิกใหม่แบบ Embed การ์ดสวยๆ
 client.on('guildMemberAdd', member => {
-  // ค้นหาห้องชื่อ "welcome" หรือห้องทั่วไป
-  const channel = member.guild.channels.cache.find(ch => ch.name.includes('welcome') || ch.name.includes('ทั่วไป')) || member.guild.systemsChannel;
-  
+  // ค้นหาห้องชื่อ "welcome" หรือ "ทั่วไป" ที่บอทสามารถพิมพ์ได้
+  const channel = member.guild.channels.cache.find(ch => 
+    (ch.name.includes('welcome') || ch.name.includes('ทั่วไป')) && ch.type === 0 && ch.permissionsFor(member.guild.members.me).has('SendMessages')
+  ) || member.guild.systemsChannel;
+
   if (!channel) return;
 
-  // สร้างกล่องข้อความ Embed
+  // สร้างการ์ด Embed ต้อนรับ
   const welcomeEmbed = new EmbedBuilder()
-    .setColor(0x5865F2) // สีแถบด้านข้าง (สีฟ้า/ม่วงสไตล์ดิสคอร์ด)
-    .setTitle('💖 NEW Member! ✨')
-    .setDescription(`「 🎉 ยินดีต้อนรับคุณ ${member} !\nรบกวนทำตามขั้นตอนด้านล่างนี้ก่อนไปสนุกกันนะรับ 」\n\nปล. ⚠️ | เมื่อกดรับยศเสร็จแล้วห้องพูดคุยจะปลดล็อกขึ้นมาให้ทันทีครับ !\n\n📜 | อ่านกฎที่นี่ # 📋 │ rules`)
-    .setImage('https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExM2Q3djZmdTh5M25pd2V0NGZ1NnI0NGt2M29oZmN1bW9wMGp2ZjRhMiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7TKSjRrfIPjeiOkM/giphy.gif') // รูปภาพประกอบ (เปลี่ยนลิงก์รูปได้ตามชอบ)
-    .setTimestamp()
-    .setFooter({ text: `สมาชิกคนที่ ${member.guild.memberCount}` });
+    .setColor('#ffb6c1') // สีชมพูพาสเทล (ปรับเปลี่ยนโค้ดสี Hex ได้ตามชอบ)
+    .setAuthor({ 
+      name: `Welcome to Z+`, 
+      iconURL: member.guild.iconURL({ dynamic: true }) 
+    })
+    .setDescription(
+      `💖 **· NEW Member! ✨**\n\n` +
+      `「 🎉 ยินดีต้อนรับคุณ ${member} !\n` +
+      
+    )
+    .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 512 })) // รูปโปรไฟล์ของสมาชิกใหม่
+    .setImage('https://i.imgur.com/AfFp7pu.png') // รูปภาพประกอบด้านล่างการ์ด (สามารถเปลี่ยนลิงก์รูปได้ตามต้องการ)
+    .setFooter({ text: `สมาชิกลำดับที่ ${member.guild.memberCount}` });
 
-  // ส่งข้อความแบบ Embed เข้าห้อง
   channel.send({ embeds: [welcomeEmbed] });
 });
 
+// 5. ระบบรับคำสั่ง /ping
 client.on('interactionCreate', async interaction => {
   if (!interaction.isChatInputCommand()) return;
 
