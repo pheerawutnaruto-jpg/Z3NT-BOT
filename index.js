@@ -245,5 +245,64 @@ client.on('interactionCreate', async interaction => {
     config.embed.color = colorVal;
     saveConfigs(serverConfigs);
 
-    return await interaction.reply({ content: '✅ บันทึกรูปแบบ Embed เรียบร้อยแล้ว!', ephemeral
-                                    
+    return await interaction.reply({ content: '✅ บันทึกรูปแบบ Embed เรียบร้อยแล้ว!', ephemeral: true });
+  }
+});
+
+function getDashboardContent(config) {
+  const channelName = config.channelId ? `<#${config.channelId}>` : 'ยังไม่ได้เลือกช่อง';
+  const statusText = config.welcomeEnabled ? '✅ เปิดอยู่' : '❌ ปิดอยู่';
+
+  const embed = new EmbedBuilder()
+    .setTitle('⚙️ ตั้งค่าระบบ Welcome')
+    .setDescription('เลือกช่อง เปิด/ปิดระบบ และตั้งค่ารูป Embed ได้จากปุ่มด้านล่าง')
+    .setColor('#5865F2')
+    .addFields(
+      { name: '📥 Welcome Status', value: statusText, inline: true },
+      { name: '📢 ห้องต้อนรับ', value: channelName, inline: true }
+    );
+
+  const row1 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('toggle_welcome')
+      .setLabel(config.welcomeEnabled ? 'ปิด Welcome' : 'เปิด Welcome')
+      .setStyle(config.welcomeEnabled ? ButtonStyle.Danger : ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId('edit_embed')
+      .setLabel('ตั้งค่ารูป Embed')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId('test_welcome')
+      .setLabel('ทดสอบ Welcome')
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  const channelRow = new ActionRowBuilder().addComponents(
+    new ChannelSelectMenuBuilder()
+      .setCustomId('select_channel')
+      .setPlaceholder('📂 เลือกช่องสำหรับส่งข้อความต้อนรับ')
+      .addChannelTypes(ChannelType.GuildText)
+  );
+
+  return { embeds: [embed], components: [row1, channelRow] };
+}
+
+async function sendDashboard(interaction) {
+  const config = serverConfigs[interaction.guildId];
+  const content = getDashboardContent(config);
+  await interaction.reply({ ...content, ephemeral: true });
+}
+
+async function updateDashboard(interaction) {
+  const config = serverConfigs[interaction.guildId];
+  const content = getDashboardContent(config);
+  await interaction.update({ ...content });
+}
+
+async function updateDashboardAfterDefer(interaction) {
+  const config = serverConfigs[interaction.guildId];
+  const content = getDashboardContent(config);
+  await interaction.editReply({ ...content });
+}
+
+client.login(process.env.DISCORD_TOKEN);
