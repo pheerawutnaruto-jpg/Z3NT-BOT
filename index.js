@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelSelectMenuBuilder, RoleSelectMenuBuilder, ChannelType, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelSelectMenuBuilder, ChannelType, EmbedBuilder } = require('discord.js');
 const http = require('http');
 
 const server = http.createServer((req, res) => {
@@ -21,9 +21,8 @@ function getSettings(guildId) {
     guildSettings.set(guildId, {
       enabled: true,
       channelId: null,
-      roleId: null,
       title: '✨· NEW Member!·✨',
-      description: '「 🎉 ยินดีต้อนรับคุณ {user} ! 」', // ตัดข้อความยาวๆ ออก เหลือแค่นี้ครับ
+      description: '「 🎉 ยินดีต้อนรับคุณ {user} ! 」',
       color: '#2f636',
       authorText: 'Welcome to {server_name}',
       authorIcon: '',
@@ -68,11 +67,10 @@ function getControlPanelComponents(guildId) {
   const settings = getSettings(guildId);
   const statusText = settings.enabled ? '🟢 เปิดอยู่' : '🔴 ปิดอยู่';
   const channelText = settings.channelId ? `<#${settings.channelId}>` : 'ยังไม่ได้เลือกห้อง';
-  const roleText = settings.roleId ? `<@&${settings.roleId}>` : 'ยังไม่ได้เลือกยศ';
 
   const embed = new EmbedBuilder()
     .setTitle('⚙️ ตั้งค่าระบบ Welcome (Zen Bot)')
-    .setDescription(`เลือกห้อง เปิด/ปิดระบบ และกดปุ่มหมวดหมู่ด้านล่างเพื่อปรับแต่งหน้าตา Embed ได้เลยครับ\n\n**สถานะ:** ${statusText}\n**ห้องต้อนรับ:** ${channelText}\n**ยศอัตโนมัติ (Auto Role):** ${roleText}`)
+    .setDescription(`เลือกห้อง เปิด/ปิดระบบ และกดปุ่มหมวดหมู่ด้านล่างเพื่อปรับแต่งหน้าตา Embed ได้เลยครับ\n\n**สถานะ:** ${statusText}\n**ห้องต้อนรับ:** ${channelText}`)
     .setColor('#2f636');
 
   const row1 = new ActionRowBuilder().addComponents(
@@ -100,13 +98,7 @@ function getControlPanelComponents(guildId) {
       .addChannelTypes(ChannelType.GuildText)
   );
 
-  const row4 = new ActionRowBuilder().addComponents(
-    new RoleSelectMenuBuilder()
-      .setCustomId('select_autorole')
-      .setPlaceholder('👑 เลือกยศที่จะแจกให้อัตโนมัติ')
-  );
-
-  return { embeds: [embed], components: [row1, row2, row3, row4] };
+  return { embeds: [embed], components: [row1, row2, row3] };
 }
 
 function buildWelcomeEmbed(member, settings) {
@@ -160,14 +152,6 @@ function buildWelcomeEmbed(member, settings) {
 client.on('guildMemberAdd', async member => {
   const settings = getSettings(member.guild.id);
   if (!settings.enabled) return;
-
-  if (settings.roleId) {
-    try {
-      await member.roles.add(settings.roleId);
-    } catch (err) {
-      console.error('ไม่สามารถแจกยศอัตโนมัติได้:', err);
-    }
-  }
 
   if (!settings.channelId) return;
   const channel = member.guild.channels.cache.get(settings.channelId);
@@ -274,12 +258,6 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isChannelSelectMenu() && interaction.customId === 'select_welcome_channel') {
     if (!interaction.member.permissions.has('Administrator')) return;
     settings.channelId = interaction.values[0];
-    await interaction.update(getControlPanelComponents(interaction.guild.id));
-  }
-
-  if (interaction.isRoleSelectMenu() && interaction.customId === 'select_autorole') {
-    if (!interaction.member.permissions.has('Administrator')) return;
-    settings.roleId = interaction.values[0];
     await interaction.update(getControlPanelComponents(interaction.guild.id));
   }
 
