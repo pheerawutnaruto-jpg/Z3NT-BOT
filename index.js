@@ -25,7 +25,6 @@ let welcomeConfig = {
 client.once('ready', async () => {
   console.log(`Bot Online แล้วจ้า: ${client.user.tag}`);
 
-  // เปลี่ยนชื่อคำสั่งให้มีเอกลักษณ์และไม่ซ้ำกับของเก่า เพื่อป้องกันบัลและคำสั่งตีกัน
   const commands = [
     new SlashCommandBuilder()
       .setName('zen-ping')
@@ -91,7 +90,7 @@ client.on('guildMemberAdd', member => {
   if (!channel) return;
 
   const finalTitle = welcomeConfig.title.replace('{user}', member.user.username).replace('{server}', member.guild.name);
-  const finalDesc = welcomeConfig.description.replace('{user}', `${member}`).replace('{server}`, member.guild.name);
+  const finalDesc = welcomeConfig.description.replace('{user}', `${member}`).replace('{server}', member.guild.name);
 
   const embed = new EmbedBuilder()
     .setTitle(finalTitle)
@@ -103,7 +102,6 @@ client.on('guildMemberAdd', member => {
 });
 
 client.on('interactionCreate', async interaction => {
-  // เปลี่ยนมารับคำสั่ง /zen-welcome
   if (interaction.isChatInputCommand() && interaction.commandName === 'zen-welcome') {
     if (!interaction.member.permissions.has('Administrator')) {
       return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์ใช้งานคำสั่งนี้', ephemeral: true });
@@ -164,7 +162,7 @@ client.on('interactionCreate', async interaction => {
       }
 
       const finalTitle = welcomeConfig.title.replace('{user}', interaction.user.username).replace('{server}', interaction.guild.name);
-      const finalDesc = welcomeConfig.description.replace('{user}', `${interaction.member}`).replace('{server}`, interaction.guild.name);
+      const finalDesc = welcomeConfig.description.replace('{user}', `${interaction.member}`).replace('{server}', interaction.guild.name);
 
       const testEmbed = new EmbedBuilder()
         .setTitle(finalTitle)
@@ -193,7 +191,6 @@ client.on('interactionCreate', async interaction => {
     await interaction.reply({ content: '✨ **อัปเดตหน้าตา Embed เรียบร้อยแล้ว!**', ephemeral: true });
   }
 
-  // เปลี่ยนมารับคำสั่ง /zen-ping
   if (interaction.isChatInputCommand() && interaction.commandName === 'zen-ping') {
     await interaction.reply('Pong! 🏓 Zen Bot ทำงานปกติบน Render ครับ 🚀');
   }
