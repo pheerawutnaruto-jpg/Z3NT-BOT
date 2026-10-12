@@ -15,16 +15,11 @@ const client = new Client({
   ]
 });
 
-// เก็บข้อมูล Embed ที่สร้าง/แก้ไขล่าสุด และเก็บบันทึกสถานะว่าเปิดใช้งานต้อนรับหรือยัง
-let customEmbedConfig = {
+// ตัวเก็บค่าการตั้งค่าต้อนรับแบบ Embed (ค่าเริ่มต้น)
+let welcomeConfig = {
   title: '**✨· NEW Member!·✨**',
   description: '🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ! ขอให้สนุกนะคร้าบ 🚀',
   color: '#2f636'
-};
-
-let welcomeSettings = {
-  enabled: true, // เปิดใช้งานระบบต้อนรับอัตโนมัติ
-  channelId: null // ถ้าไม่ระบุ จะส่งไปที่ System Channel หรือห้องแรกที่ส่งได้
 };
 
 // 2. ลงทะเบียนคำสั่ง Slash Commands
@@ -36,16 +31,8 @@ client.once('ready', async () => {
       .setName('ping')
       .setDescription('เช็กความเร็วและสถานะของบอท'),
     new SlashCommandBuilder()
-      .setName('embed')
-      .setDescription('เปิดฟอร์มแก้ไขหน้าตา Embed สำหรับต้อนรับ'),
-    new SlashCommandBuilder()
       .setName('setwelcome')
-      .setDescription('ตั้งค่าเปิดใช้งานระบบต้อนรับด้วย Embed ล่าสุดที่แก้ไขไว้')
-      .addChannelOption(option =>
-        option.setName('channel')
-          .setDescription('เลือกห้องสำหรับส่งข้อความต้อนรับ')
-          .setRequired(false)
-      ),
+      .setDescription('เปิดฟอร์มตั้งค่าข้อความต้อนรับแบบ Embed'),
   ].map(command => command.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
@@ -61,30 +48,25 @@ client.once('ready', async () => {
   }
 });
 
-// 3. ระบบต้อนรับสมาชิกใหม่
+// 3. ระบบต้อนรับสมาชิกใหม่ (ส่งเป็นกล่อง Embed สวยๆ)
 client.on('guildMemberAdd', member => {
-  if (!welcomeSettings.enabled) return;
-
-  // เลือกห้องเป้าหมาย
-  const channel = welcomeSettings.channelId 
-    ? member.guild.channels.cache.get(welcomeSettings.channelId)
-    : (member.guild.systemsChannel || member.guild.channels.cache.find(ch => ch.type === 0 && ch.permissionsFor(member.guild.members.me).has('SendMessages')));
-  
+  const channel = member.guild.systemsChannel || member.guild.channels.cache.find(ch => ch.type === 0 && ch.permissionsFor(member.guild.members.me).has('SendMessages'));
   if (!channel) return;
 
-  // แทนที่ค่าตัวแปร
-  const finalTitle = customEmbedConfig.title
+  // แทนที่ค่า {user} และ {server}
+  const finalTitle = welcomeConfig.title
     .replace('{user}', member.user.username)
     .replace('{server}', member.guild.name);
     
-  const finalDesc = customEmbedConfig.description
+  const finalDesc = welcomeConfig.description
     .replace('{user}', `${member}`)
-    .replace('{server}`, member.guild.name);
+    .replace('{server}', member.guild.name);
 
+  // สร้างกล่อง Embed ตามที่ตั้งค่าไว้
   const embed = new EmbedBuilder()
     .setTitle(finalTitle)
     .setDescription(finalDesc)
-    .setColor(customEmbedConfig.color || '#2f636')
+    .setColor(welcomeConfig.color || '#2f636')
     .setTimestamp();
 
   channel.send({ embeds: [embed] });
@@ -92,37 +74,35 @@ client.on('guildMemberAdd', member => {
 
 // 4. จัดการคำสั่งและ Modal Form
 client.on('interactionCreate', async interaction => {
-  if (!interaction.isChatInputCommand() && !interaction.isModalSubmit()) return;
-
-  // คำสั่ง /embed (เปิดฟอร์มแก้ไขหน้าตา)
-  if (interaction.isChatInputCommand() && interaction.commandName === 'embed') {
+  // เมื่อกดใช้คำสั่ง /setwelcome ให้เด้ง Modal ขึ้นมา
+  if (interaction.isChatInputCommand() && interaction.commandName === 'setwelcome') {
     if (!interaction.member.permissions.has('Administrator')) {
       return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์ใช้งานคำสั่งนี้ (ต้องเป็น Administrator เท่านั้น)', ephemeral: true });
     }
 
     const modal = new ModalBuilder()
-      .setCustomId('editEmbedModal')
-      .setTitle('Editing: welcome embed');
+      .setCustomId('welcomeModal')
+      .setTitle('Editing: welcome');
 
     const titleInput = new TextInputBuilder()
-      .setCustomId('embedTitle')
+      .setCustomId('welcomeTitle')
       .setLabel('Title')
       .setStyle(TextInputStyle.Short)
-      .setValue(customEmbedConfig.title)
+      .setValue(welcomeConfig.title)
       .setRequired(true);
 
     const descInput = new TextInputBuilder()
-      .setCustomId('embedDesc')
+      .setCustomId('welcomeDesc')
       .setLabel('Description')
       .setStyle(TextInputStyle.Paragraph)
-      .setValue(customEmbedConfig.description)
+      .setValue(welcomeConfig.description)
       .setRequired(true);
 
     const colorInput = new TextInputBuilder()
-      .setCustomId('embedColor')
+      .setCustomId('welcomeColor')
       .setLabel('Hex Color (เช่น #2f636)')
       .setStyle(TextInputStyle.Short)
-      .setValue(customEmbedConfig.color)
+      .setValue(welcomeConfig.color)
       .setRequired(true);
 
     modal.addComponents(
@@ -134,39 +114,21 @@ client.on('interactionCreate', async interaction => {
     await interaction.showModal(modal);
   }
 
-  // กด Submit จากฟอร์มแก้ไข Embed
-  if (interaction.isModalSubmit() && interaction.customId === 'editEmbedModal') {
-    customEmbedConfig.title = interaction.fields.getTextInputValue('embedTitle');
-    customEmbedConfig.description = interaction.fields.getTextInputValue('embedDesc');
-    customEmbedConfig.color = interaction.fields.getTextInputValue('embedColor');
+  // เมื่อผู้ใช้กด Submit ข้อมูลจาก Modal
+  if (interaction.isModalSubmit() && interaction.customId === 'welcomeModal') {
+    const newTitle = interaction.fields.getTextInputValue('welcomeTitle');
+    const newDesc = interaction.fields.getTextInputValue('welcomeDesc');
+    const newColor = interaction.fields.getTextInputValue('welcomeColor');
 
-    // แสดงตัวอย่าง Embed ที่เพิ่งแก้ให้ดูทันทีแบบส่วนตัว (Ephemeral)
-    const previewEmbed = new EmbedBuilder()
-      .setTitle(customEmbedConfig.title)
-      .setDescription(customEmbedConfig.description.replace('{user}', '@User').replace('{server}', interaction.guild.name))
-      .setColor(customEmbedConfig.color);
+    // บันทึกค่าใหม่
+    welcomeConfig.title = newTitle;
+    welcomeConfig.description = newDesc;
+    welcomeConfig.color = newColor;
 
-    await interaction.reply({ 
-      content: '✨ **บันทึกการแก้ไข Embed สำเร็จ!** นี่คือตัวอย่างหน้าตาที่จะใช้ต้อนรับ:', 
-      embeds: [previewEmbed], 
-      ephemeral: true 
-    });
+    await interaction.reply({ content: '✅ บันทึกการตั้งค่าข้อความต้อนรับแบบ Embed เรียบร้อยแล้วจ้า! ✨', ephemeral: true });
   }
 
-  // คำสั่ง /setwelcome (เปิดใช้งานและผูกห้องต้อนรับ)
-  if (interaction.isChatInputCommand() && interaction.commandName === 'setwelcome') {
-    if (!interaction.member.permissions.has('Administrator')) {
-      return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์ใช้งานคำสั่งนี้ (ต้องเป็น Administrator เท่านั้น)', ephemeral: true });
-    }
-
-    const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
-    welcomeSettings.enabled = true;
-    welcomeSettings.channelId = targetChannel.id;
-
-    await interaction.reply(`✅ **ตั้งค่าระบบต้อนรับสำเร็จ!**\n📌 บอทจะส่ง Embed ที่คุณตั้งค่าไว้ไปที่ห้อง ${targetChannel} ทุกครั้งที่มีสมาชิกใหม่เข้าเซิร์ฟเวอร์ครับ! 🚀`);
-  }
-
-  // คำสั่ง /ping
+  // คำสั่ง /ping ปกติ
   if (interaction.isChatInputCommand() && interaction.commandName === 'ping') {
     await interaction.reply('Pong! 🏓 บอททำงานระบบ Slash Command ปกติบน Render ครับ 🚀');
   }
