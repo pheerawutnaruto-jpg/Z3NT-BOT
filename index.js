@@ -14,12 +14,12 @@ const client = new Client({
   ]
 });
 
-// เก็บค่าการตั้งค่าระบบต้อนรับทั้งหมด
+// อัปเดตข้อความ Description ให้สั้นลงตามที่ต้องการครับ
 let welcomeConfig = {
   enabled: true,
   channelId: null,
   title: '💖 NEW Member! ✨',
-  description: '「 🎉 ยินดีต้อนรับคุณ {user} ! \n**รบกวนทำตามขั้นตอนด้านล่างนี้ก่อนไปสนุกกันนะครับ** 」\n\nปล. ⚠️ | เมื่อกดรับยศเสร็จแล้วห้องพูดคุยจะปลดล็อกขึ้นมาให้ทันทีครับ !\n\n📜 | อ่านกฎที่นี่ # 📋 | rules',
+  description: '「 🎉 ยินดีต้อนรับคุณ {user} ! 」',
   color: '#2f636'
 };
 
@@ -50,7 +50,6 @@ client.once('ready', async () => {
   }
 });
 
-// ฟังก์ชันสร้างหน้าตาแผงควบคุม
 function getControlPanelComponents() {
   const statusText = welcomeConfig.enabled ? '🟢 เปิดอยู่' : '🔴 ปิดอยู่';
   const channelText = welcomeConfig.channelId ? `<#${welcomeConfig.channelId}>` : 'ยังไม่ได้เลือกห้อง';
@@ -85,7 +84,6 @@ function getControlPanelComponents() {
   return { embeds: [embed], components: [row1, row2] };
 }
 
-// ระบบต้อนรับสมาชิกใหม่จริง
 client.on('guildMemberAdd', member => {
   if (!welcomeConfig.enabled || !welcomeConfig.channelId) return;
 
@@ -93,7 +91,7 @@ client.on('guildMemberAdd', member => {
   if (!channel) return;
 
   const finalTitle = welcomeConfig.title.replace('{user}', member.user.username).replace('{server}', member.guild.name);
-  const finalDesc = welcomeConfig.description.replace('{user}', `${member}`).replace('{server}`, member.guild.name);
+  const finalDesc = welcomeConfig.description.replace('{user}', `${member}`).replace('{server}', member.guild.name);
 
   const embed = new EmbedBuilder()
     .setTitle(finalTitle)
@@ -104,7 +102,6 @@ client.on('guildMemberAdd', member => {
   channel.send({ embeds: [embed] });
 });
 
-// จัดการปุ่ม เมนู และคำสั่งทั้งหมด
 client.on('interactionCreate', async interaction => {
   if (interaction.isChatInputCommand() && interaction.commandName === 'setwelcome') {
     if (!interaction.member.permissions.has('Administrator')) {
@@ -179,7 +176,6 @@ client.on('interactionCreate', async interaction => {
     }
   }
 
-  // เลือกห้องจากเมนู
   if (interaction.isChannelSelectMenu() && interaction.customId === 'select_welcome_channel') {
     if (!interaction.member.permissions.has('Administrator')) {
       return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์เลือกห้องนี้', ephemeral: true });
@@ -188,7 +184,6 @@ client.on('interactionCreate', async interaction => {
     await interaction.update(getControlPanelComponents());
   }
 
-  // กด Submit จากฟอร์มแก้ไข Embed
   if (interaction.isModalSubmit() && interaction.customId === 'edit_welcome_modal') {
     welcomeConfig.title = interaction.fields.getTextInputValue('modal_title');
     welcomeConfig.description = interaction.fields.getTextInputValue('modal_desc');
