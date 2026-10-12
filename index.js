@@ -99,8 +99,7 @@ client.on('guildMemberAdd', async member => {
 
     const embed = new EmbedBuilder()
       .setDescription(finalDesc)
-      .setColor(embedColor)
-      .setTimestamp();
+      .setColor(embedColor);
 
     if (finalTitle) {
       embed.setTitle(finalTitle);
@@ -174,8 +173,7 @@ client.on('interactionCreate', async interaction => {
 
           const embed = new EmbedBuilder()
             .setDescription(finalDesc)
-            .setColor(embedColor)
-            .setTimestamp();
+            .setColor(embedColor);
 
           if (finalTitle) {
             embed.setTitle(finalTitle);
@@ -196,7 +194,7 @@ client.on('interactionCreate', async interaction => {
 
       const titleInput = new TextInputBuilder()
         .setCustomId('embedTitle')
-        .setLabel('Title (เว้นว่างได้)')
+        .setLabel('Title (เว้นว่างไว้ได้)')
         .setStyle(TextInputStyle.Short)
         .setValue(config.embed.title || '')
         .setRequired(false);
@@ -205,7 +203,7 @@ client.on('interactionCreate', async interaction => {
         .setCustomId('embedDesc')
         .setLabel('Description')
         .setStyle(TextInputStyle.Paragraph)
-        .setValue(config.embed.description)
+        .setValue(config.embed.description || '')
         .setRequired(true);
 
       const colorInput = new TextInputBuilder()
