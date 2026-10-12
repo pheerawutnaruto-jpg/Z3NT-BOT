@@ -1,7 +1,6 @@
 const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, EmbedBuilder } = require('discord.js');
 const http = require('http');
 
-// 1. สร้างเว็บเซิร์ฟเวอร์จำลองเพื่อให้ Render มองเห็น Port
 const server = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('Bot is running!\n');
@@ -15,7 +14,6 @@ const client = new Client({
   ]
 });
 
-// เก็บข้อมูล Embed ที่สร้าง/แก้ไขล่าสุด และเก็บบันทึกสถานะว่าเปิดใช้งานต้อนรับหรือยัง
 let customEmbedConfig = {
   title: '**✨· NEW Member!·✨**',
   description: '🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ! ขอให้สนุกนะคร้าบ 🚀',
@@ -23,11 +21,10 @@ let customEmbedConfig = {
 };
 
 let welcomeSettings = {
-  enabled: true, // เปิดใช้งานระบบต้อนรับอัตโนมัติ
-  channelId: null // ถ้าไม่ระบุ จะส่งไปที่ System Channel หรือห้องแรกที่ส่งได้
+  enabled: true,
+  channelId: null
 };
 
-// 2. ลงทะเบียนคำสั่ง Slash Commands
 client.once('ready', async () => {
   console.log(`Bot Online แล้วจ้า: ${client.user.tag}`);
 
@@ -51,35 +48,37 @@ client.once('ready', async () => {
   const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 
   try {
-    await rest.put(
-      Routes.applicationCommands(client.user.id),
-      { body: commands },
-    );
-    console.log('ลงทะเบียนคำสั่งสำเร็จเรียบร้อย!');
+    console.log('กำลังลงทะเบียนคำสั่งเฉพาะเซิร์ฟเวอร์...');
+    
+    // ดึงไอดีเซิร์ฟเวอร์แรกที่บอทอยู่เพื่ออัปเดตคำสั่งทันที
+    for (const [guildId] of client.guilds.cache) {
+      await rest.put(
+        Routes.applicationGuildCommands(client.user.id, guildId),
+        { body: commands },
+      );
+    }
+    console.log('ลงทะเบียนคำสั่งเสร็จสิ้นทันที!');
   } catch (error) {
     console.error(error);
   }
 });
 
-// 3. ระบบต้อนรับสมาชิกใหม่
 client.on('guildMemberAdd', member => {
   if (!welcomeSettings.enabled) return;
 
-  // เลือกห้องเป้าหมาย
   const channel = welcomeSettings.channelId 
     ? member.guild.channels.cache.get(welcomeSettings.channelId)
     : (member.guild.systemsChannel || member.guild.channels.cache.find(ch => ch.type === 0 && ch.permissionsFor(member.guild.members.me).has('SendMessages')));
   
   if (!channel) return;
 
-  // แทนที่ค่าตัวแปร
   const finalTitle = customEmbedConfig.title
     .replace('{user}', member.user.username)
     .replace('{server}', member.guild.name);
     
   const finalDesc = customEmbedConfig.description
     .replace('{user}', `${member}`)
-    .replace('{server}`, member.guild.name);
+    .replace('{server}', member.guild.name);
 
   const embed = new EmbedBuilder()
     .setTitle(finalTitle)
@@ -90,14 +89,12 @@ client.on('guildMemberAdd', member => {
   channel.send({ embeds: [embed] });
 });
 
-// 4. จัดการคำสั่งและ Modal Form
 client.on('interactionCreate', async interaction => {
   if (!interaction.isChatInputCommand() && !interaction.isModalSubmit()) return;
 
-  // คำสั่ง /embed (เปิดฟอร์มแก้ไขหน้าตา)
   if (interaction.isChatInputCommand() && interaction.commandName === 'embed') {
     if (!interaction.member.permissions.has('Administrator')) {
-      return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์ใช้งานคำสั่งนี้ (ต้องเป็น Administrator เท่านั้น)', ephemeral: true });
+      return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์ใช้งานคำสั่งนี้', ephemeral: true });
     }
 
     const modal = new ModalBuilder()
@@ -134,13 +131,11 @@ client.on('interactionCreate', async interaction => {
     await interaction.showModal(modal);
   }
 
-  // กด Submit จากฟอร์มแก้ไข Embed
   if (interaction.isModalSubmit() && interaction.customId === 'editEmbedModal') {
     customEmbedConfig.title = interaction.fields.getTextInputValue('embedTitle');
     customEmbedConfig.description = interaction.fields.getTextInputValue('embedDesc');
     customEmbedConfig.color = interaction.fields.getTextInputValue('embedColor');
 
-    // แสดงตัวอย่าง Embed ที่เพิ่งแก้ให้ดูทันทีแบบส่วนตัว (Ephemeral)
     const previewEmbed = new EmbedBuilder()
       .setTitle(customEmbedConfig.title)
       .setDescription(customEmbedConfig.description.replace('{user}', '@User').replace('{server}', interaction.guild.name))
@@ -153,20 +148,18 @@ client.on('interactionCreate', async interaction => {
     });
   }
 
-  // คำสั่ง /setwelcome (เปิดใช้งานและผูกห้องต้อนรับ)
   if (interaction.isChatInputCommand() && interaction.commandName === 'setwelcome') {
     if (!interaction.member.permissions.has('Administrator')) {
-      return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์ใช้งานคำสั่งนี้ (ต้องเป็น Administrator เท่านั้น)', ephemeral: true });
+      return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์ใช้งานคำสั่งนี้', ephemeral: true });
     }
 
     const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
     welcomeSettings.enabled = true;
     welcomeSettings.channelId = targetChannel.id;
 
-    await interaction.reply(`✅ **ตั้งค่าระบบต้อนรับสำเร็จ!**\n📌 บอทจะส่ง Embed ที่คุณตั้งค่าไว้ไปที่ห้อง ${targetChannel} ทุกครั้งที่มีสมาชิกใหม่เข้าเซิร์ฟเวอร์ครับ! 🚀`);
+    await interaction.reply(`✅ **ตั้งค่าระบบต้อนรับสำเร็จ!**\n📌 บอทจะส่ง Embed ที่คุณตั้งค่าไว้ไปที่ห้อง ${targetChannel} ครับ! 🚀`);
   }
 
-  // คำสั่ง /ping
   if (interaction.isChatInputCommand() && interaction.commandName === 'ping') {
     await interaction.reply('Pong! 🏓 บอททำงานระบบ Slash Command ปกติบน Render ครับ 🚀');
   }
