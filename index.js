@@ -79,7 +79,7 @@ client.on('guildMemberAdd', async member => {
     const embedConfig = config.embed || {
       title: '**✨· NEW Member!·✨**',
       description: '🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!',
-      color: '#2f6363'
+      color: '#900'
     };
 
     const finalTitle = embedConfig.title
@@ -90,11 +90,11 @@ client.on('guildMemberAdd', async member => {
       .replace('{user}', `${member}`)
       .replace('{server}', member.guild.name);
 
-    let embedColor = '#2f6363';
+    let embedColor = '#900';
     try {
       embedColor = embedConfig.color;
     } catch (e) {
-      embedColor = '#2f6363';
+      embedColor = '#900';
     }
 
     const embed = new EmbedBuilder()
