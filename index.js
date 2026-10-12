@@ -79,7 +79,7 @@ client.on('guildMemberAdd', async member => {
     const embedConfig = config.embed || {
       title: '**✨· NEW Member!·✨**',
       description: '🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!',
-      color: '#2f636'
+      color: '#2f6363'
     };
 
     const finalTitle = embedConfig.title
@@ -90,10 +90,17 @@ client.on('guildMemberAdd', async member => {
       .replace('{user}', `${member}`)
       .replace('{server}', member.guild.name);
 
+    let embedColor = '#2f6363';
+    try {
+      embedColor = embedConfig.color;
+    } catch (e) {
+      embedColor = '#2f6363';
+    }
+
     const embed = new EmbedBuilder()
       .setTitle(finalTitle)
       .setDescription(finalDesc)
-      .setColor(embedConfig.color || '#2f636')
+      .setColor(embedColor)
       .setTimestamp();
 
     await channel.send({ embeds: [embed] });
@@ -113,7 +120,7 @@ client.on('interactionCreate', async interaction => {
       embed: {
         title: '**✨· NEW Member!·✨**',
         description: '🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!',
-        color: '#2f636'
+        color: '#900'
       }
     };
   }
@@ -148,10 +155,24 @@ client.on('interactionCreate', async interaction => {
         const channel = await interaction.guild.channels.fetch(config.channelId);
         if (channel) {
           const embedConfig = config.embed;
+          const finalTitle = embedConfig.title
+            .replace('{user}', interaction.user.username)
+            .replace('{server}', interaction.guild.name);
+          const finalDesc = embedConfig.description
+            .replace('{user}', `${interaction.user}`)
+            .replace('{server}', interaction.guild.name);
+
+          let embedColor = '#2f6363';
+          try {
+            embedColor = embedConfig.color;
+          } catch (e) {
+            embedColor = '#2f6363';
+          }
+
           const embed = new EmbedBuilder()
-            .setTitle(embedConfig.title.replace('{user}', interaction.user.username).replace('{server}', interaction.guild.name))
-            .setDescription(embedConfig.description.replace('{user}', `${interaction.user}`).replace('{server}', interaction.guild.name))
-            .setColor(embedConfig.color)
+            .setTitle(finalTitle)
+            .setDescription(finalDesc)
+            .setColor(embedColor)
             .setTimestamp();
           
           await channel.send({ embeds: [embed] });
@@ -183,9 +204,9 @@ client.on('interactionCreate', async interaction => {
 
       const colorInput = new TextInputBuilder()
         .setCustomId('embedColor')
-        .setLabel('Hex Color (เช่น #2f636)')
+        .setLabel('Hex Color (เช่น #2f6363)')
         .setStyle(TextInputStyle.Short)
-        .setValue(config.embed.color)
+        .setValue(config.embed.color || '#2f6363')
         .setRequired(true);
 
       modal.addComponents(
@@ -208,7 +229,15 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isModalSubmit() && interaction.customId === 'editEmbedModal') {
     config.embed.title = interaction.fields.getTextInputValue('embedTitle');
     config.embed.description = interaction.fields.getTextInputValue('embedDesc');
-    config.embed.color = interaction.fields.getTextInputValue('embedColor');
+    let colorVal = interaction.fields.getTextInputValue('embedColor').trim();
+    if (!colorVal.startsWith('#')) colorVal = '#' + colorVal;
+    
+    // ป้องกันรหัสสีไม่ครบ 6 หลัก
+    if (colorVal.length === 4) {
+      colorVal = '#' + colorVal[1] + colorVal[1] + colorVal[2] + colorVal[2] + colorVal[3] + colorVal[3];
+    }
+    
+    config.embed.color = colorVal;
     saveConfigs(serverConfigs);
 
     return await interaction.reply({ content: '✅ บันทึกรูปแบบ Embed เรียบร้อยแล้ว!', ephemeral: true });
