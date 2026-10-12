@@ -3,11 +3,11 @@ const http = require('http');
 const fs = require('fs');
 
 // 1. สร้างเว็บเซิร์ฟเวอร์จำลองสำหรับ Render
-const httpSever = http.createServer((req, res) => {
+const httpServer = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('Bot is running!\n');
 });
-httpSever.listen(process.env.PORT || 3000);
+httpServer.listen(process.env.PORT || 3000);
 
 const client = new Client({
   intents: [
@@ -16,13 +16,16 @@ const client = new Client({
   ]
 });
 
-// ไฟล์สำหรับบันทึกข้อมูลการตั้งค่า (ป้องกันข้อมูลหายเวลาบอทรีเซ็ต)
+// ไฟล์สำหรับบันทึกข้อมูลการตั้งค่าแบบปลอดภัย
 const CONFIG_FILE = './config.json';
 
 function loadConfigs() {
   try {
     if (fs.existsSync(CONFIG_FILE)) {
-      return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+      const data = fs.readFileSync(CONFIG_FILE, 'utf8');
+      if (data.trim() !== '') {
+        return JSON.parse(data);
+      }
     }
   } catch (e) {
     console.error('Error loading config:', e);
@@ -96,7 +99,7 @@ client.on('guildMemberAdd', member => {
     .setColor(embedConfig.color || '#2f636')
     .setTimestamp();
 
-  channel.send({ embeds: [embed] });
+  channel.send({ embeds: [embed] }).catch(err => console.error('Send welcome error:', err));
 });
 
 // 4. จัดการคำสั่งและปุ่มกดต่างๆ
@@ -142,6 +145,10 @@ client.on('interactionCreate', async interaction => {
       if (!config.channelId) {
         return await interaction.reply({ content: '❌ กรุณาเลือกช่อง (Channel) สำหรับส่งข้อความต้อนรับก่อนกดทดสอบครับ!', ephemeral: true });
       }
+
+      // ตอบกลับผู้กดปุ่มทันทีเพื่อป้องกัน Timeout (มองเห็นคนเดียว)
+      await interaction.reply({ content: `🔄 กำลังส่งข้อความทดสอบไปที่ห้อง <#${config.channelId}>...`, ephemeral: true });
+
       const channel = interaction.guild.channels.cache.get(config.channelId);
       if (channel) {
         const embedConfig = config.embed;
@@ -151,11 +158,9 @@ client.on('interactionCreate', async interaction => {
           .setColor(embedConfig.color)
           .setTimestamp();
         
-        await channel.send({ embeds: [embed] });
-        return await interaction.reply({ content: `✅ ส่งข้อความทดสอบไปที่ห้อง <#${config.channelId}> เรียบร้อยแล้วครับ!`, ephemeral: true });
-      } else {
-        return await interaction.reply({ content: '❌ ไม่พบช่องแชทที่ตั้งค่าไว้ กรุณาเลือกใหม่อีกครั้ง', ephemeral: true });
+        await channel.send({ embeds: [embed] }).catch(err => console.error('Test welcome send error:', err));
       }
+      return;
     }
 
     if (interaction.customId === 'edit_embed') {
@@ -196,7 +201,7 @@ client.on('interactionCreate', async interaction => {
 
   // เลือกห้องแชทจากเมนู
   if (interaction.isChannelSelectMenu() && interaction.customId === 'select_channel') {
-    await interaction.deferUpdate(); // ป้องกันขึ้นแถบแดง Time out
+    await interaction.deferUpdate();
     config.channelId = interaction.values[0];
     saveConfigs(serverConfigs);
     return await updateDashboardAfterDefer(interaction);
@@ -209,7 +214,7 @@ client.on('interactionCreate', async interaction => {
     config.embed.color = interaction.fields.getTextInputValue('embedColor');
     saveConfigs(serverConfigs);
 
-    return await interaction.reply({ content: '✅ บันทึกรูปแบบ Embed เรียบร้อยแล้ว!', ephemeral: true });
+    return await interaction.reply({ content: '✅ บันทึกรูปแบบ Embed เรียบร้อยแล้ว! (ข้อมูลถูกบันทึกปลอดภัย)', ephemeral: true });
   }
 });
 
