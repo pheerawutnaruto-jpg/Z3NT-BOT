@@ -1,16 +1,9 @@
-constss.on('unhandledRejection', error => {
-  console.error('Unhandled promise rejection:', error);
-});
-
-process.on('uncaughtException', error => {
-  console.error('Uncaught exception:', error);
-});
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, RoleSelectMenuBuilder, ChannelType, PermissionFlagsBits, StringSelectMenuBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, RoleSelectMenuBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
 const http = require('http');
 const fs = require('fs');
 const cron = require('node-cron');
 const { getSecurityDashboardContent, handleSecurityMessage } = require('./security');
-const { levelCommands, getLevelDashboardContent, handleLevelMessage, handleLevelCommand, levelData, saveLevels } = require('./level');
+const { handleLeveling, levelCommand, handleLevelCommand, setLevelCommand, handleSetLevelCommand } = require('./level');
 
 const httpServer = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -71,6 +64,8 @@ client.once('ready', async () => {
     new SlashCommandBuilder()
       .setName('set-security')
       .setDescription('เปิดแผงควบคุมระบบป้องกันความปลอดภัยขั้นสูง'),
+    levelCommand,     // คำสั่งเช็กเลเวล
+    setLevelCommand,  // คำสั่งตั้งค่าเรตเลเวล
     new SlashCommandBuilder()
       .setName('clear')
       .setDescription('ลบข้อความในแชทจำนวน 1-100 ข้อความ')
@@ -93,7 +88,6 @@ client.once('ready', async () => {
           .addChannelTypes(ChannelType.GuildText)
           .setRequired(true)
       ),
-    ...levelCommands
   ].map(command => command.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
@@ -147,12 +141,14 @@ function setupCronJob(guildId, timeStr, channelId) {
   console.log(`⏰ ตั้งเวลา Auto-Clear สำเร็จสำหรับ Guild ${guildId} เวลา ${timeStr} ในห้องช่อง ID: ${channelId}`);
 }
 
-// ตรวจสอบข้อความสำหรับระบบ Security และ Level
 client.on('messageCreate', async message => {
-  handleLevelMessage(message, serverConfigs, saveConfigs);
+  const guildId = message.guild?.id;
+  const config = serverConfigs[guildId];
 
-  const config = serverConfigs[message.guild?.id];
-  handleSecurityMessage(message, config, spamTracker);
+  const isBlocked = handleSecurityMessage(message, config, spamTracker);
+  if (isBlocked) return;
+
+  handleLeveling(message, serverConfigs, saveConfigs);
 });
 
 client.on('guildMemberAdd', async member => {
@@ -161,7 +157,6 @@ client.on('guildMemberAdd', async member => {
 
   if (!config) return;
 
-  // 1. ระบบ Autorole
   if (config.autoroleEnabled && config.autoroleId) {
     try {
       const role = await member.guild.roles.fetch(config.autoroleId);
@@ -174,7 +169,6 @@ client.on('guildMemberAdd', async member => {
     }
   }
 
-  // 2. ระบบ Welcome Message
   if (!config.welcomeEnabled || !config.channelId) return;
 
   try {
@@ -264,12 +258,8 @@ client.on('interactionCreate', async interaction => {
         },
         ignoredChannels: []
       },
-      levelConfig: {
-        enabled: true,
-        minXp: 15,
-        maxXp: 25,
-        ignoredChannels: []
-      },
+      levels: {},
+      levelSettings: { minXp: 15, maxXp: 25, xpMultiplier: 100 },
       embed: {
         title: '',
         description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!',
@@ -304,89 +294,90 @@ client.on('interactionCreate', async interaction => {
       ignoredChannels: []
     };
   }
-  if (!config.levelConfig) {
-    config.levelConfig = { enabled: true, minXp: 15, maxXp: 25, ignoredChannels: [] };
+  if (!config.levels) config.levels = {};
+  if (!config.levelSettings) config.levelSettings = { minXp: 15, maxXp: 25, xpMultiplier: 100 };
+
+  if (interaction.isChatInputCommand() && interaction.commandName === 'ping') {
+    return await interaction.reply({ content: 'Pong! 🏓 บอททำงานระบบ Slash Command ปกติบน Render ครับ 🚀', ephemeral: true });
   }
 
-  if (interaction.isChatInputCommand()) {
-    if (interaction.commandName === 'ping') {
-      return await interaction.reply({ content: 'Pong! 🏓 บอททำงานระบบ Slash Command ปกติบน Render ครับ 🚀', ephemeral: true });
+  if (interaction.isChatInputCommand() && interaction.commandName === 'level') {
+    return await handleLevelCommand(interaction, serverConfigs);
+  }
+
+  if (interaction.isChatInputCommand() && interaction.commandName === 'set-level') {
+    return await handleSetLevelCommand(interaction, serverConfigs, saveConfigs);
+  }
+
+  if (interaction.isChatInputCommand() && interaction.commandName === 'set-security') {
+    if (!interaction.member.permissions.has('Administrator')) {
+      return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
     }
-    if (interaction.commandName === 'set-security') {
-      if (!interaction.member.permissions.has('Administrator')) {
-        return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
-      }
-      return await interaction.reply({ ...getSecurityDashboardContent(config), ephemeral: true });
+    return await interaction.reply({ ...getSecurityDashboardContent(config), ephemeral: true });
+  }
+
+  if (interaction.isChatInputCommand() && interaction.commandName === 'clear') {
+    if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
+      return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์จัดการข้อความ (Manage Messages) ครับ', ephemeral: true });
     }
-    if (interaction.commandName === 'set-level') {
-      if (!interaction.member.permissions.has('Administrator')) {
-        return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
-      }
-      return await interaction.reply({ ...getLevelDashboardContent(config), ephemeral: true });
+
+    const amount = interaction.options.getInteger('amount');
+    if (amount < 1 || amount > 100) {
+      return await interaction.reply({ content: '⚠️ กรุณาระบุจำนวนข้อความระหว่าง 1 ถึง 100 ครับ', ephemeral: true });
     }
-    if (interaction.commandName === 'level') {
-      return await handleLevelCommand(interaction);
+
+    await interaction.deferReply({ ephemeral: true });
+
+    try {
+      const messages = await interaction.channel.messages.fetch({ limit: amount });
+      await interaction.channel.bulkDelete(messages, true);
+      await interaction.editReply({ content: `🧹 ลบข้อความจำนวน **${amount}** ข้อความเรียบร้อยแล้ว!` });
+    } catch (err) {
+      console.error(err);
+      await interaction.editReply({ content: '❌ เกิดข้อผิดพลาด ไม่สามารถลบข้อความที่เก่าเกิน 14 วันได้ครับ' });
     }
-    if (interaction.commandName === 'clear') {
-      if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
-        return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์จัดการข้อความ (Manage Messages) ครับ', ephemeral: true });
-      }
+    return;
+  }
 
-      const amount = interaction.options.getInteger('amount');
-      if (amount < 1 || amount > 100) {
-        return await interaction.reply({ content: '⚠️ กรุณาระบุจำนวนข้อความระหว่าง 1 ถึง 100 ครับ', ephemeral: true });
-      }
-
-      await interaction.deferReply({ ephemeral: true });
-
-      try {
-        const messages = await interaction.channel.messages.fetch({ limit: amount });
-        await interaction.channel.bulkDelete(messages, true);
-        await interaction.editReply({ content: `🧹 ลบข้อความจำนวน **${amount}** ข้อความเรียบร้อยแล้ว!` });
-      } catch (err) {
-        console.error(err);
-        await interaction.editReply({ content: '❌ เกิดข้อผิดพลาด ไม่สามารถลบข้อความที่เก่าเกิน 14 วันได้ครับ' });
-      }
-      return;
+  if (interaction.isChatInputCommand() && interaction.commandName === 'set-autoclear') {
+    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+      return await interaction.reply({ content: '❌ คุณต้องเป็น Administrator ถึงจะใช้งานคำสั่งนี้ได้ครับ', ephemeral: true });
     }
-    if (interaction.commandName === 'set-autoclear') {
-      if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-        return await interaction.reply({ content: '❌ คุณต้องเป็น Administrator ถึงจะใช้งานคำสั่งนี้ได้ครับ', ephemeral: true });
-      }
 
-      const timeInput = interaction.options.getString('time');
-      const channelInput = interaction.options.getChannel('channel');
+    const timeInput = interaction.options.getString('time');
+    const channelInput = interaction.options.getChannel('channel');
 
-      const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
-      if (!timeRegex.test(timeInput)) {
-        return await interaction.reply({ content: '❌ รูปแบบเวลาไม่ถูกต้อง กรุณาใส่ในรูปแบบ **HH:MM** (เช่น `06:00` หรือ `23:30`)', ephemeral: true });
-      }
-
-      if (!config.autoClear) {
-        config.autoClear = {};
-      }
-
-      config.autoClear.enabled = true;
-      config.autoClear.time = timeInput;
-      config.autoClear.channelId = channelInput.id;
-      saveConfigs(serverConfigs);
-
-      setupCronJob(guildId, timeInput, channelInput.id);
-
-      return await interaction.reply({ content: `✅ ตั้งค่าระบบ Auto-Clear สำเร็จ!\n⏰ เวลา: **${timeInput} น.** (ทุกวัน)\n📢 ช่อง: <#${channelInput.id}>`, ephemeral: true });
+    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    if (!timeRegex.test(timeInput)) {
+      return await interaction.reply({ content: '❌ รูปแบบเวลาไม่ถูกต้อง กรุณาใส่ในรูปแบบ **HH:MM** (เช่น `06:00` หรือ `23:30`)', ephemeral: true });
     }
-    if (interaction.commandName === 'set-welcom') {
-      if (!interaction.member.permissions.has('Administrator')) {
-        return await interaction.reply({ content: '❌ คุณต้องเป็น Administrator ถึงจะใช้งานได้ครับ', ephemeral: true });
-      }
-      return await sendDashboard(interaction);
+
+    if (!config.autoClear) {
+      config.autoClear = {};
     }
-    if (interaction.commandName === 'set-autorole') {
-      if (!interaction.member.permissions.has('Administrator')) {
-        return await interaction.reply({ content: '❌ คุณต้องเป็น Administrator ถึงจะใช้งานได้ครับ', ephemeral: true });
-      }
-      return await sendAutoroleDashboard(interaction);
+
+    config.autoClear.enabled = true;
+    config.autoClear.time = timeInput;
+    config.autoClear.channelId = channelInput.id;
+    saveConfigs(serverConfigs);
+
+    setupCronJob(guildId, timeInput, channelInput.id);
+
+    return await interaction.reply({ content: `✅ ตั้งค่าระบบ Auto-Clear สำเร็จ!\n⏰ เวลา: **${timeInput} น.** (ทุกวัน)\n📢 ช่อง: <#${channelInput.id}>`, ephemeral: true });
+  }
+
+  if (interaction.isChatInputCommand() && interaction.commandName === 'set-welcom') {
+    if (!interaction.member.permissions.has('Administrator')) {
+      return await interaction.reply({ content: '❌ คุณต้องเป็น Administrator ถึงจะใช้งานได้ครับ', ephemeral: true });
     }
+    return await sendDashboard(interaction);
+  }
+
+  if (interaction.isChatInputCommand() && interaction.commandName === 'set-autorole') {
+    if (!interaction.member.permissions.has('Administrator')) {
+      return await interaction.reply({ content: '❌ คุณต้องเป็น Administrator ถึงจะใช้งานได้ครับ', ephemeral: true });
+    }
+    return await sendAutoroleDashboard(interaction);
   }
 
   if (interaction.isButton()) {
@@ -435,22 +426,6 @@ client.on('interactionCreate', async interaction => {
         },
         ignoredChannels: []
       };
-    } else if (id === 'lvl_toggle_main') {
-      config.levelConfig.enabled = !config.levelConfig.enabled;
-      saveConfigs(serverConfigs);
-      return await interaction.update(getLevelDashboardContent(config));
-    } else if (id === 'lvl_config_xp') {
-      const modal = new ModalBuilder().setCustomId('lvlXpModal').setTitle('ตั้งค่าช่วงสุ่ม XP');
-      const minInput = new TextInputBuilder().setCustomId('minXp').setLabel('XP ขั้นต่ำต่อข้อความ').setStyle(TextInputStyle.Short).setValue(config.levelConfig.minXp.toString()).setRequired(true);
-      const maxInput = new TextInputBuilder().setCustomId('maxXp').setLabel('XP สูงสุดต่อข้อความ').setStyle(TextInputStyle.Short).setValue(config.levelConfig.maxXp.toString()).setRequired(true);
-      modal.addComponents(new ActionRowBuilder().addComponents(minInput), new ActionRowBuilder().addComponents(maxInput));
-      return await interaction.showModal(modal);
-    } else if (id === 'lvl_reset_all') {
-      if (levelData[guildId]) {
-        delete levelData[guildId];
-        saveLevels(levelData);
-      }
-      return await interaction.reply({ content: '🔄 รีเซ็ตข้อมูลเลเวลทั้งหมดในเซิร์ฟเวอร์นี้เรียบร้อยแล้ว!', ephemeral: true });
     }
 
     saveConfigs(serverConfigs);
@@ -461,8 +436,6 @@ client.on('interactionCreate', async interaction => {
       return await updateAutoroleDashboard(interaction);
     } else if (id.startsWith('sec_')) {
       return await interaction.update(getSecurityDashboardContent(config));
-    } else if (id.startsWith('lvl_')) {
-      return await interaction.update(getLevelDashboardContent(config));
     }
 
     if (interaction.customId === 'test_welcome') {
@@ -623,25 +596,11 @@ client.on('interactionCreate', async interaction => {
     }
   }
 
-  if (interaction.isChannelSelectMenu()) {
-    if (interaction.customId === 'select_channel') {
-      await interaction.deferUpdate();
-      config.channelId = interaction.values[0];
-      saveConfigs(serverConfigs);
-      return await updateDashboardAfterDefer(interaction);
-    }
-    if (interaction.customId === 'sec_select_ignored') {
-      await interaction.deferUpdate();
-      config.security.ignoredChannels = interaction.values;
-      saveConfigs(serverConfigs);
-      return await interaction.editReply(getSecurityDashboardContent(config));
-    }
-    if (interaction.customId === 'lvl_select_ignored') {
-      await interaction.deferUpdate();
-      config.levelConfig.ignoredChannels = interaction.values;
-      saveConfigs(serverConfigs);
-      return await interaction.editReply(getLevelDashboardContent(config));
-    }
+  if (interaction.isChannelSelectMenu() && interaction.customId === 'select_channel') {
+    await interaction.deferUpdate();
+    config.channelId = interaction.values[0];
+    saveConfigs(serverConfigs);
+    return await updateDashboardAfterDefer(interaction);
   }
 
   if (interaction.isRoleSelectMenu() && interaction.customId === 'select_autorole') {
@@ -649,6 +608,13 @@ client.on('interactionCreate', async interaction => {
     config.autoroleId = interaction.values[0];
     saveConfigs(serverConfigs);
     return await updateAutoroleDashboardAfterDefer(interaction);
+  }
+
+  if (interaction.isChannelSelectMenu() && interaction.customId === 'sec_select_ignored') {
+    await interaction.deferUpdate();
+    config.security.ignoredChannels = interaction.values;
+    saveConfigs(serverConfigs);
+    return await interaction.editReply(getSecurityDashboardContent(config));
   }
 
   if (interaction.isModalSubmit()) {
@@ -690,16 +656,6 @@ client.on('interactionCreate', async interaction => {
       saveConfigs(serverConfigs);
 
       return await interaction.reply({ content: '✅ บันทึกค่าเวลาเรียบร้อยแล้ว!', ephemeral: true });
-    }
-
-    if (interaction.customId === 'lvlXpModal') {
-      const min = parseInt(interaction.fields.getTextInputValue('minXp'));
-      const max = parseInt(interaction.fields.getTextInputValue('maxXp'));
-      if (!isNaN(min)) config.levelConfig.minXp = min;
-      if (!isNaN(max)) config.levelConfig.maxXp = max;
-      saveConfigs(serverConfigs);
-
-      return await interaction.reply({ content: '✅ บันทึกค่าอัตราสุ่ม XP เรียบร้อยแล้ว!', ephemeral: true });
     }
   }
 });
