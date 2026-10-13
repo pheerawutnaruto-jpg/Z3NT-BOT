@@ -50,4 +50,33 @@ module.exports = {
     }
     const fs = require('fs');
     const path = require('path');
+    const CONFIG_FILE = path.join(__dirname, '../config.json');
+    let serverConfigs = {};
+    try {
+      if (fs.existsSync(CONFIG_FILE)) {
+        serverConfigs = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+      }
+    } catch(e) {}
+
+    const guildId = interaction.guildId;
+    if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
+    const config = serverConfigs[guildId];
     
+    if (!config.embed) {
+      config.embed = {
+        title: '',
+        description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢\x62𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ! เอาไปเลยยย',
+        color: '#66FFFF',
+        image: ''
+      };
+      fs.writeFileSync(CONFIG_FILE, JSON.stringify(serverConfigs, null, 2));
+    }
+    await interaction.reply({ ...getDashboardConfig(config), ephemeral: true });
+  },
+  async updateDashboard(interaction, config) {
+    await interaction.update({ ...getDashboardConfig(config) });
+  },
+  async updateDashboardAfterDefer(interaction, config) {
+    await interaction.editReply({ ...getDashboardConfig(config) });
+  }
+};
