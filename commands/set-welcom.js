@@ -1,9 +1,10 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelSelectMenuBuilder, ChannelType } = require('discord.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('set-welcom')
     .setDescription('เปิดแผงควบคุมระบบต้อนรับ (Welcome Dashboard)'),
+  
   async execute(interaction, client, serverConfigs) {
     if (!interaction.member.permissions.has('Administrator')) {
       return await interaction.reply({ content: '❌ คุณต้องเป็น Administrator ถึงจะใช้งานได้ครับ', ephemeral: true });
@@ -19,8 +20,7 @@ module.exports = {
           description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!',
           color: '#66FFFF',
           image: ''
-        },
-        autoClear: { enabled: false, time: '06:00', channelId: null }
+        }
       };
     }
 
@@ -52,7 +52,6 @@ module.exports = {
         .setStyle(ButtonStyle.Secondary)
     );
 
-    const { ChannelSelectMenuBuilder, ChannelType } = require('discord.js');
     const channelRow = new ActionRowBuilder().addComponents(
       new ChannelSelectMenuBuilder()
         .setCustomId('select_channel')
