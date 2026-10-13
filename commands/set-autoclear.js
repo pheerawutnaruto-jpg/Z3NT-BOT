@@ -1,65 +1,49 @@
 const { SlashCommandBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
-
-const CONFIG_FILE = path.join(__dirname, '../config.json');
-
-function loadConfigs() {
-  try {
-    if (fs.existsSync(CONFIG_FILE)) {
-      const data = fs.readFileSync(CONFIG_FILE, 'utf8');
-      if (data.trim() !== '') return JSON.parse(data);
-    }
-  } catch (e) {
-    console.error('Error loading config:', e);
-  }
-  return {};
-}
-
-function saveConfigs(configs) {
-  try {
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify(configs, null, 2));
-  } catch (e) {
-    console.error('Error saving config:', e);
-  }
-}
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('set-autoclear')
-    .setDescription('ตั้งเวลาลบข้อความอัตโนมัติ')
+    .setDescription('ตั้งเวลาระบบลบข้อความอัตโนมัติ')
     .addStringOption(option =>
       option.setName('time')
-        .setDescription('เวลา เช่น 06:00')
+        .setDescription('ระบุเวลาในรูปแบบ HH:MM เช่น 06:00')
         .setRequired(true)
     )
     .addChannelOption(option =>
       option.setName('channel')
-        .setDescription('เลือกห้อง')
+        .setDescription('เลือกห้องที่ต้องการให้ลบข้อความอัตโนมัติ')
         .addChannelTypes(ChannelType.GuildText)
         .setRequired(true)
     ),
-  async execute(interaction, client) {
+  async execute(interaction, client, serverConfigs, saveConfigs, setupCronJob) {
     if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-      return await interaction.reply({ content: '❌ สำหรับ Administrator เท่านั้น', ephemeral: true });
+      return await interaction.reply({ content: '❌ คุณต้องเป็น Administrator ถึงจะใช้งานคำสั่งนี้ได้ครับ', ephemeral: true });
     }
+
+    const guildId = interaction.guildId;
     const timeInput = interaction.options.getString('time');
     const channelInput = interaction.options.getChannel('channel');
-    const guildId = interaction.guildId;
 
-    let serverConfigs = loadConfigs();
-    if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
-    if (!serverConfigs[guildId].autoClear) serverConfigs[guildId].autoClear = {};
-    
+    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    if (!timeRegex.test(timeInput)) {
+      return await interaction.reply({ content: '❌ รูปแบบเวลาไม่ถูกต้อง กรุณาใส่ในรูปแบบ **HH:MM** (เช่น `06:00` หรือ `23:30`)', ephemeral: true });
+    }
+
+    if (!serverConfigs[guildId]) {
+      serverConfigs[guildId] = { welcomeEnabled: false, channelId: null, embed: { title: '', description: '', color: '#66FFFF', image: '' } };
+    }
+
+    if (!serverConfigs[guildId].autoClear) {
+      serverConfigs[guildId].autoClear = {};
+    }
+
     serverConfigs[guildId].autoClear.enabled = true;
     serverConfigs[guildId].autoClear.time = timeInput;
     serverConfigs[guildId].autoClear.channelId = channelInput.id;
     saveConfigs(serverConfigs);
-    
-    if (client.setupCronJob) {
-      client.setupCronJob(guildId, timeInput, channelInput.id);
-    }
 
-    return await interaction.reply({ content: `✅ ตั้งค่า Auto-Clear เวลา ${timeInput} น. เรียบร้อย`, ephemeral: true });
+    setupCronJob(guildId, timeInput, channelInput.id);
+
+    return await interaction.reply({ content: `✅ ตั้งค่าระบบ Auto-Clear สำเร็จ!\n⏰ เวลา: **${timeInput} น.** (ทุกวัน)\n📢 ช่อง: <#${channelInput.id}>`, ephemeral: true });
   },
 };
