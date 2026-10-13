@@ -21,7 +21,6 @@ function saveLevels(levels) {
 let levelData = loadLevels();
 const xpCooldown = new Set();
 
-// คำสั่ง Slash Commands สำหรับระบบเลเวล
 const levelCommands = [
   new SlashCommandBuilder()
     .setName('level')
@@ -40,7 +39,6 @@ function getRequiredXp(level) {
   return level * 100 + 150;
 }
 
-// ฟังก์ชันสร้างหน้าแผงควบคุม Level Dashboard
 function getLevelDashboardContent(guildConfig) {
   const cfg = guildConfig.levelConfig || { enabled: true, minXp: 15, maxXp: 25, ignoredChannels: [] };
   const statusText = cfg.enabled ? '✅ เปิดอยู่' : '❌ ปิดอยู่';
@@ -77,7 +75,6 @@ function getLevelDashboardContent(guildConfig) {
   return { embeds: [embed], components: [row1, rowChannel] };
 }
 
-// ฟังก์ชันจัดการ XP ตอนพิมพ์ข้อความ
 function handleLevelMessage(message, serverConfigs, saveServerConfigs) {
   if (!message.guild || message.author.bot) return;
 
@@ -92,7 +89,6 @@ function handleLevelMessage(message, serverConfigs, saveServerConfigs) {
   const cfg = config.levelConfig;
   if (!cfg.enabled) return;
 
-  // ตรวจสอบห้องยกเว้น
   if (cfg.ignoredChannels && cfg.ignoredChannels.includes(message.channel.id)) return;
 
   const userId = message.author.id;
@@ -100,7 +96,7 @@ function handleLevelMessage(message, serverConfigs, saveServerConfigs) {
 
   if (xpCooldown.has(cooldownKey)) return;
   xpCooldown.add(cooldownKey);
-  setTimeout(() => xpCooldown.delete(cooldownKey), 60000); // คูลดาวน์ 1 นาที
+  setTimeout(() => xpCooldown.delete(cooldownKey), 60000);
 
   if (!levelData[guildId]) levelData[guildId] = {};
   if (!levelData[guildId][userId]) {
@@ -125,7 +121,6 @@ function handleLevelMessage(message, serverConfigs, saveServerConfigs) {
   }
 }
 
-// ฟังก์ชันคำสั่ง /level
 async function handleLevelCommand(interaction) {
   const guildId = interaction.guildId;
   const targetUser = interaction.options.getUser('user') || interaction.user;
