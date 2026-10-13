@@ -45,9 +45,8 @@ function handleLeveling(message, serverConfigs, saveConfigs) {
     userStat.xp -= requiredXp;
     userStat.level += 1;
 
-    // เปลี่ยน {user} เป็นชื่อดิสคอร์ด (username) แทน
     const customMsg = lConfig.levelUpMessage
-      .replace('{user}', message.author.username)
+      .replace('{user}', `<@${userId}>`)
       .replace('{level}', userStat.level);
 
     let targetChannel = message.channel;
@@ -100,9 +99,9 @@ async function handleLevelCommand(interaction, serverConfigs) {
   const percentage = Math.min(Math.round((userStat.xp / requiredXp) * 10), 10);
   const progressBar = '█'.repeat(percentage) + '░'.repeat(10 - percentage);
 
-  // เปลี่ยน {user} ให้แสดงเป็นชื่อดิสคอร์ด (targetUser.username) แทนการใช้ไอดีหรือเมนชั่น
-  const finalTitle = (lConfig.cardTitle || '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD').replace('{user}', targetUser.username);
-  const finalDesc = (lConfig.cardDescription || 'การ์ดข้อมูลเลเวลของ **{user}**').replace('{user}', targetUser.username);
+  // เปลี่ยนให้ {user} เป็นแท็กชื่อที่กดได้ (<@userId>)
+  const finalTitle = (lConfig.cardTitle || '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD').replace('{user}', `<@${userId}>`);
+  const finalDesc = (lConfig.cardDescription || 'การ์ดข้อมูลเลเวลของ **{user}**').replace('{user}', `<@${userId}>`);
 
   const embed = new EmbedBuilder()
     .setTitle(finalTitle)
@@ -119,7 +118,7 @@ async function handleLevelCommand(interaction, serverConfigs) {
     embed.setImage(lConfig.embedImage.trim());
   }
 
-  // เอา footer (Requested by ...) ออกเรียบร้อยตามต้องการ
+  // เอา footer ออกเรียบร้อยแล้ว (ไม่เรียกใช้ setFooter)
 
   await interaction.reply({ embeds: [embed], ephemeral: true });
 }
