@@ -27,7 +27,7 @@ function saveConfigs(configs) {
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('set-autoclear')
-    .setDescription('ตั้งเวลาลบข้อความอัตโนมัติประจำวัน')
+    .setDescription('ตั้งเวลาลบข้อความอัตโนมัติ')
     .addStringOption(option =>
       option.setName('time')
         .setDescription('เวลา เช่น 06:00')
@@ -35,7 +35,7 @@ module.exports = {
     )
     .addChannelOption(option =>
       option.setName('channel')
-        .setDescription('เลือกห้องแชทที่ต้องการลบ')
+        .setDescription('เลือกห้อง')
         .addChannelTypes(ChannelType.GuildText)
         .setRequired(true)
     ),
@@ -43,7 +43,6 @@ module.exports = {
     if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
       return await interaction.reply({ content: '❌ สำหรับ Administrator เท่านั้น', ephemeral: true });
     }
-
     const timeInput = interaction.options.getString('time');
     const channelInput = interaction.options.getChannel('channel');
     const guildId = interaction.guildId;
@@ -51,20 +50,16 @@ module.exports = {
     let serverConfigs = loadConfigs();
     if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
     if (!serverConfigs[guildId].autoClear) serverConfigs[guildId].autoClear = {};
-
-    serverConfigs[guildId].autoClear = {
-      enabled: true,
-      time: timeInput,
-      channelId: channelInput.id
-    };
-
+    
+    serverConfigs[guildId].autoClear.enabled = true;
+    serverConfigs[guildId].autoClear.time = timeInput;
+    serverConfigs[guildId].autoClear.channelId = channelInput.id;
     saveConfigs(serverConfigs);
-
-    // เรียกฟังก์ชันตั้งเวลา (ถ้ามีระบบ Cron ใน index.js)
+    
     if (client.setupCronJob) {
       client.setupCronJob(guildId, timeInput, channelInput.id);
     }
 
-    return await interaction.reply({ content: `✅ ตั้งค่า Auto-Clear เวลา ${timeInput} น. ที่ห้อง <#${channelInput.id}> เรียบร้อย`, ephemeral: true });
+    return await interaction.reply({ content: `✅ ตั้งค่า Auto-Clear เวลา ${timeInput} น. เรียบร้อย`, ephemeral: true });
   },
 };
