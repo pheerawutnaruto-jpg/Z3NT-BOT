@@ -240,10 +240,9 @@ client.on('interactionCreate', async interaction => {
     return await updateSecurityDashboard(interaction);
   }
 
-  // จัดการค่าที่เลือกจากดรอปดาวน์ Action (เลือกได้หลายค่าพร้อมกัน)
   if (interaction.isStringSelectMenu()) {
     if (interaction.customId === 'act_invite_select') {
-      const vals = interaction.values; // เช่น ['timeout', 'kick']
+      const vals = interaction.values;
       config.security.actions.invite.timeout = vals.includes('timeout');
       config.security.actions.invite.kick = vals.includes('kick');
       config.security.actions.invite.ban = vals.includes('ban');
@@ -298,4 +297,73 @@ function getSecurityDashboardContent(config) {
     .addFields(
       { name: 'สถานะ', value: sec.enabled ? 'เปิด' : 'ปิด', inline: true },
       { name: 'ลบลิงก์เชิญ', value: sec.antiLink ? 'เปิด' : 'ปิด', inline: true },
-      { name
+      { name: 'ลบข้อความสแปม', value: sec.antiSpam ? 'เปิด' : 'ปิด', inline: true },
+      { name: 'ลบสแปม MrBeast', value: sec.antiMrBeast ? 'เปิด' : 'ปิด', inline: true },
+      { name: 'สแปม', value: `${sec.spamCount} ข้อความ / ${sec.spamSeconds} วินาที`, inline: true },
+      { name: 'ระงับผู้ใช้', value: `${sec.timeoutSeconds} วินาที`, inline: true },
+      { name: 'Invite Actions', value: formatAct(act.invite), inline: false },
+      { name: 'Spam Actions', value: formatAct(act.spam), inline: false },
+      { name: 'ห้องยกเว้น (ไม่ต้องดูแล)', value: ignoredTags, inline: false }
+    );
+
+  const row1 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('sec_toggle_main').setLabel(sec.enabled ? 'ปิดระบบ' : 'เปิดระบบ').setStyle(sec.enabled ? ButtonStyle.Danger : ButtonStyle.Success),
+    new ButtonBuilder().setCustomId('sec_toggle_link').setLabel(`ลิงก์: ${sec.antiLink ? 'เปิด' : 'ปิด'}`).setStyle(sec.antiLink ? ButtonStyle.Primary : ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('sec_toggle_spam').setLabel(`สแปม: ${sec.antiSpam ? 'เปิด' : 'ปิด'}`).setStyle(sec.antiSpam ? ButtonStyle.Primary : ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('sec_toggle_mrbeast').setLabel(`MrBeast: ${sec.antiMrBeast ? 'เปิด' : 'ปิด'}`).setStyle(sec.antiMrBeast ? ButtonStyle.Primary : ButtonStyle.Secondary),
+  );
+
+  const rowInviteSelect = new ActionRowBuilder().addComponents(
+    new StringSelectMenuBuilder()
+      .setCustomId('act_invite_select')
+      .setPlaceholder('⚙️ เลือก Action สำหรับ Invite Link (เลือกหลายอันได้)')
+      .setMinValues(0)
+      .setMaxValues(3)
+      .addOptions([
+        { label: 'Timeout (ระงับการพิมพ์)', value: 'timeout' },
+        { label: 'Kick (เตะออกจากเซิร์ฟเวอร์)', value: 'kick' },
+        { label: 'Ban (แบนถาวร)', value: 'ban' }
+      ])
+  );
+
+  const rowSpamSelect = new ActionRowBuilder().addComponents(
+    new StringSelectMenuBuilder()
+      .setCustomId('act_spam_select')
+      .setPlaceholder('⚙️ เลือก Action สำหรับ Spam (เลือกหลายอันได้)')
+      .setMinValues(0)
+      .setMaxValues(3)
+      .addOptions([
+        { label: 'Timeout (ระงับการพิมพ์)', value: 'timeout' },
+        { label: 'Kick (เตะออกจากเซิร์ฟเวอร์)', value: 'kick' },
+        { label: 'Ban (แบนถาวร)', value: 'ban' }
+      ])
+  );
+
+  const rowControl = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('sec_config_time').setLabel('ตั้งเวลา/คูลดาวน์').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('sec_reset').setLabel('รีเซ็ตทั้งหมด').setStyle(ButtonStyle.Danger)
+  );
+
+  const rowChannel = new ActionRowBuilder().addComponents(
+    new ChannelSelectMenuBuilder()
+      .setCustomId('sec_select_ignored')
+      .setPlaceholder('📂 เลือกห้องที่ไม่ต้องดูแล (ห้องยกเว้น)')
+      .setMinValues(0)
+      .setMaxValues(5)
+      .addChannelTypes(ChannelType.GuildText)
+  );
+
+  return { embeds: [embed], components: [row1, rowInviteSelect, rowSpamSelect, rowControl, rowChannel] };
+}
+
+async function sendSecurityDashboard(interaction) {
+  const codeConfig = serverConfigs[interaction.guildId];
+  await interaction.reply({ ...getSecurityDashboardContent(codeConfig), ephemeral: true });
+}
+
+async function updateSecurityDashboard(interaction) {
+  const codeConfig = serverConfigs[interaction.guildId];
+  await interaction.update(getSecurityDashboardContent(codeConfig));
+}
+
+client.login(process.env.DISCORD_TOKEN);
