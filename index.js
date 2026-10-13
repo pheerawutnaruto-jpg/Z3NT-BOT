@@ -268,6 +268,8 @@ client.on('interactionCreate', async interaction => {
         xpMultiplier: 100,
         channelId: null,
         levelUpMessage: '🎉 ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว! 🚀',
+        cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD',
+        cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**',
         embedColor: '#66FFFF',
         embedImage: ''
       },
@@ -314,6 +316,8 @@ client.on('interactionCreate', async interaction => {
       xpMultiplier: 100,
       channelId: null,
       levelUpMessage: '🎉 ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว! 🚀',
+      cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD',
+      cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**',
       embedColor: '#66FFFF',
       embedImage: ''
     };
@@ -430,13 +434,26 @@ client.on('interactionCreate', async interaction => {
       modal.addComponents(new ActionRowBuilder().addComponents(minInput), new ActionRowBuilder().addComponents(maxInput), new ActionRowBuilder().addComponents(multInput));
       return await interaction.showModal(modal);
     }
-    if (id === 'edit_level_embed') {
-      const modal = new ModalBuilder().setCustomId('levelEmbedModal').setTitle('ตกแต่ง Embed และข้อความเลเวลอัป');
-      const msgInput = new TextInputBuilder().setCustomId('levelMsg').setLabel('ข้อความ ({user}, {level})').setStyle(TextInputStyle.Paragraph).setValue(config.levelConfig.levelUpMessage).setRequired(true);
+    if (id === 'edit_level_card') {
+      const modal = new ModalBuilder().setCustomId('levelCardModal').setTitle('ตกแต่งการ์ด Level (Stat Card)');
+      const titleInput = new TextInputBuilder().setCustomId('cardTitle').setLabel('Title การ์ด').setStyle(TextInputStyle.Short).setValue(config.levelConfig.cardTitle || '').setRequired(true);
+      const descInput = new TextInputBuilder().setCustomId('cardDesc').setLabel('Description การ์ด').setStyle(TextInputStyle.Paragraph).setValue(config.levelConfig.cardDescription || '').setRequired(true);
       const colorInput = new TextInputBuilder().setCustomId('embedColor').setLabel('Hex Color (เช่น 66FFFF)').setStyle(TextInputStyle.Short).setValue(config.levelConfig.embedColor || '#66FFFF').setRequired(true);
-      const imageInput = new TextInputBuilder().setCustomId('embedImage').setLabel('Image URL (ลิงก์รูปภาพ หรือเว้นว่าง)').setStyle(TextInputStyle.Short).setValue(config.levelConfig.embedImage || '').setRequired(false);
+      const imageInput = new TextInputBuilder().setCustomId('embedImage').setLabel('Image URL (รูปภาพ Banner หรือเว้นว่าง)').setStyle(TextInputStyle.Short).setValue(config.levelConfig.embedImage || '').setRequired(false);
 
-      modal.addComponents(new ActionRowBuilder().addComponents(msgInput), new ActionRowBuilder().addComponents(colorInput), new ActionRowBuilder().addComponents(imageInput));
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(titleInput),
+        new ActionRowBuilder().addComponents(descInput),
+        new ActionRowBuilder().addComponents(colorInput),
+        new ActionRowBuilder().addComponents(imageInput)
+      );
+      return await interaction.showModal(modal);
+    }
+    if (id === 'edit_level_msg') {
+      const modal = new ModalBuilder().setCustomId('levelMsgModal').setTitle('แก้ไขข้อความเลเวลอัป');
+      const msgInput = new TextInputBuilder().setCustomId('levelMsg').setLabel('ข้อความ ({user}, {level})').setStyle(TextInputStyle.Paragraph).setValue(config.levelConfig.levelUpMessage).setRequired(true);
+
+      modal.addComponents(new ActionRowBuilder().addComponents(msgInput));
       return await interaction.showModal(modal);
     }
 
@@ -724,8 +741,9 @@ client.on('interactionCreate', async interaction => {
       return await interaction.reply({ content: '✅ บันทึกเรต XP เรียบร้อยแล้ว!', ephemeral: true });
     }
 
-    if (interaction.customId === 'levelEmbedModal') {
-      config.levelConfig.levelUpMessage = interaction.fields.getTextInputValue('levelMsg');
+    if (interaction.customId === 'levelCardModal') {
+      config.levelConfig.cardTitle = interaction.fields.getTextInputValue('cardTitle');
+      config.levelConfig.cardDescription = interaction.fields.getTextInputValue('cardDesc');
       
       let colorVal = interaction.fields.getTextInputValue('embedColor').trim();
       if (!colorVal.startsWith('#')) colorVal = '#' + colorVal;
@@ -734,7 +752,14 @@ client.on('interactionCreate', async interaction => {
       config.levelConfig.embedImage = interaction.fields.getTextInputValue('embedImage');
       saveConfigs(serverConfigs);
 
-      return await interaction.reply({ content: '✅ บันทึกการตกแต่ง Embed เลเวลอัปเรียบร้อยแล้ว!', ephemeral: true });
+      return await interaction.reply({ content: '✅ บันทึกการตกแต่งการ์ด Level (Stat Card) เรียบร้อยแล้ว!', ephemeral: true });
+    }
+
+    if (interaction.customId === 'levelMsgModal') {
+      config.levelConfig.levelUpMessage = interaction.fields.getTextInputValue('levelMsg');
+      saveConfigs(serverConfigs);
+
+      return await interaction.reply({ content: '✅ บันทึกข้อความเลเวลอัปเรียบร้อยแล้ว!', ephemeral: true });
     }
   }
 });
