@@ -1,28 +1,4 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
-
-const CONFIG_FILE = path.join(__dirname, '../config.json');
-
-function loadConfigs() {
-  try {
-    if (fs.existsSync(CONFIG_FILE)) {
-      const data = fs.readFileSync(CONFIG_FILE, 'utf8');
-      if (data.trim() !== '') return JSON.parse(data);
-    }
-  } catch (e) {
-    console.error('Error loading config:', e);
-  }
-  return {};
-}
-
-function saveConfigs(configs) {
-  try {
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify(configs, null, 2));
-  } catch (e) {
-    console.error('Error saving config:', e);
-  }
-}
 
 function getAntiSpamDashboardContent(sec) {
   const statusText = sec.enabled ? 'เปิด' : 'ปิด';
@@ -65,9 +41,17 @@ module.exports = {
     if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
       return await interaction.reply({ content: '❌ สำหรับ Administrator เท่านั้น', ephemeral: true });
     }
+    const fs = require('fs');
+    const path = require('path');
+    const CONFIG_FILE = path.join(__dirname, '../config.json');
+    let serverConfigs = {};
+    try {
+      if (fs.existsSync(CONFIG_FILE)) {
+        serverConfigs = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+      }
+    } catch(e) {}
 
     const guildId = interaction.guildId;
-    let serverConfigs = loadConfigs();
     if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
     if (!serverConfigs[guildId].security) {
       serverConfigs[guildId].security = {
@@ -84,11 +68,14 @@ module.exports = {
         mrBeastAction: 'Timeout 3000s + Kick',
         selectedChannels: []
       };
-      saveConfigs(serverConfigs);
+      fs.writeFileSync(CONFIG_FILE, JSON.stringify(serverConfigs, null, 2));
     }
-
-    const content = getAntiSpamDashboardContent(serverConfigs[guildId].security);
+    const sec = serverConfigs[guildId].security;
+    const content = getAntiSpamDashboardContent(sec);
     await interaction.reply({ ...content, ephemeral: true });
   },
-  getAntiSpamDashboardContent
+  async updateAntiSpamDashboard(interaction, sec) {
+    const content = getAntiSpamDashboardContent(sec);
+    await interaction.update({ ...content });
+  }
 };
