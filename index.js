@@ -126,22 +126,134 @@ function setupCronJob(guildId, timeStr, channelId) {
   });
 }
 
-// ฟังก์ชันสร้างและส่ง Embed ต้อนรับ
-async function sendWelcomeEmbed(member, channel, config) {
-  const embedConfig = config.embed || {
-    title: '',
-    description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!',
-    color: '#66FFFF',
-    image: '',
-    authorText: '',
-    authorImage: '',
-    thumbnail: '',
-    footerText: ''
-  };
+// ระบบต้อนรับสมาชิกใหม่ (รองรับ Footer และ {server_membercount})
+client.on('guildMemberAdd', async member => {
+  const guildId = member.guild.id;
+  const config = serverConfigs[guildId];
 
-  const memberCount = member.guild.memberCount;
+  if (!config || !config.welcomeEnabled || !config.channelId) return;
 
-  const finalTitle = embedConfig.title ? embedConfig.title
-    .replace('{user}', member.user.username)
-    .replace('{server}', member.guild.name)
-    .replace('{server_name
+  try {
+    const channel = await member.guild.channels.fetch(config.channelId);
+    if (!channel) return;
+
+    const embedConfig = config.embed || {
+      title: '',
+      description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!',
+      color: '#66FFFF',
+      image: '',
+      footerText: '',
+      footerImage: ''
+    };
+
+    const memberCount = member.guild.memberCount.toString();
+
+    const finalTitle = embedConfig.title ? embedConfig.title
+      .replace('{user}', member.user.username)
+      .replace('{server}', member.guild.name)
+      .replace('{server_membercount}', memberCount) : null;
+      
+    const finalDesc = embedConfig.description
+      .replace('{user}', `${member}`)
+      .replace('{server}', member.guild.name)
+      .replace('{server_membercount}', memberCount);
+
+    let embedColor = '#66FFFF';
+    try {
+      embedColor = embedConfig.color;
+    } catch (e) {
+      embedColor = '#66FFFF';
+    }
+
+    const embed = new EmbedBuilder()
+      .setDescription(finalDesc)
+      .setColor(embedColor);
+
+    if (finalTitle) {
+      embed.setTitle(finalTitle);
+    }
+
+    if (embedConfig.image && embedConfig.image.trim() !== '') {
+      embed.setImage(embedConfig.image.trim());
+    }
+
+    if (embedConfig.footerText && embedConfig.footerText.trim() !== '') {
+      const finalFooterText = embedConfig.footerText
+        .replace('{user}', member.user.username)
+        .replace('{server}', member.guild.name)
+        .replace('{server_membercount}', memberCount);
+
+      const footerOptions = { text: finalFooterText };
+      if (embedConfig.footerImage && embedConfig.footerImage.trim() !== '') {
+        footerOptions.iconURL = embedConfig.footerImage.trim();
+      }
+      embed.setFooter(footerOptions);
+    }
+
+    await channel.send({ embeds: [embed] });
+  } catch (err) {
+    console.error('Send welcome error:', err);
+  }
+});
+
+client.on('interactionCreate', async interaction => {
+  const guildId = interaction.guildId;
+  if (!guildId) return;
+
+  if (!serverConfigs[guildId]) {
+    serverConfigs[guildId] = {
+      welcomeEnabled: false,
+      channelId: null,
+      embed: {
+        title: '',
+        description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!',
+        color: '#66FFFF',
+        image: '',
+        footerText: '',
+        footerImage: ''
+      },
+      autoClear: {
+        enabled: false,
+        time: '06:00',
+        channelId: null
+      }
+    };
+  }
+  const config = serverConfigs[guildId];
+
+  if (interaction.isChatInputCommand() && interaction.commandName === 'ping') {
+    return await interaction.reply({ content: 'Pong! 🏓 บอททำงานระบบ Slash Command ปกติบน Render ครับ 🚀', ephemeral: true });
+  }
+
+  if (interaction.isChatInputCommand() && interaction.commandName === 'clear') {
+    if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
+      return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์จัดการข้อความ (Manage Messages) ครับ', ephemeral: true });
+    }
+
+    const amount = interaction.options.getInteger('amount');
+    if (amount < 1 || amount > 100) {
+      return await interaction.reply({ content: '⚠️ กรุณาระบุจำนวนข้อความระหว่าง 1 ถึง 100 ครับ', ephemeral: true });
+    }
+
+    await interaction.deferReply({ ephemeral: true });
+
+    try {
+      const messages = await interaction.channel.messages.fetch({ limit: amount });
+      await interaction.channel.bulkDelete(messages, true);
+      await interaction.editReply({ content: `🧹 ลบข้อความจำนวน **${amount}** ข้อความเรียบร้อยแล้ว!` });
+    } catch (err) {
+      console.error(err);
+      await interaction.editReply({ content: '❌ เกิดข้อผิดพลาด ไม่สามารถลบข้อความที่เก่าเกิน 14 วันได้ครับ' });
+    }
+    return;
+  }
+
+  if (interaction.isChatInputCommand() && interaction.commandName === 'set-autoclear') {
+    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+      return await interaction.reply({ content: '❌ คุณต้องเป็น Administrator ถึงจะใช้งานคำสั่งนี้ได้ครับ', ephemeral: true });
+    }
+
+    const timeInput = interaction.options.getString('time');
+    const channelInput = interaction.options.getChannel('channel');
+
+    
