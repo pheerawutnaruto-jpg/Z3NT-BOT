@@ -1,7 +1,8 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, RoleSelectMenuBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
 const cron = require('node-cron');
 
-function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConfigs, saveConfigs, isVoice = false) {
+// ฟังก์ชันกลางสำหรับแจก XP, เช็กเลเวลอัป และมอบยศรางวัล
+async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConfigs, saveConfigs, isVoice = false) {
   if (!serverConfigs[guildId]) return;
 
   const config = serverConfigs[guildId];
@@ -48,14 +49,34 @@ function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConfigs, s
       }
     }
 
+    // ตรวจสอบและมอบยศรางวัลตามเลเวล (Level Role Rewards)
+    if (guild) {
+      try {
+        const member = await guild.members.fetch(userId).catch(() => null);
+        if (member && config.levelConfig.roleRewards) {
+          const rewardRoleId = config.levelConfig.roleRewards[userStat.level];
+          if (rewardRoleId) {
+            const roleToGive = guild.roles.cache.get(rewardRoleId);
+            if (roleToGive) {
+              await member.roles.add(roleToGive);
+              if (targetChannel) {
+                targetChannel.send({ content: `👑 ยินดีด้วยคุณ <@${userId}> ได้รับยศพิเศษ <@&${rewardRoleId}> เนื่องในโอกาสอัปถึงเลเวล ${userStat.level}!` });
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error assigning level role reward:', err);
+      }
+    }
+
     if (targetChannel) {
+      const levelUpImage = config.levelConfig.levelUpImageUrl || 'https://i.imgur.com/uB7JqW2.png';
+
       const embed = new EmbedBuilder()
         .setDescription(customMsg)
-        .setColor(config.levelConfig.embedColor || '#66FFFF');
-
-      if (config.levelConfig.embedImage && config.levelConfig.embedImage.trim() !== '') {
-        embed.setImage(config.levelConfig.embedImage.trim());
-      }
+        .setColor(config.levelConfig.embedColor || '#66FFFF')
+        .setImage(levelUpImage);
 
       targetChannel.send({ embeds: [embed] }).then(msg => {
         if (!config.levelConfig.channelId && !isVoice) {
@@ -99,20 +120,19 @@ function handleLeveling(message, serverConfigs, saveConfigs) {
 
   if (!serverConfigs[guildId].levelConfig) {
     serverConfigs[guildId].levelConfig = {
-      enabled: true,
-      minXp: 15,
-      maxXp: 25,
-      cmdXp: 20,
-      xpMultiplier: 100,
-      channelId: null,
+      enabled: true, minXp: 15, maxXp: 25, cmdXp: 20, xpMultiplier: 100, channelId: null,
       levelUpMessage: 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว!',
       cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD',
       cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**',
       embedColor: '#66FFFF',
-      embedImage: '',
-      voiceXpEnabled: false,
-      voiceXpAmount: 10
+      levelUpImageUrl: 'https://i.imgur.com/uB7JqW2.png',
+      statsCardImageUrl: '',
+      voiceXpEnabled: false, voiceXpAmount: 10,
+      roleRewards: {} // เก็บข้อมูล { เลเวล: 'ID_ยศ' }
     };
+  }
+  if (!serverConfigs[guildId].levelConfig.roleRewards) {
+    serverConfigs[guildId].levelConfig.roleRewards = {};
   }
 
   const lConfig = serverConfigs[guildId].levelConfig;
@@ -130,6 +150,7 @@ function handleCommandLeveling(interaction, serverConfigs, saveConfigs) {
 
   const config = serverConfigs[guildId];
   if (!config.levelConfig || !config.levelConfig.enabled) return;
+  if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
 
   const cmdXp = config.levelConfig.cmdXp || 20;
   giveXpToUser(guildId, interaction.user.id, cmdXp, interaction, serverConfigs, saveConfigs, false);
@@ -151,7 +172,7 @@ async function handleLevelCommand(interaction, serverConfigs) {
 
   const config = serverConfigs[guildId] || {};
   const levels = config.levels || {};
-  const lConfig = config.levelConfig || { xpMultiplier: 100, cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD', cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**', embedColor: '#66FFFF' };
+  const lConfig = config.levelConfig || { xpMultiplier: 100, cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD', cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**', embedColor: '#66FFFF', statsCardImageUrl: '' };
 
   const userStat = levels[userId] || { xp: 0, level: 1 };
   const requiredXp = userStat.level * lConfig.xpMultiplier;
@@ -162,7 +183,6 @@ async function handleLevelCommand(interaction, serverConfigs) {
   const finalTitle = (lConfig.cardTitle || '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD').replace('{user}', `<@${userId}>`);
   const finalDesc = (lConfig.cardDescription || 'การ์ดข้อมูลเลเวลของ **{user}**').replace('{user}', `<@${userId}>`);
 
-  // ตรวจสอบความถูกต้องของรหัสอีโมจิให้มี < > ครบถ้วน
   const embed = new EmbedBuilder()
     .setTitle(finalTitle)
     .setDescription(finalDesc)
@@ -174,8 +194,8 @@ async function handleLevelCommand(interaction, serverConfigs) {
       { name: '<:emoji_77:1557189348389298258> ความคืบหน้า', value: `\`[${progressBar}]\` (${Math.floor((userStat.xp / requiredXp) * 100)}%)`, inline: false }
     );
 
-  if (lConfig.embedImage && lConfig.embedImage.trim() !== '') {
-    embed.setImage(lConfig.embedImage.trim());
+  if (lConfig.statsCardImageUrl && lConfig.statsCardImageUrl.trim() !== '') {
+    embed.setImage(lConfig.statsCardImageUrl.trim());
   }
 
   await interaction.reply({ embeds: [embed], ephemeral: true });
@@ -188,77 +208,65 @@ const setLevelCommand = new SlashCommandBuilder()
 function getLevelDashboardContent(config) {
   if (!config.levelConfig) {
     config.levelConfig = {
-      enabled: true,
-      minXp: 15,
-      maxXp: 25,
-      cmdXp: 20,
-      xpMultiplier: 100,
-      channelId: null,
+      enabled: true, minXp: 15, maxXp: 25, cmdXp: 20, xpMultiplier: 100, channelId: null,
       levelUpMessage: 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว!',
       cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD',
       cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**',
       embedColor: '#66FFFF',
-      embedImage: '',
-      voiceXpEnabled: false,
-      voiceXpAmount: 10
+      levelUpImageUrl: 'https://i.imgur.com/uB7JqW2.png',
+      statsCardImageUrl: '',
+      voiceXpEnabled: false, voiceXpAmount: 10,
+      roleRewards: {}
     };
   }
+  if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
 
   const lc = config.levelConfig;
   const statusText = lc.enabled ? '✅ เปิดอยู่' : '❌ ปิดอยู่';
   const voiceStatus = lc.voiceXpEnabled ? `✅ เปิดอยู่ (${lc.voiceXpAmount} XP/นาที)` : '❌ ปิดอยู่';
-  const channelName = lc.channelId ? `<#${lc.channelId}>` : 'ส่งในห้องที่พิมพ์ (ค่าเริ่มต้น)';
+  const channelName = lc.channelId ? `<#${lc.channelId}>` : 'ส่งในห้องที่พิมพ์';
+  
+  // แปลงรายการยศรางวัลมาแสดงผลย่อๆ
+  let rewardsList = Object.entries(lc.roleRewards)
+    .map(([lvl, roleId]) => `Lv.${lvl} ➔ <@&${roleId}>`)
+    .join(', ');
+  if (!rewardsList) rewardsList = 'ยังไม่มีการตั้งค่ายศรางวัล';
 
   const embed = new EmbedBuilder()
     .setTitle('⚙️ แผงควบคุมระบบเลเวล (Level Dashboard)')
-    .setDescription('จัดการสถานะ เลือกห้องแจ้งเตือน ปรับเรต XP แชท/คำสั่ง/ห้องเสียง และตกแต่งการ์ด Level ได้จากด้านล่าง')
+    .setDescription('จัดการสถานะ เลือกห้องแจ้งเตือน ปรับเรต XP และตั้งค่ายศรางวัลเมื่อเลเวลอัปได้จากปุ่มด้านล่าง')
     .setColor('#5865F2')
     .addFields(
       { name: '📥 สถานะเลเวลแชท', value: statusText, inline: true },
       { name: '🎙️ ระบบ XP ห้องเสียง', value: voiceStatus, inline: true },
       { name: '📢 ห้องแจ้งเตือน', value: channelName, inline: true },
-      { name: '📊 เรต XP (แชท / คำสั่ง)', value: `${lc.minXp}-${lc.maxXp} XP / ${lc.cmdXp} XP`, inline: true },
-      { name: '💬 ข้อความเลเวลอัป', value: `\`\`\`${lc.levelUpMessage}\`\`\``, inline: false }
+      { name: '👑 ยศรางวัลตามเลเวล', value: rewardsList, inline: false },
+      { name: '📊 เรต XP (แชท / คำสั่ง)', value: `${lc.minXp}-${lc.maxXp} XP / ${lc.cmdXp} XP`, inline: true }
     );
 
   const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('toggle_level')
-      .setLabel(lc.enabled ? 'ปิด/เปิด เลเวลแชท' : 'เปิดเลเวลแชท')
-      .setStyle(lc.enabled ? ButtonStyle.Danger : ButtonStyle.Success),
-    new ButtonBuilder()
-      .setCustomId('toggle_voice_xp')
-      .setLabel(lc.voiceXpEnabled ? 'ปิด XP ห้องเสียง' : 'เปิด XP ห้องเสียง')
-      .setStyle(lc.voiceXpEnabled ? ButtonStyle.Danger : ButtonStyle.Success),
-    new ButtonBuilder()
-      .setCustomId('edit_voice_amount')
-      .setLabel('ตั้งค่า XP ห้องเสียง')
-      .setStyle(ButtonStyle.Primary)
+    new ButtonBuilder().setCustomId('toggle_level').setLabel(lc.enabled ? 'ปิด/เปิด เลเวลแชท' : 'เปิดเลเวลแชท').setStyle(lc.enabled ? ButtonStyle.Danger : ButtonStyle.Success),
+    new ButtonBuilder().setCustomId('toggle_voice_xp').setLabel(lc.voiceXpEnabled ? 'ปิด XP ห้องเสียง' : 'เปิด XP ห้องเสียง').setStyle(lc.voiceXpEnabled ? ButtonStyle.Danger : ButtonStyle.Success),
+    new ButtonBuilder().setCustomId('edit_voice_amount').setLabel('ตั้งค่า XP ห้องเสียง').setStyle(ButtonStyle.Primary)
   );
 
   const row2 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('edit_level_rate')
-      .setLabel('ตั้งค่าเรต XP แชท/คำสั่ง')
-      .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId('edit_level_card')
-      .setLabel('ตกแต่งการ์ด Level')
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId('edit_level_msg')
-      .setLabel('ข้อความเลเวลอัป')
-      .setStyle(ButtonStyle.Secondary)
+    new ButtonBuilder().setCustomId('edit_level_rate').setLabel('ตั้งค่าเรต XP แชท/คำสั่ง').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('edit_level_card').setLabel('ตกแต่งการ์ด Level').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('edit_level_msg').setLabel('ข้อความเลเวลอัป').setStyle(ButtonStyle.Secondary)
+  );
+
+  const row3 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('edit_levelup_img').setLabel('ตั้งค่ารูปตอนเลเวลอัป').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId('edit_stats_img').setLabel('ตั้งค่ารูปเช็ก (/level)').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('set_role_reward').setLabel('➕ ตั้งค่ายศรางวัลเลเวล').setStyle(ButtonStyle.Secondary)
   );
 
   const channelRow = new ActionRowBuilder().addComponents(
-    new ChannelSelectMenuBuilder()
-      .setCustomId('select_level_channel')
-      .setPlaceholder('📂 เลือกห้องสำหรับส่งข้อความแจ้งเตือนเลเวลอัป')
-      .addChannelTypes(ChannelType.GuildText)
+    new ChannelSelectMenuBuilder().setCustomId('select_level_channel').setPlaceholder('📂 เลือกห้องสำหรับส่งข้อความแจ้งเตือนเลเวลอัป').addChannelTypes(ChannelType.GuildText)
   );
 
-  return { embeds: [embed], components: [row1, row2, channelRow] };
+  return { embeds: [embed], components: [row1, row2, row3, channelRow] };
 }
 
 async function handleSetLevelCommand(interaction, serverConfigs) {
