@@ -1,7 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
 const cron = require('node-cron');
 
-// 1. ฟังก์ชันกลางสำหรับแจก XP และเช็กเลเวลอัป
 function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConfigs, saveConfigs, isVoice = false) {
   if (!serverConfigs[guildId]) return;
 
@@ -39,7 +38,6 @@ function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConfigs, s
         targetChannel = guild.systemChannel;
       }
     } else {
-      // สำหรับ message หรือ interaction
       const messageOrInteraction = clientOrMessage;
       guild = messageOrInteraction.guild;
       if (config.levelConfig.channelId) {
@@ -70,7 +68,6 @@ function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConfigs, s
   saveConfigs(serverConfigs);
 }
 
-// 2. ฟังก์ชันเริ่มระบบแจก XP ห้องเสียงอัตโนมัติ (รันทุกๆ 1 นาที)
 function startVoiceXpCron(client, serverConfigs, saveConfigs) {
   cron.schedule('* * * * *', () => {
     for (const guildId in serverConfigs) {
@@ -94,7 +91,6 @@ function startVoiceXpCron(client, serverConfigs, saveConfigs) {
   }, { timezone: "Asia/Bangkok" });
 }
 
-// 3. ฟังก์ชันแจก XP เมื่อพิมพ์ข้อความแชท
 function handleLeveling(message, serverConfigs, saveConfigs) {
   if (!message.guild || message.author.bot) return;
 
@@ -106,7 +102,7 @@ function handleLeveling(message, serverConfigs, saveConfigs) {
       enabled: true,
       minXp: 15,
       maxXp: 25,
-      cmdXp: 20, // XP จากการใช้คำสั่ง /
+      cmdXp: 20,
       xpMultiplier: 100,
       channelId: null,
       levelUpMessage: 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว!',
@@ -126,7 +122,6 @@ function handleLeveling(message, serverConfigs, saveConfigs) {
   giveXpToUser(guildId, message.author.id, earnedXp, message, serverConfigs, saveConfigs, false);
 }
 
-// 4. ฟังก์ชันแจก XP จากการใช้ Slash Command (พิมพ์ /)
 function handleCommandLeveling(interaction, serverConfigs, saveConfigs) {
   if (!interaction.guild || interaction.user.bot) return;
 
@@ -140,7 +135,6 @@ function handleCommandLeveling(interaction, serverConfigs, saveConfigs) {
   giveXpToUser(guildId, interaction.user.id, cmdXp, interaction, serverConfigs, saveConfigs, false);
 }
 
-// 5. คำสั่งเช็กเลเวล (/level)
 const levelCommand = new SlashCommandBuilder()
   .setName('level')
   .setDescription('เช็กเลเวลและค่าประสบการณ์ (XP) ของคุณ')
@@ -168,6 +162,7 @@ async function handleLevelCommand(interaction, serverConfigs) {
   const finalTitle = (lConfig.cardTitle || '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD').replace('{user}', `<@${userId}>`);
   const finalDesc = (lConfig.cardDescription || 'การ์ดข้อมูลเลเวลของ **{user}**').replace('{user}', `<@${userId}>`);
 
+  // ตรวจสอบความถูกต้องของรหัสอีโมจิให้มี < > ครบถ้วน
   const embed = new EmbedBuilder()
     .setTitle(finalTitle)
     .setDescription(finalDesc)
@@ -186,7 +181,6 @@ async function handleLevelCommand(interaction, serverConfigs) {
   await interaction.reply({ embeds: [embed], ephemeral: true });
 }
 
-// 6. แผงควบคุมตั้งค่าระบบเลเวล (/set-level)
 const setLevelCommand = new SlashCommandBuilder()
   .setName('set-level')
   .setDescription('เปิดแผงควบคุมตั้งค่าระบบเลเวลและห้องเสียง');
