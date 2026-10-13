@@ -3,6 +3,7 @@ const http = require('http');
 const fs = require('fs');
 const cron = require('node-cron');
 const { getSecurityDashboardContent, handleSecurityMessage } = require('./security');
+const { levelCommands, getLevelDashboardContent, handleLevelMessage, handleLevelCommand, levelData, saveLevels } = require('./level');
 
 const httpServer = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
