@@ -1,7 +1,7 @@
 {
-  "name": "my-discord-bot",
+  "name": "zen-bot",
   "version": "1.0.0",
-  "description": "Discord Bot on Render",
+  "description": "Discord Bot Zen",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
