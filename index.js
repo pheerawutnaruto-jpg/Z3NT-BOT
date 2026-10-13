@@ -306,13 +306,21 @@ function getSecurityDashboardContent(config) {
       { name: 'ห้องยกเว้น (ไม่ต้องดูแล)', value: ignoredTags, inline: false }
     );
 
+  // แถวที่ 1: เปิด/ปิดระบบหลัก + ลิงก์ + สแปม
   const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('sec_toggle_main').setLabel(sec.enabled ? 'ปิดระบบ' : 'เปิดระบบ').setStyle(sec.enabled ? ButtonStyle.Danger : ButtonStyle.Success),
+    new ButtonBuilder().setCustomId('sec_toggle_main').setLabel(sec.enabled ? 'เปิดระบบ' : 'ปิดระบบ').setStyle(sec.enabled ? ButtonStyle.Success : ButtonStyle.Danger),
     new ButtonBuilder().setCustomId('sec_toggle_link').setLabel(`ลิงก์: ${sec.antiLink ? 'เปิด' : 'ปิด'}`).setStyle(sec.antiLink ? ButtonStyle.Primary : ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId('sec_toggle_spam').setLabel(`สแปม: ${sec.antiSpam ? 'เปิด' : 'ปิด'}`).setStyle(sec.antiSpam ? ButtonStyle.Primary : ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('sec_toggle_mrbeast').setLabel(`MrBeast: ${sec.antiMrBeast ? 'เปิด' : 'ปิด'}`).setStyle(sec.antiMrBeast ? ButtonStyle.Primary : ButtonStyle.Secondary),
   );
 
+  // แถวที่ 2: MrBeast + ปุ่มตั้งเวลา (สั้นกระชับ) + รีเซ็ตทั้งหมด
+  const row2 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('sec_toggle_mrbeast').setLabel(`MrBeast: ${sec.antiMrBeast ? 'เปิด' : 'ปิด'}`).setStyle(sec.antiMrBeast ? ButtonStyle.Primary : ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('sec_config_time').setLabel('ตั้งเวลา').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('sec_reset').setLabel('รีเซ็ตทั้งหมด').setStyle(ButtonStyle.Danger)
+  );
+
+  // แถวที่ 3: ดรอปดาวน์เลือก Action สำหรับ Invite Link
   const rowInviteSelect = new ActionRowBuilder().addComponents(
     new StringSelectMenuBuilder()
       .setCustomId('act_invite_select')
@@ -326,6 +334,7 @@ function getSecurityDashboardContent(config) {
       ])
   );
 
+  // แถวที่ 4: ดรอปดาวน์เลือก Action สำหรับ Spam
   const rowSpamSelect = new ActionRowBuilder().addComponents(
     new StringSelectMenuBuilder()
       .setCustomId('act_spam_select')
@@ -339,11 +348,7 @@ function getSecurityDashboardContent(config) {
       ])
   );
 
-  const rowControl = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('sec_config_time').setLabel('ตั้งเวลา/คูลดาวน์').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('sec_reset').setLabel('รีเซ็ตทั้งหมด').setStyle(ButtonStyle.Danger)
-  );
-
+  // แถวที่ 5: เลือกห้องยกเว้นที่ไม่ต้องดูแล
   const rowChannel = new ActionRowBuilder().addComponents(
     new ChannelSelectMenuBuilder()
       .setCustomId('sec_select_ignored')
@@ -353,7 +358,7 @@ function getSecurityDashboardContent(config) {
       .addChannelTypes(ChannelType.GuildText)
   );
 
-  return { embeds: [embed], components: [row1, rowInviteSelect, rowSpamSelect, rowControl, rowChannel] };
+  return { embeds: [embed], components: [row1, row2, rowInviteSelect, rowSpamSelect, rowChannel] };
 }
 
 async function sendSecurityDashboard(interaction) {
