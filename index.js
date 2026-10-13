@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, RoleSelectMenuBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
 const http = require('http');
 const fs = require('fs');
 const cron = require('node-cron');
@@ -53,6 +53,9 @@ client.once('ready', async () => {
     new SlashCommandBuilder()
       .setName('set-welcom')
       .setDescription('เปิดแผงควบคุมระบบต้อนรับ (Welcome Dashboard)'),
+    new SlashCommandBuilder()
+      .setName('set-autorole')
+      .setDescription('ตั้งค่าระบบแจกยศอัตโนมัติสำหรับสมาชิกใหม่'),
     new SlashCommandBuilder()
       .setName('clear')
       .setDescription('ลบข้อความในแชทจำนวน 1-100 ข้อความ')
@@ -132,7 +135,23 @@ client.on('guildMemberAdd', async member => {
   const guildId = member.guild.id;
   const config = serverConfigs[guildId];
 
-  if (!config || !config.welcomeEnabled || !config.channelId) return;
+  if (!config) return;
+
+  // 1. ระบบ Autorole
+  if (config.autoroleEnabled && config.autoroleId) {
+    try {
+      const role = await member.guild.roles.fetch(config.autoroleId);
+      if (role) {
+        await member.roles.add(role);
+        console.log(`✅ มอบยศ ${role.name} ให้กับคุณ ${member.user.tag} สำเร็จ`);
+      }
+    } catch (err) {
+      console.error('Autorole error:', err);
+    }
+  }
+
+  // 2. ระบบ Welcome Message
+  if (!config.welcomeEnabled || !config.channelId) return;
 
   try {
     const channel = await member.guild.channels.fetch(config.channelId);
@@ -204,6 +223,8 @@ client.on('interactionCreate', async interaction => {
     serverConfigs[guildId] = {
       welcomeEnabled: false,
       channelId: null,
+      autoroleEnabled: false,
+      autoroleId: null,
       embed: {
         title: '',
         description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!',
@@ -283,6 +304,13 @@ client.on('interactionCreate', async interaction => {
     return await sendDashboard(interaction);
   }
 
+  if (interaction.isChatInputCommand() && interaction.commandName === 'set-autorole') {
+    if (!interaction.member.permissions.has('Administrator')) {
+      return await interaction.reply({ content: '❌ คุณต้องเป็น Administrator ถึงจะใช้งานได้ครับ', ephemeral: true });
+    }
+    return await sendAutoroleDashboard(interaction);
+  }
+
   if (interaction.isButton()) {
     if (interaction.customId === 'toggle_welcome') {
       config.welcomeEnabled = !config.welcomeEnabled;
@@ -290,6 +318,12 @@ client.on('interactionCreate', async interaction => {
       return await updateDashboard(interaction);
     }
     
+    if (interaction.customId === 'toggle_autorole') {
+      config.autoroleEnabled = !config.autoroleEnabled;
+      saveConfigs(serverConfigs);
+      return await updateAutoroleDashboard(interaction);
+    }
+
     if (interaction.customId === 'test_welcome') {
       if (!config.channelId) {
         return await interaction.reply({ content: '❌ กรุณาเลือกช่อง (Channel) สำหรับส่งข้อความต้อนรับก่อนกดทดสอบครับ!', ephemeral: true });
@@ -436,6 +470,13 @@ client.on('interactionCreate', async interaction => {
     return await updateDashboardAfterDefer(interaction);
   }
 
+  if (interaction.isRoleSelectMenu() && interaction.customId === 'select_autorole') {
+    await interaction.deferUpdate();
+    config.autoroleId = interaction.values[0];
+    saveConfigs(serverConfigs);
+    return await updateAutoroleDashboardAfterDefer(interaction);
+  }
+
   if (interaction.isModalSubmit() && interaction.customId === 'editEmbedModal') {
     config.embed.title = interaction.fields.getTextInputValue('embedTitle');
     config.embed.description = interaction.fields.getTextInputValue('embedDesc');
@@ -506,6 +547,35 @@ function getDashboardContent(config) {
   return { embeds: [embed], components: [row1, channelRow] };
 }
 
+function getAutoroleDashboardContent(config) {
+  const roleName = config.autoroleId ? `<@&${config.autoroleId}>` : 'ยังไม่ได้เลือกยศ';
+  const statusText = config.autoroleEnabled ? '✅ เปิดอยู่' : '❌ ปิดอยู่';
+
+  const embed = new EmbedBuilder()
+    .setTitle('🛡️ ตั้งค่าระบบ Autorole (ยศอัตโนมัติ)')
+    .setDescription('เลือกยศที่ต้องการแจกให้สมาชิกใหม่เมื่อเข้าเซิร์ฟเวอร์')
+    .setColor('#5865F2')
+    .addFields(
+      { name: '📥 Autorole Status', value: statusText, inline: true },
+      { name: '👑 ยศที่จะได้รับ', value: roleName, inline: true }
+    );
+
+  const row1 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('toggle_autorole')
+      .setLabel(config.autoroleEnabled ? 'ปิด Autorole' : 'เปิด Autorole')
+      .setStyle(config.autoroleEnabled ? ButtonStyle.Danger : ButtonStyle.Success)
+  );
+
+  const roleRow = new ActionRowBuilder().addComponents(
+    new RoleSelectMenuBuilder()
+      .setCustomId('select_autorole')
+      .setPlaceholder('👑 เลือกยศสำหรับแจกสมาชิกใหม่')
+  );
+
+  return { embeds: [embed], components: [row1, roleRow] };
+}
+
 async function sendDashboard(interaction) {
   const codeConfig = serverConfigs[interaction.guildId];
   const content = getDashboardContent(codeConfig);
@@ -521,6 +591,24 @@ async function updateDashboard(interaction) {
 async function updateDashboardAfterDefer(interaction) {
   const codeConfig = serverConfigs[interaction.guildId];
   const content = getDashboardContent(codeConfig);
+  await interaction.editReply({ ...content });
+}
+
+async function sendAutoroleDashboard(interaction) {
+  const codeConfig = serverConfigs[interaction.guildId];
+  const content = getAutoroleDashboardContent(codeConfig);
+  await interaction.reply({ ...content, ephemeral: true });
+}
+
+async function updateAutoroleDashboard(interaction) {
+  const codeConfig = serverConfigs[interaction.guildId];
+  const content = getAutoroleDashboardContent(codeConfig);
+  await interaction.update({ ...content });
+}
+
+async function updateAutoroleDashboardAfterDefer(interaction) {
+  const codeConfig = serverConfigs[interaction.guildId];
+  const content = getAutoroleDashboardContent(codeConfig);
   await interaction.editReply({ ...content });
 }
 
