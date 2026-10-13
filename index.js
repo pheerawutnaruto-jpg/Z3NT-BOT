@@ -124,9 +124,10 @@ function setupCronJob(guildId, timeStr, channelId) {
   }, {
     timezone: "Asia/Bangkok"
   });
+
+  console.log(`⏰ ตั้งเวลา Auto-Clear สำเร็จสำหรับ Guild ${guildId} เวลา ${timeStr} ในห้องช่อง ID: ${channelId}`);
 }
 
-// ระบบต้อนรับสมาชิกใหม่ (รองรับ Footer และ {server_membercount})
 client.on('guildMemberAdd', async member => {
   const guildId = member.guild.id;
   const config = serverConfigs[guildId];
@@ -143,20 +144,17 @@ client.on('guildMemberAdd', async member => {
       color: '#66FFFF',
       image: '',
       footerText: '',
-      footerImage: ''
+      footerIcon: '',
+      timestamp: 'no'
     };
-
-    const memberCount = member.guild.memberCount.toString();
 
     const finalTitle = embedConfig.title ? embedConfig.title
       .replace('{user}', member.user.username)
-      .replace('{server}', member.guild.name)
-      .replace('{server_membercount}', memberCount) : null;
+      .replace('{server}', member.guild.name) : null;
       
     const finalDesc = embedConfig.description
       .replace('{user}', `${member}`)
-      .replace('{server}', member.guild.name)
-      .replace('{server_membercount}', memberCount);
+      .replace('{server}', member.guild.name);
 
     let embedColor = '#66FFFF';
     try {
@@ -178,16 +176,18 @@ client.on('guildMemberAdd', async member => {
     }
 
     if (embedConfig.footerText && embedConfig.footerText.trim() !== '') {
-      const finalFooterText = embedConfig.footerText
-        .replace('{user}', member.user.username)
-        .replace('{server}', member.guild.name)
-        .replace('{server_membercount}', memberCount);
-
-      const footerOptions = { text: finalFooterText };
-      if (embedConfig.footerImage && embedConfig.footerImage.trim() !== '') {
-        footerOptions.iconURL = embedConfig.footerImage.trim();
+      const memberCount = member.guild.memberCount.toString();
+      const finalFooterText = embedConfig.footerText.replace('{server_membercount}', memberCount);
+      
+      if (embedConfig.footerIcon && embedConfig.footerIcon.trim() !== '') {
+        embed.setFooter({ text: finalFooterText, iconURL: embedConfig.footerIcon.trim() });
+      } else {
+        embed.setFooter({ text: finalFooterText });
       }
-      embed.setFooter(footerOptions);
+    }
+
+    if (embedConfig.timestamp && embedConfig.timestamp.toLowerCase() === 'yes') {
+      embed.setTimestamp();
     }
 
     await channel.send({ embeds: [embed] });
@@ -210,7 +210,8 @@ client.on('interactionCreate', async interaction => {
         color: '#66FFFF',
         image: '',
         footerText: '',
-        footerImage: ''
+        footerIcon: '',
+        timestamp: 'no'
       },
       autoClear: {
         enabled: false,
@@ -256,4 +257,233 @@ client.on('interactionCreate', async interaction => {
     const timeInput = interaction.options.getString('time');
     const channelInput = interaction.options.getChannel('channel');
 
+    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    if (!timeRegex.test(timeInput)) {
+      return await interaction.reply({ content: '❌ รูปแบบเวลาไม่ถูกต้อง กรุณาใส่ในรูปแบบ **HH:MM** (เช่น `06:00` หรือ `23:30`)', ephemeral: true });
+    }
+
+    if (!config.autoClear) {
+      config.autoClear = {};
+    }
+
+    config.autoClear.enabled = true;
+    config.autoClear.time = timeInput;
+    config.autoClear.channelId = channelInput.id;
+    saveConfigs(serverConfigs);
+
+    setupCronJob(guildId, timeInput, channelInput.id);
+
+    return await interaction.reply({ content: `✅ ตั้งค่าระบบ Auto-Clear สำเร็จ!\n⏰ เวลา: **${timeInput} น.** (ทุกวัน)\n📢 ช่อง: <#${channelInput.id}>`, ephemeral: true });
+  }
+
+  if (interaction.isChatInputCommand() && interaction.commandName === 'set-welcom') {
+    if (!interaction.member.permissions.has('Administrator')) {
+      return await interaction.reply({ content: '❌ คุณต้องเป็น Administrator ถึงจะใช้งานได้ครับ', ephemeral: true });
+    }
+    return await sendDashboard(interaction);
+  }
+
+  if (interaction.isButton()) {
+    if (interaction.customId === 'toggle_welcome') {
+      config.welcomeEnabled = !config.welcomeEnabled;
+      saveConfigs(serverConfigs);
+      return await updateDashboard(interaction);
+    }
     
+    if (interaction.customId === 'test_welcome') {
+      if (!config.channelId) {
+        return await interaction.reply({ content: '❌ กรุณาเลือกช่อง (Channel) สำหรับส่งข้อความต้อนรับก่อนกดทดสอบครับ!', ephemeral: true });
+      }
+
+      await interaction.reply({ content: `🔄 กำลังส่งข้อความทดสอบไปที่ห้อง <#${config.channelId}>...`, ephemeral: true });
+
+      try {
+        const channel = await interaction.guild.channels.fetch(config.channelId);
+        if (channel) {
+          const embedConfig = config.embed;
+          const finalTitle = embedConfig.title ? embedConfig.title
+            .replace('{user}', interaction.user.username)
+            .replace('{server}', interaction.guild.name) : null;
+          const finalDesc = embedConfig.description
+            .replace('{user}', `${interaction.user}`)
+            .replace('{server}', interaction.guild.name);
+
+          let embedColor = '#66FFFF';
+          try {
+            embedColor = embedConfig.color;
+          } catch (e) {
+            embedColor = '#66FFFF';
+          }
+
+          const embed = new EmbedBuilder()
+            .setDescription(finalDesc)
+            .setColor(embedColor);
+
+          if (finalTitle) {
+            embed.setTitle(finalTitle);
+          }
+
+          if (embedConfig.image && embedConfig.image.trim() !== '') {
+            embed.setImage(embedConfig.image.trim());
+          }
+
+          if (embedConfig.footerText && embedConfig.footerText.trim() !== '') {
+            const memberCount = interaction.guild.memberCount.toString();
+            const finalFooterText = embedConfig.footerText.replace('{server_membercount}', memberCount);
+            
+            if (embedConfig.footerIcon && embedConfig.footerIcon.trim() !== '') {
+              embed.setFooter({ text: finalFooterText, iconURL: embedConfig.footerIcon.trim() });
+            } else {
+              embed.setFooter({ text: finalFooterText });
+            }
+          }
+
+          if (embedConfig.timestamp && embedConfig.timestamp.toLowerCase() === 'yes') {
+            embed.setTimestamp();
+          }
+          
+          await channel.send({ embeds: [embed] });
+        }
+      } catch (err) {
+        console.error('Test welcome send error:', err);
+      }
+      return;
+    }
+
+    if (interaction.customId === 'edit_embed') {
+      const modal = new ModalBuilder()
+        .setCustomId('editEmbedModal')
+        .setTitle('Editing: welcome');
+
+      const titleInput = new TextInputBuilder()
+        .setCustomId('embedTitle')
+        .setLabel('Title (เว้นว่างไว้ได้)')
+        .setStyle(TextInputStyle.Short)
+        .setValue(config.embed.title || '')
+        .setRequired(false);
+
+      const descInput = new TextInputBuilder()
+        .setCustomId('embedDesc')
+        .setLabel('Description')
+        .setStyle(TextInputStyle.Paragraph)
+        .setValue(config.embed.description || '')
+        .setRequired(true);
+
+      const colorInput = new TextInputBuilder()
+        .setCustomId('embedColor')
+        .setLabel('Hex Color (เช่น 66FFFF)')
+        .setStyle(TextInputStyle.Short)
+        .setValue(config.embed.color || '#66FFFF')
+        .setRequired(true);
+
+      const footerTextInput = new TextInputBuilder()
+        .setCustomId('embedFooterText')
+        .setLabel('Footer Text')
+        .setStyle(TextInputStyle.Short)
+        .setValue(config.embed.footerText || '')
+        .setRequired(false);
+
+      const footerIconInput = new TextInputBuilder()
+        .setCustomId('embedFooterIcon')
+        .setLabel('Footer Image (optional)')
+        .setStyle(TextInputStyle.Short)
+        .setValue(config.embed.footerIcon || '')
+        .setRequired(false);
+
+      const timestampInput = new TextInputBuilder()
+        .setCustomId('embedTimestamp')
+        .setLabel('Timestamp? (yes/no)')
+        .setStyle(TextInputStyle.Short)
+        .setValue(config.embed.timestamp || 'no')
+        .setRequired(false);
+
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(titleInput),
+        new ActionRowBuilder().addComponents(descInput),
+        new ActionRowBuilder().addComponents(footerTextInput),
+        new ActionRowBuilder().addComponents(footerIconInput),
+        new ActionRowBuilder().addComponents(timestampInput),
+      );
+
+      return await interaction.showModal(modal);
+    }
+  }
+
+  if (interaction.isChannelSelectMenu() && interaction.customId === 'select_channel') {
+    await interaction.deferUpdate();
+    config.channelId = interaction.values[0];
+    saveConfigs(serverConfigs);
+    return await updateDashboardAfterDefer(interaction);
+  }
+
+  if (interaction.isModalSubmit() && interaction.customId === 'editEmbedModal') {
+    config.embed.title = interaction.fields.getTextInputValue('embedTitle');
+    config.embed.description = interaction.fields.getTextInputValue('embedDesc');
+    
+    config.embed.footerText = interaction.fields.getTextInputValue('embedFooterText');
+    config.embed.footerIcon = interaction.fields.getTextInputValue('embedFooterIcon');
+    config.embed.timestamp = interaction.fields.getTextInputValue('embedTimestamp');
+    
+    saveConfigs(serverConfigs);
+
+    return await interaction.reply({ content: '✅ บันทึกรูปแบบ Embed (Footer & Timestamp) เรียบร้อยแล้ว!', ephemeral: true });
+  }
+});
+
+function getDashboardContent(config) {
+  const channelName = config.channelId ? `<#${config.channelId}>` : 'ยังไม่ได้เลือกช่อง';
+  const statusText = config.welcomeEnabled ? '✅ เปิดอยู่' : '❌ ปิดอยู่';
+
+  const embed = new EmbedBuilder()
+    .setTitle('⚙️ ตั้งค่าระบบ Welcome')
+    .setDescription('เลือกช่อง เปิด/ปิดระบบ และตั้งค่ารูป Embed ได้จากปุ่มด้านล่าง')
+    .setColor('#5865F2')
+    .addFields(
+      { name: '📥 Welcome Status', value: statusText, inline: true },
+      { name: '📢 ห้องต้อนรับ', value: channelName, inline: true }
+    );
+
+  const row1 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('toggle_welcome')
+      .setLabel(config.welcomeEnabled ? 'ปิด Welcome' : 'เปิด Welcome')
+      .setStyle(config.welcomeEnabled ? ButtonStyle.Danger : ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId('edit_embed')
+      .setLabel('ตั้งค่ารูป Embed')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId('test_welcome')
+      .setLabel('ทดสอบ Welcome')
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  const channelRow = new ActionRowBuilder().addComponents(
+    new ChannelSelectMenuBuilder()
+      .setCustomId('select_channel')
+      .setPlaceholder('📂 เลือกช่องสำหรับส่งข้อความต้อนรับ')
+      .addChannelTypes(ChannelType.GuildText)
+  );
+
+  return { embeds: [embed], components: [row1, channelRow] };
+}
+
+async function sendDashboard(interaction) {
+  const codeConfig = serverConfigs[interaction.guildId];
+  const content = getDashboardContent(codeConfig);
+  await interaction.reply({ ...content, ephemeral: true });
+}
+
+async function updateDashboard(interaction) {
+  const codeConfig = serverConfigs[interaction.guildId];
+  const content = getDashboardContent(codeConfig);
+  await interaction.update({ ...content });
+}
+
+async function updateDashboardAfterDefer(interaction) {
+  const codeConfig = serverConfigs[interaction.guildId];
+  const content = getDashboardContent(codeConfig);
+  await interaction.editReply({ ...content });
+}
+
+client.login(process.env.DISCORD_TOKEN);
