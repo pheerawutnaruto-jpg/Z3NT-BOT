@@ -65,7 +65,7 @@ module.exports = {
     if (!config.embed) {
       config.embed = {
         title: '',
-        description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢\x62𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ! เอาไปเลยยย',
+        description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢\x62𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!'
         color: '#66FFFF',
         image: ''
       };
