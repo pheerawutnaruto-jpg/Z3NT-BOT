@@ -1,57 +1,65 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, PermissionFlagsBits } = require('discord.js');
 
-// 1. ฟังก์ชันคำนวณและแจก XP พร้อมรองรับการตั้งค่าปรับแต่ง
+// 1. ฟังก์ชันคำนวณและแจก XP พร้อมส่งข้อความเลเวลอัปตามที่ Customize ไว้
 function handleLeveling(message, serverConfigs, saveConfigs) {
   if (!message.guild || message.author.bot) return;
 
   const guildId = message.guild.id;
   if (!serverConfigs[guildId]) return;
 
+  if (!serverConfigs[guildId].levelConfig) {
+    serverConfigs[guildId].levelConfig = {
+      enabled: true,
+      minXp: 15,
+      maxXp: 25,
+      xpMultiplier: 100,
+      levelUpMessage: '🎉 ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว! 🚀'
+    };
+  }
+
+  const lConfig = serverConfigs[guildId].levelConfig;
+  if (!lConfig.enabled) return;
+
   if (!serverConfigs[guildId].levels) {
     serverConfigs[guildId].levels = {};
   }
 
-  // ค่าตั้งค่าพื้นฐาน (ถ้ายังไม่ได้ตั้ง ใช้ค่าเริ่มต้น)
-  if (!serverConfigs[guildId].levelSettings) {
-    serverConfigs[guildId].levelSettings = { minXp: 15, maxXp: 25, xpMultiplier: 100 };
-  }
-
-  const settings = serverConfigs[guildId].levelSettings;
   const userId = message.author.id;
-  
   if (!serverConfigs[guildId].levels[userId]) {
     serverConfigs[guildId].levels[userId] = { xp: 0, level: 1 };
   }
 
   const userStat = serverConfigs[guildId].levels[userId];
 
-  // สุ่ม XP ตามที่ตั้งค่าไว้
-  const earnedXp = Math.floor(Math.random() * (settings.maxXp - settings.minXp + 1)) + settings.minXp;
+  const earnedXp = Math.floor(Math.random() * (lConfig.maxXp - lConfig.minXp + 1)) + lConfig.minXp;
   userStat.xp += earnedXp;
 
-  // คำนวณ XP ที่ต้องใช้ (Level * ตัวคูณที่ตั้งค่า)
-  const requiredXp = userStat.level * settings.xpMultiplier;
+  const requiredXp = userStat.level * lConfig.xpMultiplier;
 
   if (userStat.xp >= requiredXp) {
     userStat.xp -= requiredXp;
     userStat.level += 1;
 
-    message.channel.send(`🎉 ยินดีด้วยคุณ <@${userId}>! เลเวลอัปขึ้นเป็น **Level ${userStat.level}** แล้ว! 🚀`)
+    const customMsg = lConfig.levelUpMessage
+      .replace('{user}', `<@${userId}>`)
+      .replace('{level}', userStat.level);
+
+    message.channel.send(customMsg)
       .then(msg => {
-        setTimeout(() => msg.delete().catch(() => {}), 5000);
+        setTimeout(() => msg.delete().catch(() => {}), 6000);
       });
   }
 
   saveConfigs(serverConfigs);
 }
 
-// 2. คำสั่งเช็กเลเวล (/level)
+// 2. คำสั่งเช็กเลเวล (/level) พร้อมดีไซน์ Embed สวยหรู
 const levelCommand = new SlashCommandBuilder()
   .setName('level')
-  .setDescription('เช็กเลเวลและค่าประสบการณ์ (XP) ของคุณหรือสมาชิกคนอื่น')
+  .setDescription('เช็กเลเวลและค่าประสบการณ์ (XP) ของคุณ')
   .addUserOption(option =>
     option.setName('user')
-      .setDescription('เลือกสมาชิกที่ต้องการดูเลเวล (เว้นว่างไว้เพื่อดูของตัวเอง)')
+      .setDescription('เลือกสมาชิกที่ต้องการดูเลเวล')
       .setRequired(false)
   );
 
@@ -62,78 +70,85 @@ async function handleLevelCommand(interaction, serverConfigs) {
 
   const config = serverConfigs[guildId] || {};
   const levels = config.levels || {};
-  const settings = config.levelSettings || { xpMultiplier: 100 };
+  const lConfig = config.levelConfig || { xpMultiplier: 100 };
 
   const userStat = levels[userId] || { xp: 0, level: 1 };
-  const requiredXp = userStat.level * settings.xpMultiplier;
+  const requiredXp = userStat.level * lConfig.xpMultiplier;
+
+  // คำนวณ Progress Bar ง่ายๆ
+  const percentage = Math.min(Math.round((userStat.xp / requiredXp) * 10), 10);
+  const progressBar = '█'.repeat(percentage) + '░'.repeat(10 - percentage);
 
   const embed = new EmbedBuilder()
-    .setTitle(`📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • ระดับเลเวลของคุณ`)
-    .setDescription(`ข้อมูลเลเวลของ **${targetUser.username}**`)
+    .setTitle(`📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD`)
+    .setDescription(`การ์ดข้อมูลเลเวลของ **${targetUser.username}**`)
     .setColor('#66FFFF')
     .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
     .addFields(
-      { name: '✨ เลเวลปัจจุบัน', value: `**Level ${userStat.level}**`, inline: true },
-      { name: '🌟 ค่าประสบการณ์ (XP)', value: `**${userStat.xp} / ${requiredXp} XP**`, inline: true }
+      { name: '✨ เลเวล (Level)', value: `\` Level ${userStat.level} \``, inline: true },
+      { name: '🌟 ค่าประสบการณ์ (XP)', value: `\` ${userStat.xp} / ${requiredXp} XP \``, inline: true },
+      { name: '📈 ความคืบหน้า', value: `\`[${progressBar}]\` (${Math.floor((userStat.xp / requiredXp) * 100)}%)`, inline: false }
     )
+    .setFooter({ text: `Requested by ${interaction.user.username}`, iconURL: interaction.user.displayAvatarURL() })
     .setTimestamp();
 
   await interaction.reply({ embeds: [embed], ephemeral: true });
 }
 
-// 3. คำสั่งตั้งค่าระบบเลเวลสำหรับแอดมิน (/set-level)
+// 3. แผงควบคุมตั้งค่าระบบเลเวล (/set-level) แบบ Interactive Dashboard
 const setLevelCommand = new SlashCommandBuilder()
   .setName('set-level')
-  .setDescription('ตั้งค่าระบบเลเวลและอัตราการได้รับ XP')
-  .addIntegerOption(option =>
-    option.setName('min_xp')
-      .setDescription('XP น้อยที่สุดที่ได้รับต่อข้อความ (ค่าเดิม: 15)')
-      .setRequired(false)
-  )
-  .addIntegerOption(option =>
-    option.setName('max_xp')
-      .setDescription('XP มากที่สุดที่ได้รับต่อข้อความ (ค่าเดิม: 25)')
-      .setRequired(false)
-  )
-  .addIntegerOption(option =>
-    option.setName('multiplier')
-      .setDescription('ตัวคูณใช้คำนวณเลเวลถัดไป (Level * ตัวคูณ, ค่าเดิม: 100)')
-      .setRequired(false)
-  );
+  .setDescription('เปิดแผงควบคุมตั้งค่าระบบเลเวลและปรับแต่งข้อความ');
 
-async function handleSetLevelCommand(interaction, serverConfigs, saveConfigs) {
-  if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-    return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้นถึงจะใช้งานคำสั่งนี้ได้', ephemeral: true });
+function getLevelDashboardContent(config) {
+  if (!config.levelConfig) {
+    config.levelConfig = {
+      enabled: true,
+      minXp: 15,
+      maxXp: 25,
+      xpMultiplier: 100,
+      levelUpMessage: '🎉 ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว! 🚀'
+    };
   }
 
-  const guildId = interaction.guildId;
-  if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
-  if (!serverConfigs[guildId].levelSettings) {
-    serverConfigs[guildId].levelSettings = { minXp: 15, maxXp: 25, xpMultiplier: 100 };
-  }
-
-  const minXp = interaction.options.getInteger('min_xp');
-  const maxXp = interaction.options.getInteger('max_xp');
-  const multiplier = interaction.options.getInteger('multiplier');
-
-  const settings = serverConfigs[guildId].levelSettings;
-
-  if (minXp !== null) settings.minXp = minXp;
-  if (maxXp !== null) settings.maxXp = maxXp;
-  if (multiplier !== null) settings.xpMultiplier = multiplier;
-
-  saveConfigs(serverConfigs);
+  const lc = config.levelConfig;
+  const statusText = lc.enabled ? '✅ เปิดอยู่' : '❌ ปิดอยู่';
 
   const embed = new EmbedBuilder()
-    .setTitle('⚙️ อัปเดตการตั้งค่าระบบเลเวลสำเร็จ')
-    .setColor('#00FFCC')
+    .setTitle('⚙️ แผงควบคุมระบบเลเวล (Level Dashboard)')
+    .setDescription('จัดการสถานะ ตั้งค่าเรต XP และปรับแต่งข้อความแจ้งเตือนเลเวลอัปได้จากปุ่มด้านล่าง')
+    .setColor('#5865F2')
     .addFields(
-      { name: '📥 สุ่ม XP ต่อข้อความ', value: `${settings.minXp} - ${settings.maxXp} XP`, inline: true },
-      { name: '📈 ตัวคูณเลเวลอัป', value: `${settings.xpMultiplier} XP ต่อเลเวล`, inline: true }
-    )
-    .setTimestamp();
+      { name: '📥 สถานะระบบเลเวล', value: statusText, inline: true },
+      { name: '📊 เรต XP ต่อข้อความ', value: `${lc.minXp} -${lc.maxXp} XP`, inline: true },
+      { name: '📈 ตัวคูณเลเวลอัป', value: `${lc.xpMultiplier} XP`, inline: true },
+      { name: '💬 ข้อความแจ้งเตือนเลเวลอัป', value: `\`\`\`${lc.levelUpMessage}\`\`\``, inline: false }
+    );
 
-  await interaction.reply({ embeds: [embed], ephemeral: true });
+  const row1 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('toggle_level')
+      .setLabel(lc.enabled ? 'ปิดระบบเลเวล' : 'เปิดระบบเลเวล')
+      .setStyle(lc.enabled ? ButtonStyle.Danger : ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId('edit_level_rate')
+      .setLabel('ตั้งค่าเรต XP และตัวคูณ')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId('edit_level_msg')
+      .setLabel('แก้ไขข้อความเลเวลอัป')
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  return { embeds: [embed], components: [row1] };
 }
 
-module.exports = { handleLeveling, levelCommand, handleLevelCommand, setLevelCommand, handleSetLevelCommand };
+async function handleSetLevelCommand(interaction, serverConfigs) {
+  if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+    return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
+  }
+  const config = serverConfigs[interaction.guildId];
+  await interaction.reply({ ...getLevelDashboardContent(config), ephemeral: true });
+}
+
+module.exports = { handleLeveling, levelCommand, handleLevelCommand, setLevelCommand, handleSetLevelCommand, getLevelDashboardContent };
