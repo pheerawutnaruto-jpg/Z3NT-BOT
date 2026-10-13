@@ -6,11 +6,11 @@ function getDashboardConfig(config) {
   
   const embed = new EmbedBuilder()
     .setTitle('ตั้งค่าระบบต้อนรับสมาชิกใหม่')
-    .setDescription('จัดการและปรับแต่งข้อความต้อนรับสมาชิกที่เข้ามาใหม่ในเซิร์ฟเวอร์ของคุณ')
+    .setDescription('จัดการและปรับแต่งข้อความต้อนรับสมาชิกที่เข้ามาใหม่ในเซิร์ฟเวอร์')
     .addFields(
       { name: 'สถานะระบบ', value: statusText, inline: true },
       { name: 'ช่องต้อนรับ', value: channelName, inline: true },
-      { name: 'รูปแบบ Embed', value: `**Description:**\n${config.embed?.description || 'ยังไม่ได้ตั้งค่า'}\n**Hex Color:** \`${config.embed?.color || '#66FFFF'}\``, inline: false }
+      { name: 'รูปแบบข้อความ', value: `**Description:**\n${config.embed?.description || 'ยังไม่ได้ตั้งค่า'}\n**Hex Color:** \`${config.embed?.color || '#66FFFF'}\``, inline: false }
     )
     .setColor(config.embed?.color || '#66FFFF')
     .setTimestamp();
@@ -18,7 +18,7 @@ function getDashboardConfig(config) {
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('toggle_welcome')
-      .setLabel(config.welcomeEnabled ? 'ปิดระบบ' : 'เปิดระบบ')
+      .setLabel(config.welcomeEnabled ? 'ปิดระบบ Welcome' : 'เปิดระบบ Welcome')
       .setStyle(config.welcomeEnabled ? ButtonStyle.Danger : ButtonStyle.Success),
     new ButtonBuilder()
       .setCustomId('edit_embed')
@@ -64,19 +64,5 @@ module.exports = {
     
     if (!config.embed) {
       config.embed = {
-        title: '',
-        description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢\x62𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!'
-        color: '#66FFFF',
-        image: ''
-      };
-      fs.writeFileSync(CONFIG_FILE, JSON.stringify(serverConfigs, null, 2));
-    }
-    await interaction.reply({ ...getDashboardConfig(config), ephemeral: true });
-  },
-  async updateDashboard(interaction, config) {
-    await interaction.update({ ...getDashboardConfig(config) });
-  },
-  async updateDashboardAfterDefer(interaction, config) {
-    await interaction.editReply({ ...getDashboardConfig(config) });
-  }
-};
+        title:
+          
