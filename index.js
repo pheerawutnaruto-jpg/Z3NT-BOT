@@ -1,9 +1,9 @@
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, RoleSelectMenuBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, RoleSelectMenuBuilder, ChannelType, PermissionFlagsBits, StringSelectMenuBuilder } = require('discord.js');
 const http = require('http');
 const fs = require('fs');
 const cron = require('node-cron');
 const { getSecurityDashboardContent, handleSecurityMessage } = require('./security');
-const { handleLeveling, levelCommand, handleLevelCommand, setLevelCommand, handleSetLevelCommand } = require('./level');
+const { handleLeveling, levelCommand, handleLevelCommand, setLevelCommand, handleSetLevelCommand, getLevelDashboardContent } = require('./level');
 
 const httpServer = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -64,8 +64,8 @@ client.once('ready', async () => {
     new SlashCommandBuilder()
       .setName('set-security')
       .setDescription('เปิดแผงควบคุมระบบป้องกันความปลอดภัยขั้นสูง'),
-    levelCommand,     // คำสั่งเช็กเลเวล
-    setLevelCommand,  // คำสั่งตั้งค่าเรตเลเวล
+    levelCommand,
+    setLevelCommand,
     new SlashCommandBuilder()
       .setName('clear')
       .setDescription('ลบข้อความในแชทจำนวน 1-100 ข้อความ')
@@ -145,9 +145,11 @@ client.on('messageCreate', async message => {
   const guildId = message.guild?.id;
   const config = serverConfigs[guildId];
 
+  // 1. ตรวจสอบระบบความปลอดภัย
   const isBlocked = handleSecurityMessage(message, config, spamTracker);
   if (isBlocked) return;
 
+  // 2. ระบบเก็บ XP และเลเวล
   handleLeveling(message, serverConfigs, saveConfigs);
 });
 
@@ -259,7 +261,13 @@ client.on('interactionCreate', async interaction => {
         ignoredChannels: []
       },
       levels: {},
-      levelSettings: { minXp: 15, maxXp: 25, xpMultiplier: 100 },
+      levelConfig: {
+        enabled: true,
+        minXp: 15,
+        maxXp: 25,
+        xpMultiplier: 100,
+        levelUpMessage: '🎉 ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว! 🚀'
+      },
       embed: {
         title: '',
         description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!',
@@ -295,7 +303,15 @@ client.on('interactionCreate', async interaction => {
     };
   }
   if (!config.levels) config.levels = {};
-  if (!config.levelSettings) config.levelSettings = { minXp: 15, maxXp: 25, xpMultiplier: 100 };
+  if (!config.levelConfig) {
+    config.levelConfig = {
+      enabled: true,
+      minXp: 15,
+      maxXp: 25,
+      xpMultiplier: 100,
+      levelUpMessage: '🎉 ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว! 🚀'
+    };
+  }
 
   if (interaction.isChatInputCommand() && interaction.commandName === 'ping') {
     return await interaction.reply({ content: 'Pong! 🏓 บอททำงานระบบ Slash Command ปกติบน Render ครับ 🚀', ephemeral: true });
@@ -306,7 +322,7 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.isChatInputCommand() && interaction.commandName === 'set-level') {
-    return await handleSetLevelCommand(interaction, serverConfigs, saveConfigs);
+    return await handleSetLevelCommand(interaction, serverConfigs);
   }
 
   if (interaction.isChatInputCommand() && interaction.commandName === 'set-security') {
@@ -392,6 +408,28 @@ client.on('interactionCreate', async interaction => {
       config.autoroleEnabled = !config.autoroleEnabled;
       saveConfigs(serverConfigs);
       return await updateAutoroleDashboard(interaction);
+    }
+
+    if (id === 'toggle_level') {
+      config.levelConfig.enabled = !config.levelConfig.enabled;
+      saveConfigs(serverConfigs);
+      return await interaction.update(getLevelDashboardContent(config));
+    }
+    if (id === 'edit_level_rate') {
+      const modal = new ModalBuilder().setCustomId('levelRateModal').setTitle('ตั้งค่าเรต XP และตัวคูณ');
+      const minInput = new TextInputBuilder().setCustomId('minXp').setLabel('XP ต่ำสุดต่อข้อความ').setStyle(TextInputStyle.Short).setValue(config.levelConfig.minXp.toString()).setRequired(true);
+      const maxInput = new TextInputBuilder().setCustomId('maxXp').setLabel('XP สูงสุดต่อข้อความ').setStyle(TextInputStyle.Short).setValue(config.levelConfig.maxXp.toString()).setRequired(true);
+      const multInput = new TextInputBuilder().setCustomId('multiplier').setLabel('ตัวคูณเลเวลอัป').setStyle(TextInputStyle.Short).setValue(config.levelConfig.xpMultiplier.toString()).setRequired(true);
+
+      modal.addComponents(new ActionRowBuilder().addComponents(minInput), new ActionRowBuilder().addComponents(maxInput), new ActionRowBuilder().addComponents(multInput));
+      return await interaction.showModal(modal);
+    }
+    if (id === 'edit_level_msg') {
+      const modal = new ModalBuilder().setCustomId('levelMsgModal').setTitle('แก้ไขข้อความเลเวลอัป');
+      const msgInput = new TextInputBuilder().setCustomId('levelMsg').setLabel('ข้อความ ({user}, {level})').setStyle(TextInputStyle.Paragraph).setValue(config.levelConfig.levelUpMessage).setRequired(true);
+
+      modal.addComponents(new ActionRowBuilder().addComponents(msgInput));
+      return await interaction.showModal(modal);
     }
 
     if (id === 'sec_toggle_main') {
@@ -656,6 +694,27 @@ client.on('interactionCreate', async interaction => {
       saveConfigs(serverConfigs);
 
       return await interaction.reply({ content: '✅ บันทึกค่าเวลาเรียบร้อยแล้ว!', ephemeral: true });
+    }
+
+    if (interaction.customId === 'levelRateModal') {
+      const min = parseInt(interaction.fields.getTextInputValue('minXp'));
+      const max = parseInt(interaction.fields.getTextInputValue('maxXp'));
+      const mult = parseInt(interaction.fields.getTextInputValue('multiplier'));
+
+      if (!isNaN(min)) config.levelConfig.minXp = min;
+      if (!isNaN(max)) config.levelConfig.maxXp = max;
+      if (!isNaN(mult)) config.levelConfig.xpMultiplier = mult;
+      saveConfigs(serverConfigs);
+
+      return await interaction.reply({ content: '✅ บันทึกเรต XP และตัวคูณเรียบร้อยแล้ว!', ephemeral: true });
+    }
+
+    if (interaction.customId === 'levelMsgModal') {
+      const customMsg = interaction.fields.getTextInputValue('levelMsg');
+      config.levelConfig.levelUpMessage = customMsg;
+      saveConfigs(serverConfigs);
+
+      return await interaction.reply({ content: '✅ บันทึกข้อความแจ้งเตือนเลเวลอัปเรียบร้อยแล้ว!', ephemeral: true });
     }
   }
 });
