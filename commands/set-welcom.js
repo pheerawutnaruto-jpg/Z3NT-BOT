@@ -1,82 +1,65 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelSelectMenuBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
-
-function getDashboardConfig(config) {
-  const channelName = config.channelId ? `<#${config.channelId}>` : 'ยังไม่ได้เลือกช่อง';
-  const statusText = config.welcomeEnabled ? 'เปิดใช้งาน' : 'ปิดใช้งาน';
-  
-  const embed = new EmbedBuilder()
-    .setTitle('ตั้งค่าระบบต้อนรับสมาชิกใหม่')
-    .setDescription('จัดการและปรับแต่งข้อความต้อนรับสมาชิกที่เข้ามาใหม่ในเซิร์ฟเวอร์')
-    .addFields(
-      { name: 'สถานะระบบ', value: statusText, inline: true },
-      { name: 'ช่องต้อนรับ', value: channelName, inline: true },
-      { name: 'รูปแบบข้อความ', value: `**Description:**\n${config.embed?.description || 'ยังไม่ได้ตั้งค่า'}\n**Hex Color:** \`${config.embed?.color || '#66FFFF'}\``, inline: false }
-    )
-    .setColor(config.embed?.color || '#66FFFF')
-    .setTimestamp();
-
-  const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('toggle_welcome')
-      .setLabel(config.welcomeEnabled ? 'ปิดระบบ Welcome' : 'เปิดระบบ Welcome')
-      .setStyle(config.welcomeEnabled ? ButtonStyle.Danger : ButtonStyle.Success),
-    new ButtonBuilder()
-      .setCustomId('edit_embed')
-      .setLabel('ตั้งค่าข้อความ/Embed')
-      .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId('test_welcome')
-      .setLabel('ทดสอบส่งข้อความ')
-      .setStyle(ButtonStyle.Secondary)
-  );
-
-  const channelRow = new ActionRowBuilder().addComponents(
-    new ChannelSelectMenuBuilder()
-      .setCustomId('select_channel')
-      .setPlaceholder('เลือกช่องสำหรับส่งข้อความต้อนรับ')
-      .addChannelTypes(ChannelType.GuildText)
-  );
-
-  return { embeds: [embed], components: [row1, channelRow] };
-}
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('set-welcom')
-    .setDescription('เปิดแผงควบคุมระบบต้อนรับสมาชิกใหม่'),
-  async execute(interaction) {
-    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-      return await interaction.reply({ content: 'สำหรับผู้ดูแลระบบ (Administrator) เท่านั้น', ephemeral: true });
+    .setDescription('เปิดแผงควบคุมระบบต้อนรับ (Welcome Dashboard)'),
+  async execute(interaction, client, serverConfigs) {
+    if (!interaction.member.permissions.has('Administrator')) {
+      return await interaction.reply({ content: '❌ คุณต้องเป็น Administrator ถึงจะใช้งานได้ครับ', ephemeral: true });
     }
-    const fs = require('fs');
-    const path = require('path');
-    const CONFIG_FILE = path.join(__dirname, '../config.json');
-    let serverConfigs = {};
-    try {
-      if (fs.existsSync(CONFIG_FILE)) {
-        serverConfigs = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-      }
-    } catch(e) {}
 
     const guildId = interaction.guildId;
-    if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
-    const config = serverConfigs[guildId];
-    
-    if (!config.embed) {
-      config.embed = {
-        title: '',
-        description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢\x62𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!\n\nขอให้สนุกกับการพูดคุยและทำความรู้จักกับเพื่อนๆ ในเซิร์ฟเวอร์ของเรานะครับ อย่าลืมอ่านกฎและระเบียบของห้องต่างๆ ด้วยน้า มีปัญหาอะไรสามารถติดต่อทีมงานได้ตลอดเลยครับ!',
-        color: '#66FFFF',
-        image: ''
+    if (!serverConfigs[guildId]) {
+      serverConfigs[guildId] = {
+        welcomeEnabled: false,
+        channelId: null,
+        embed: {
+          title: '',
+          description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!',
+          color: '#66FFFF',
+          image: ''
+        },
+        autoClear: { enabled: false, time: '06:00', channelId: null }
       };
-      fs.writeFileSync(CONFIG_FILE, JSON.stringify(serverConfigs, null, 2));
     }
-    await interaction.reply({ ...getDashboardConfig(config), ephemeral: true });
+
+    const config = serverConfigs[guildId];
+    const channelName = config.channelId ? `<#${config.channelId}>` : 'ยังไม่ได้เลือกช่อง';
+    const statusText = config.welcomeEnabled ? '✅ เปิดอยู่' : '❌ ปิดอยู่';
+
+    const embed = new EmbedBuilder()
+      .setTitle('⚙️ ตั้งค่าระบบ Welcome')
+      .setDescription('เลือกช่อง เปิด/ปิดระบบ และตั้งค่ารูป Embed ได้จากปุ่มด้านล่าง')
+      .setColor('#5865F2')
+      .addFields(
+        { name: '📥 Welcome Status', value: statusText, inline: true },
+        { name: '📢 ห้องต้อนรับ', value: channelName, inline: true }
+      );
+
+    const row1 = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('toggle_welcome')
+        .setLabel(config.welcomeEnabled ? 'ปิด Welcome' : 'เปิด Welcome')
+        .setStyle(config.welcomeEnabled ? ButtonStyle.Danger : ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId('edit_embed')
+        .setLabel('ตั้งค่ารูป Embed')
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId('test_welcome')
+        .setLabel('ทดสอบ Welcome')
+        .setStyle(ButtonStyle.Secondary)
+    );
+
+    const { ChannelSelectMenuBuilder, ChannelType } = require('discord.js');
+    const channelRow = new ActionRowBuilder().addComponents(
+      new ChannelSelectMenuBuilder()
+        .setCustomId('select_channel')
+        .setPlaceholder('📂 เลือกช่องสำหรับส่งข้อความต้อนรับ')
+        .addChannelTypes(ChannelType.GuildText)
+    );
+
+    await interaction.reply({ embeds: [embed], components: [row1, channelRow], ephemeral: true });
   },
-  async updateDashboard(interaction, config) {
-    await interaction.update({ ...getDashboardConfig(config) });
-  },
-  async updateDashboardAfterDefer(interaction, config) {
-    await interaction.editReply({ ...getDashboardConfig(config) });
-  }
 };
