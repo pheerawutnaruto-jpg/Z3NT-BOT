@@ -64,5 +64,19 @@ module.exports = {
     
     if (!config.embed) {
       config.embed = {
-        title:
-          
+        title: '',
+        description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢\x62𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!\n\nขอให้สนุกกับการพูดคุยและทำความรู้จักกับเพื่อนๆ ในเซิร์ฟเวอร์ของเรานะครับ อย่าลืมอ่านกฎและระเบียบของห้องต่างๆ ด้วยน้า มีปัญหาอะไรสามารถติดต่อทีมงานได้ตลอดเลยครับ!',
+        color: '#66FFFF',
+        image: ''
+      };
+      fs.writeFileSync(CONFIG_FILE, JSON.stringify(serverConfigs, null, 2));
+    }
+    await interaction.reply({ ...getDashboardConfig(config), ephemeral: true });
+  },
+  async updateDashboard(interaction, config) {
+    await interaction.update({ ...getDashboardConfig(config) });
+  },
+  async updateDashboardAfterDefer(interaction, config) {
+    await interaction.editReply({ ...getDashboardConfig(config) });
+  }
+};
