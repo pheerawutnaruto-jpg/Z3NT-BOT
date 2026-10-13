@@ -45,8 +45,9 @@ function handleLeveling(message, serverConfigs, saveConfigs) {
     userStat.xp -= requiredXp;
     userStat.level += 1;
 
+    // เปลี่ยน {user} เป็นชื่อดิสคอร์ด (username) แทน
     const customMsg = lConfig.levelUpMessage
-      .replace('{user}', `<@${userId}>`)
+      .replace('{user}', message.author.username)
       .replace('{level}', userStat.level);
 
     let targetChannel = message.channel;
@@ -74,7 +75,7 @@ function handleLeveling(message, serverConfigs, saveConfigs) {
   saveConfigs(serverConfigs);
 }
 
-// 2. คำสั่งเช็กเลเวล (/level) แสดงผลตามที่ Customize ไว้
+// 2. คำสั่งเช็กเลเวล (/level)
 const levelCommand = new SlashCommandBuilder()
   .setName('level')
   .setDescription('เช็กเลเวลและค่าประสบการณ์ (XP) ของคุณ')
@@ -99,6 +100,7 @@ async function handleLevelCommand(interaction, serverConfigs) {
   const percentage = Math.min(Math.round((userStat.xp / requiredXp) * 10), 10);
   const progressBar = '█'.repeat(percentage) + '░'.repeat(10 - percentage);
 
+  // เปลี่ยน {user} ให้แสดงเป็นชื่อดิสคอร์ด (targetUser.username) แทนการใช้ไอดีหรือเมนชั่น
   const finalTitle = (lConfig.cardTitle || '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD').replace('{user}', targetUser.username);
   const finalDesc = (lConfig.cardDescription || 'การ์ดข้อมูลเลเวลของ **{user}**').replace('{user}', targetUser.username);
 
@@ -117,13 +119,12 @@ async function handleLevelCommand(interaction, serverConfigs) {
     embed.setImage(lConfig.embedImage.trim());
   }
 
-  embed.setFooter({ text: `Requested by ${interaction.user.username}`, iconURL: interaction.user.displayAvatarURL() })
-       .setTimestamp();
+  // เอา footer (Requested by ...) ออกเรียบร้อยตามต้องการ
 
   await interaction.reply({ embeds: [embed], ephemeral: true });
 }
 
-// 3. แผงควบคุมตั้งค่าระบบเลเวล (/set-level) เพิ่มปุ่มตกแต่งการ์ด Status Card
+// 3. แผงควบคุมตั้งค่าระบบเลเวล (/set-level)
 const setLevelCommand = new SlashCommandBuilder()
   .setName('set-level')
   .setDescription('เปิดแผงควบคุมตั้งค่าระบบเลเวลและตกแต่งการ์ด Stat Card');
