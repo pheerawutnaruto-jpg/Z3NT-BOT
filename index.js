@@ -353,7 +353,7 @@ client.on('interactionCreate', async interaction => {
     if (interaction.customId === 'edit_embed') {
       const modal = new ModalBuilder()
         .setCustomId('editEmbedModal')
-        .setTitle('Editing: welcome');
+        .setTitle('Editing: welcome embed');
 
       const titleInput = new TextInputBuilder()
         .setCustomId('embedTitle')
@@ -375,6 +375,28 @@ client.on('interactionCreate', async interaction => {
         .setStyle(TextInputStyle.Short)
         .setValue(config.embed.color || '#66FFFF')
         .setRequired(true);
+
+      const imageInput = new TextInputBuilder()
+        .setCustomId('embedImage')
+        .setLabel('Image URL (ลิงก์รูปภาพ หรือเว้นว่าง)')
+        .setStyle(TextInputStyle.Short)
+        .setValue(config.embed.image || '')
+        .setRequired(false);
+
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(titleInput),
+        new ActionRowBuilder().addComponents(descInput),
+        new ActionRowBuilder().addComponents(colorInput),
+        new ActionRowBuilder().addComponents(imageInput),
+      );
+
+      return await interaction.showModal(modal);
+    }
+
+    if (interaction.customId === 'edit_footer') {
+      const modal = new ModalBuilder()
+        .setCustomId('editFooterModal')
+        .setTitle('Editing: welcome footer');
 
       const footerTextInput = new TextInputBuilder()
         .setCustomId('embedFooterText')
@@ -398,8 +420,6 @@ client.on('interactionCreate', async interaction => {
         .setRequired(false);
 
       modal.addComponents(
-        new ActionRowBuilder().addComponents(titleInput),
-        new ActionRowBuilder().addComponents(descInput),
         new ActionRowBuilder().addComponents(footerTextInput),
         new ActionRowBuilder().addComponents(footerIconInput),
         new ActionRowBuilder().addComponents(timestampInput),
@@ -420,13 +440,27 @@ client.on('interactionCreate', async interaction => {
     config.embed.title = interaction.fields.getTextInputValue('embedTitle');
     config.embed.description = interaction.fields.getTextInputValue('embedDesc');
     
+    let colorVal = interaction.fields.getTextInputValue('embedColor').trim();
+    if (!colorVal.startsWith('#')) colorVal = '#' + colorVal;
+    if (colorVal.length === 4) {
+      colorVal = '#' + colorVal[1] + colorVal[1] + colorVal[2] + colorVal[2] + colorVal[3] + colorVal[3];
+    }
+    config.embed.color = colorVal;
+    
+    config.embed.image = interaction.fields.getTextInputValue('embedImage');
+    saveConfigs(serverConfigs);
+
+    return await interaction.reply({ content: '✅ บันทึกรูปแบบ Embed และรูปภาพเรียบร้อยแล้ว!', ephemeral: true });
+  }
+
+  if (interaction.isModalSubmit() && interaction.customId === 'editFooterModal') {
     config.embed.footerText = interaction.fields.getTextInputValue('embedFooterText');
     config.embed.footerIcon = interaction.fields.getTextInputValue('embedFooterIcon');
     config.embed.timestamp = interaction.fields.getTextInputValue('embedTimestamp');
     
     saveConfigs(serverConfigs);
 
-    return await interaction.reply({ content: '✅ บันทึกรูปแบบ Embed (Footer & Timestamp) เรียบร้อยแล้ว!', ephemeral: true });
+    return await interaction.reply({ content: '✅ บันทึกรูปแบบ Footer เรียบร้อยแล้ว!', ephemeral: true });
   }
 });
 
@@ -451,6 +485,10 @@ function getDashboardContent(config) {
     new ButtonBuilder()
       .setCustomId('edit_embed')
       .setLabel('ตั้งค่ารูป Embed')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId('edit_footer')
+      .setLabel('ตั้งค่า Footer')
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
       .setCustomId('test_welcome')
@@ -487,3 +525,4 @@ async function updateDashboardAfterDefer(interaction) {
 }
 
 client.login(process.env.DISCORD_TOKEN);
+    
