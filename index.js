@@ -3,7 +3,7 @@ const http = require('http');
 const fs = require('fs');
 const cron = require('node-cron');
 const { getSecurityDashboardContent, handleSecurityMessage } = require('./security');
-const { handleLeveling, levelCommand, handleLevelCommand, setLevelCommand, handleSetLevelCommand, getLevelDashboardContent } = require('./level');
+const { handleLeveling, handleCommandLeveling, levelCommand, handleLevelCommand, setLevelCommand, handleSetLevelCommand, getLevelDashboardContent, startVoiceXpCron } = require('./level');
 
 const httpServer = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -16,7 +16,8 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildVoiceStates
   ]
 });
 
@@ -50,6 +51,9 @@ const spamTracker = new Map();
 
 client.once('ready', async () => {
   console.log(`Bot Online แล้วจ้า: ${client.user.tag}`);
+
+  // เริ่มระบบแจก XP ห้องเสียงอัตโนมัติ
+  startVoiceXpCron(client, serverConfigs, saveConfigs);
 
   const commands = [
     new SlashCommandBuilder()
@@ -149,7 +153,7 @@ client.on('messageCreate', async message => {
   const isBlocked = handleSecurityMessage(message, config, spamTracker);
   if (isBlocked) return;
 
-  // 2. ระบบเก็บ XP และเลเวล
+  // 2. ระบบเก็บ XP จากการพิมพ์แชท
   handleLeveling(message, serverConfigs, saveConfigs);
 });
 
@@ -265,13 +269,16 @@ client.on('interactionCreate', async interaction => {
         enabled: true,
         minXp: 15,
         maxXp: 25,
+        cmdXp: 20,
         xpMultiplier: 100,
         channelId: null,
-        levelUpMessage: '🎉 ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว! 🚀',
+        levelUpMessage: 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว!',
         cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD',
         cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**',
         embedColor: '#66FFFF',
-        embedImage: ''
+        embedImage: '',
+        voiceXpEnabled: false,
+        voiceXpAmount: 10
       },
       embed: {
         title: '',
@@ -313,14 +320,22 @@ client.on('interactionCreate', async interaction => {
       enabled: true,
       minXp: 15,
       maxXp: 25,
+      cmdXp: 20,
       xpMultiplier: 100,
       channelId: null,
-      levelUpMessage: '🎉 ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว! 🚀',
+      levelUpMessage: 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว!',
       cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD',
       cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**',
       embedColor: '#66FFFF',
-      embedImage: ''
+      embedImage: '',
+      voiceXpEnabled: false,
+      voiceXpAmount: 10
     };
+  }
+
+  // แจก XP จากการใช้ Slash Command
+  if (interaction.isChatInputCommand()) {
+    handleCommandLeveling(interaction, serverConfigs, saveConfigs);
   }
 
   if (interaction.isChatInputCommand() && interaction.commandName === 'ping') {
@@ -425,13 +440,25 @@ client.on('interactionCreate', async interaction => {
       saveConfigs(serverConfigs);
       return await interaction.update(getLevelDashboardContent(config));
     }
+    if (id === 'toggle_voice_xp') {
+      config.levelConfig.voiceXpEnabled = !config.levelConfig.voiceXpEnabled;
+      saveConfigs(serverConfigs);
+      return await interaction.update(getLevelDashboardContent(config));
+    }
+    if (id === 'edit_voice_amount') {
+      const modal = new ModalBuilder().setCustomId('voiceAmountModal').setTitle('ตั้งค่า XP ห้องเสียง');
+      const amountInput = new TextInputBuilder().setCustomId('voiceXp').setLabel('จำนวน XP ต่อ 1 นาที').setStyle(TextInputStyle.Short).setValue(config.levelConfig.voiceXpAmount?.toString() || '10').setRequired(true);
+      modal.addComponents(new ActionRowBuilder().addComponents(amountInput));
+      return await interaction.showModal(modal);
+    }
     if (id === 'edit_level_rate') {
-      const modal = new ModalBuilder().setCustomId('levelRateModal').setTitle('ตั้งค่าเรต XP และตัวคูณ');
+      const modal = new ModalBuilder().setCustomId('levelRateModal').setTitle('ตั้งค่าเรต XP แชท/คำสั่ง');
       const minInput = new TextInputBuilder().setCustomId('minXp').setLabel('XP ต่ำสุดต่อข้อความ').setStyle(TextInputStyle.Short).setValue(config.levelConfig.minXp.toString()).setRequired(true);
       const maxInput = new TextInputBuilder().setCustomId('maxXp').setLabel('XP สูงสุดต่อข้อความ').setStyle(TextInputStyle.Short).setValue(config.levelConfig.maxXp.toString()).setRequired(true);
+      const cmdInput = new TextInputBuilder().setCustomId('cmdXp').setLabel('XP จากการใช้คำสั่ง /').setStyle(TextInputStyle.Short).setValue(config.levelConfig.cmdXp?.toString() || '20').setRequired(true);
       const multInput = new TextInputBuilder().setCustomId('multiplier').setLabel('ตัวคูณเลเวลอัป').setStyle(TextInputStyle.Short).setValue(config.levelConfig.xpMultiplier.toString()).setRequired(true);
 
-      modal.addComponents(new ActionRowBuilder().addComponents(minInput), new ActionRowBuilder().addComponents(maxInput), new ActionRowBuilder().addComponents(multInput));
+      modal.addComponents(new ActionRowBuilder().addComponents(minInput), new ActionRowBuilder().addComponents(maxInput), new ActionRowBuilder().addComponents(cmdInput), new ActionRowBuilder().addComponents(multInput));
       return await interaction.showModal(modal);
     }
     if (id === 'edit_level_card') {
@@ -728,13 +755,22 @@ client.on('interactionCreate', async interaction => {
       return await interaction.reply({ content: '✅ บันทึกค่าเวลาเรียบร้อยแล้ว!', ephemeral: true });
     }
 
+    if (interaction.customId === 'voiceAmountModal') {
+      const amount = parseInt(interaction.fields.getTextInputValue('voiceXp'));
+      if (!isNaN(amount)) config.levelConfig.voiceXpAmount = amount;
+      saveConfigs(serverConfigs);
+      return await interaction.reply({ content: '✅ บันทึกจำนวน XP ห้องเสียงเรียบร้อยแล้ว!', ephemeral: true });
+    }
+
     if (interaction.customId === 'levelRateModal') {
       const min = parseInt(interaction.fields.getTextInputValue('minXp'));
       const max = parseInt(interaction.fields.getTextInputValue('maxXp'));
+      const cmd = parseInt(interaction.fields.getTextInputValue('cmdXp'));
       const mult = parseInt(interaction.fields.getTextInputValue('multiplier'));
 
       if (!isNaN(min)) config.levelConfig.minXp = min;
       if (!isNaN(max)) config.levelConfig.maxXp = max;
+      if (!isNaN(cmd)) config.levelConfig.cmdXp = cmd;
       if (!isNaN(mult)) config.levelConfig.xpMultiplier = mult;
       saveConfigs(serverConfigs);
 
