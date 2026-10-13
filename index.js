@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, RoleSelectMenuBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelSelectMenuBuilder, RoleSelectMenuBuilder, ChannelType, PermissionFlagsBits, StringSelectMenuBuilder } = require('discord.js');
 const http = require('http');
 const fs = require('fs');
 const cron = require('node-cron');
@@ -12,7 +12,9 @@ httpServer.listen(process.env.PORT || 3000);
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMembers
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent
   ]
 });
 
@@ -42,51 +44,31 @@ function saveConfigs(configs) {
 
 let serverConfigs = loadConfigs();
 let activeCronJobs = {};
+const spamTracker = new Map();
 
 client.once('ready', async () => {
   console.log(`Bot Online แล้วจ้า: ${client.user.tag}`);
 
   const commands = [
-    new SlashCommandBuilder()
-      .setName('ping')
-      .setDescription('เช็กความเร็วและสถานะของบอท'),
-    new SlashCommandBuilder()
-      .setName('set-welcom')
-      .setDescription('เปิดแผงควบคุมระบบต้อนรับ (Welcome Dashboard)'),
-    new SlashCommandBuilder()
-      .setName('set-autorole')
-      .setDescription('ตั้งค่าระบบแจกยศอัตโนมัติสำหรับสมาชิกใหม่'),
+    new SlashCommandBuilder().setName('ping').setDescription('เช็กความเร็วและสถานะของบอท'),
+    new SlashCommandBuilder().setName('set-welcom').setDescription('เปิดแผงควบคุมระบบต้อนรับ (Welcome Dashboard)'),
+    new SlashCommandBuilder().setName('set-autorole').setDescription('ตั้งค่าระบบแจกยศอัตโนมัติสำหรับสมาชิกใหม่'),
+    new SlashCommandBuilder().setName('set-security').setDescription('เปิดแผงควบคุมระบบป้องกันความปลอดภัยขั้นสูง (Anti-Spam / Anti-Link)'),
     new SlashCommandBuilder()
       .setName('clear')
       .setDescription('ลบข้อความในแชทจำนวน 1-100 ข้อความ')
-      .addIntegerOption(option =>
-        option.setName('amount')
-          .setDescription('จำนวนข้อความที่ต้องการลบ (1-100)')
-          .setRequired(true)
-      ),
+      .addIntegerOption(option => option.setName('amount').setDescription('จำนวนข้อความที่ต้องการลบ (1-100)').setRequired(true)),
     new SlashCommandBuilder()
       .setName('set-autoclear')
       .setDescription('ตั้งเวลาระบบลบข้อความอัตโนมัติ')
-      .addStringOption(option =>
-        option.setName('time')
-          .setDescription('ระบุเวลาในรูปแบบ HH:MM เช่น 06:00')
-          .setRequired(true)
-      )
-      .addChannelOption(option =>
-        option.setName('channel')
-          .setDescription('เลือกห้องที่ต้องการให้ลบข้อความอัตโนมัติ')
-          .addChannelTypes(ChannelType.GuildText)
-          .setRequired(true)
-      ),
+      .addStringOption(option => option.setName('time').setDescription('ระบุเวลาในรูปแบบ HH:MM เช่น 06:00').setRequired(true))
+      .addChannelOption(option => option.setName('channel').setDescription('เลือกห้องที่ต้องการให้ลบข้อความอัตโนมัติ').addChannelTypes(ChannelType.GuildText).setRequired(true)),
   ].map(command => command.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 
   try {
-    await rest.put(
-      Routes.applicationCommands(client.user.id),
-      { body: commands },
-    );
+    await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
     console.log('ลงทะเบียนคำสั่งสำเร็จเรียบร้อย!');
   } catch (error) {
     console.error(error);
@@ -127,30 +109,118 @@ function setupCronJob(guildId, timeStr, channelId) {
   }, {
     timezone: "Asia/Bangkok"
   });
+}
 
-  console.log(`⏰ ตั้งเวลา Auto-Clear สำเร็จสำหรับ Guild ${guildId} เวลา ${timeStr} ในห้องช่อง ID: ${channelId}`);
+// ระบบตรวจจับข้อความและป้องกันภัยคุกคามตามค่า Config
+client.on('messageCreate', async message => {
+  if (!message.guild || message.author.bot) return;
+
+  const guildId = message.guild.id;
+  const config = serverConfigs[guildId];
+  if (!config || !config.security || !config.security.enabled) return;
+
+  // ตรวจสอบห้องที่ได้รับการยกเว้น หรือกำหนดให้บอทดูแลเฉพาะห้องที่เลือก
+  if (config.security.selectedChannels && config.security.selectedChannels.length > 0) {
+    if (!config.security.selectedChannels.includes(message.channel.id)) return;
+  }
+
+  if (message.member.permissions.has(PermissionFlagsBits.ManageMessages)) return;
+
+  const sec = config.security;
+
+  // 1. Anti-Link (ลบลิงก์เชิญ / ลิงก์ทั่วไป)
+  if (sec.antiLink) {
+    const linkRegex = /(https?:\/\/[^\s]+)/gi;
+    if (linkRegex.test(message.content)) {
+      try {
+        await message.delete();
+        await applyPunishment(message.member, sec.inviteAction || 'timeout');
+        const warning = await message.channel.send(`⚠️ <@${message.author.id}> ตรวจพบลิงก์ห้ามส่งในห้องนี้!`);
+        setTimeout(() => warning.delete().catch(() => {}), 4000);
+        return;
+      } catch (err) {
+        console.error('Anti-link error:', err);
+      }
+    }
+  }
+
+  // 2. Anti-MrBeast Spam / Scam Keywords
+  if (sec.antiMrBeast) {
+    const scamKeywords = ['mrbeast', 'free nitro', 'claim free', 'nitro generator', 'steam gift'];
+    const contentLower = message.content.toLowerCase();
+    if (scamKeywords.some(keyword => contentLower.includes(keyword))) {
+      try {
+        await message.delete();
+        await applyPunishment(message.member, sec.mrBeastAction || 'timeout');
+        const warning = await message.channel.send(`⚠️ <@${message.author.id}> ตรวจพบข้อความสแปมอันตราย (MrBeast/Scam)!`);
+        setTimeout(() => warning.delete().catch(() => {}), 4000);
+        return;
+      } catch (err) {
+        console.error('Anti-MrBeast error:', err);
+      }
+    }
+  }
+
+  // 3. Anti-Spam (เช็คจำนวนข้อความในเวลาที่กำหนด เช่น 3 ข้อความ / 6 วินาที)
+  if (sec.antiSpam) {
+    const userId = message.author.id;
+    const now = Date.now();
+    const limitSec = sec.spamSeconds || 6;
+    const maxMsg = sec.spamCount || 3;
+
+    const userSpam = spamTracker.get(userId) || { count: 0, startTime: now };
+
+    if (now - userSpam.startTime < limitSec * 1000) {
+      userSpam.count++;
+      if (userSpam.count > maxMsg) {
+        try {
+          await message.delete();
+          await applyPunishment(message.member, sec.spamAction || 'timeout');
+          const warning = await message.channel.send(`⚠️ <@${userId}> ส่งข้อความเร็วเกินกำหนด (Anti-Spam)`);
+          setTimeout(() => warning.delete().catch(() => {}), 4000);
+          spamTracker.set(userId, { count: 0, startTime: now });
+          return;
+        } catch (err) {
+          console.error('Anti-spam error:', err);
+        }
+      }
+    } else {
+      userSpam.count = 1;
+      userSpam.startTime = now;
+    }
+    spamTracker.set(userId, userSpam);
+  }
+});
+
+async function applyPunishment(member, action) {
+  if (!member) return;
+  try {
+    if (action.includes('timeout') || action === 'timeout') {
+      await member.timeout(3000 * 1000, 'Security Violation (Anti-Spam/Link)');
+    }
+    if (action.includes('kick') || action === 'kick') {
+      if (member.kickable) await member.kick('Security Violation');
+    }
+    if (action.includes('ban') || action === 'ban') {
+      if (member.bannable) await member.ban({ reason: 'Security Violation' });
+    }
+  } catch (e) {
+    console.error('Punishment error:', e);
+  }
 }
 
 client.on('guildMemberAdd', async member => {
   const guildId = member.guild.id;
   const config = serverConfigs[guildId];
-
   if (!config) return;
 
-  // 1. ระบบ Autorole
   if (config.autoroleEnabled && config.autoroleId) {
     try {
       const role = await member.guild.roles.fetch(config.autoroleId);
-      if (role) {
-        await member.roles.add(role);
-        console.log(`✅ มอบยศ ${role.name} ให้กับคุณ ${member.user.tag} สำเร็จ`);
-      }
-    } catch (err) {
-      console.error('Autorole error:', err);
-    }
+      if (role) await member.roles.add(role);
+    } catch (err) { console.error('Autorole error:', err); }
   }
 
-  // 2. ระบบ Welcome Message
   if (!config.welcomeEnabled || !config.channelId) return;
 
   try {
@@ -167,52 +237,19 @@ client.on('guildMemberAdd', async member => {
       timestamp: 'no'
     };
 
-    const finalTitle = embedConfig.title ? embedConfig.title
-      .replace('{user}', member.user.username)
-      .replace('{server}', member.guild.name) : null;
-      
-    const finalDesc = embedConfig.description
-      .replace('{user}', `${member}`)
-      .replace('{server}', member.guild.name);
+    const finalTitle = embedConfig.title ? embedConfig.title.replace('{user}', member.user.username).replace('{server}', member.guild.name) : null;
+    const finalDesc = embedConfig.description.replace('{user}', `${member}`).replace('{server}', member.guild.name);
 
-    let embedColor = '#66FFFF';
-    try {
-      embedColor = embedConfig.color;
-    } catch (e) {
-      embedColor = '#66FFFF';
+    const embed = new EmbedBuilder().setDescription(finalDesc).setColor(embedConfig.color || '#66FFFF');
+    if (finalTitle) embed.setTitle(finalTitle);
+    if (embedConfig.image) embed.setImage(embedConfig.image);
+    if (embedConfig.footerText) {
+      embed.setFooter({ text: embedConfig.footerText.replace('{server_membercount}', member.guild.memberCount.toString()) });
     }
-
-    const embed = new EmbedBuilder()
-      .setDescription(finalDesc)
-      .setColor(embedColor);
-
-    if (finalTitle) {
-      embed.setTitle(finalTitle);
-    }
-
-    if (embedConfig.image && embedConfig.image.trim() !== '') {
-      embed.setImage(embedConfig.image.trim());
-    }
-
-    if (embedConfig.footerText && embedConfig.footerText.trim() !== '') {
-      const memberCount = member.guild.memberCount.toString();
-      const finalFooterText = embedConfig.footerText.replace('{server_membercount}', memberCount);
-      
-      if (embedConfig.footerIcon && embedConfig.footerIcon.trim() !== '') {
-        embed.setFooter({ text: finalFooterText, iconURL: embedConfig.footerIcon.trim() });
-      } else {
-        embed.setFooter({ text: finalFooterText });
-      }
-    }
-
-    if (embedConfig.timestamp && embedConfig.timestamp.toLowerCase() === 'yes') {
-      embed.setTimestamp();
-    }
+    if (embedConfig.timestamp === 'yes') embed.setTimestamp();
 
     await channel.send({ embeds: [embed] });
-  } catch (err) {
-    console.error('Send welcome error:', err);
-  }
+  } catch (err) { console.error('Welcome send error:', err); }
 });
 
 client.on('interactionCreate', async interaction => {
@@ -225,6 +262,19 @@ client.on('interactionCreate', async interaction => {
       channelId: null,
       autoroleEnabled: false,
       autoroleId: null,
+      security: {
+        enabled: false,
+        antiLink: true,
+        antiSpam: true,
+        antiMrBeast: true,
+        spamCount: 3,
+        spamSeconds: 6,
+        timeoutSeconds: 3000,
+        inviteAction: 'timeout',
+        spamAction: 'timeout',
+        mrBeastAction: 'timeout',
+        selectedChannels: []
+      },
       embed: {
         title: '',
         description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!',
@@ -234,14 +284,13 @@ client.on('interactionCreate', async interaction => {
         footerIcon: '',
         timestamp: 'no'
       },
-      autoClear: {
-        enabled: false,
-        time: '06:00',
-        channelId: null
-      }
+      autoClear: { enabled: false, time: '06:00', channelId: null }
     };
   }
   const config = serverConfigs[guildId];
+  if (!config.security) {
+    config.security = { enabled: false, antiLink: true, antiSpam: true, antiMrBeast: true, spamCount: 3, spamSeconds: 6, timeoutSeconds: 3000, inviteAction: 'timeout', spamAction: 'timeout', mrBeastAction: 'timeout', selectedChannels: [] };
+  }
 
   if (interaction.isChatInputCommand() && interaction.commandName === 'ping') {
     return await interaction.reply({ content: 'Pong! 🏓 บอททำงานระบบ Slash Command ปกติบน Render ครับ 🚀', ephemeral: true });
@@ -249,367 +298,127 @@ client.on('interactionCreate', async interaction => {
 
   if (interaction.isChatInputCommand() && interaction.commandName === 'clear') {
     if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
-      return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์จัดการข้อความ (Manage Messages) ครับ', ephemeral: true });
+      return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์จัดการข้อความครับ', ephemeral: true });
     }
-
     const amount = interaction.options.getInteger('amount');
-    if (amount < 1 || amount > 100) {
-      return await interaction.reply({ content: '⚠️ กรุณาระบุจำนวนข้อความระหว่าง 1 ถึง 100 ครับ', ephemeral: true });
-    }
-
     await interaction.deferReply({ ephemeral: true });
-
     try {
       const messages = await interaction.channel.messages.fetch({ limit: amount });
       await interaction.channel.bulkDelete(messages, true);
       await interaction.editReply({ content: `🧹 ลบข้อความจำนวน **${amount}** ข้อความเรียบร้อยแล้ว!` });
     } catch (err) {
-      console.error(err);
-      await interaction.editReply({ content: '❌ เกิดข้อผิดพลาด ไม่สามารถลบข้อความที่เก่าเกิน 14 วันได้ครับ' });
+      await interaction.editReply({ content: '❌ เกิดข้อผิดพลาด ไม่สามารถลบข้อความเก่าเกิน 14 วันได้ครับ' });
     }
     return;
   }
 
-  if (interaction.isChatInputCommand() && interaction.commandName === 'set-autoclear') {
-    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-      return await interaction.reply({ content: '❌ คุณต้องเป็น Administrator ถึงจะใช้งานคำสั่งนี้ได้ครับ', ephemeral: true });
-    }
-
-    const timeInput = interaction.options.getString('time');
-    const channelInput = interaction.options.getChannel('channel');
-
-    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
-    if (!timeRegex.test(timeInput)) {
-      return await interaction.reply({ content: '❌ รูปแบบเวลาไม่ถูกต้อง กรุณาใส่ในรูปแบบ **HH:MM** (เช่น `06:00` หรือ `23:30`)', ephemeral: true });
-    }
-
-    if (!config.autoClear) {
-      config.autoClear = {};
-    }
-
-    config.autoClear.enabled = true;
-    config.autoClear.time = timeInput;
-    config.autoClear.channelId = channelInput.id;
-    saveConfigs(serverConfigs);
-
-    setupCronJob(guildId, timeInput, channelInput.id);
-
-    return await interaction.reply({ content: `✅ ตั้งค่าระบบ Auto-Clear สำเร็จ!\n⏰ เวลา: **${timeInput} น.** (ทุกวัน)\n📢 ช่อง: <#${channelInput.id}>`, ephemeral: true });
-  }
-
-  if (interaction.isChatInputCommand() && interaction.commandName === 'set-welcom') {
+  if (interaction.isChatInputCommand() && interaction.commandName === 'set-security') {
     if (!interaction.member.permissions.has('Administrator')) {
       return await interaction.reply({ content: '❌ คุณต้องเป็น Administrator ถึงจะใช้งานได้ครับ', ephemeral: true });
     }
-    return await sendDashboard(interaction);
-  }
-
-  if (interaction.isChatInputCommand() && interaction.commandName === 'set-autorole') {
-    if (!interaction.member.permissions.has('Administrator')) {
-      return await interaction.reply({ content: '❌ คุณต้องเป็น Administrator ถึงจะใช้งานได้ครับ', ephemeral: true });
-    }
-    return await sendAutoroleDashboard(interaction);
+    return await sendSecurityDashboard(interaction);
   }
 
   if (interaction.isButton()) {
-    if (interaction.customId === 'toggle_welcome') {
-      config.welcomeEnabled = !config.welcomeEnabled;
+    if (interaction.customId === 'sec_toggle_main') {
+      config.security.enabled = !config.security.enabled;
       saveConfigs(serverConfigs);
-      return await updateDashboard(interaction);
+      return await updateSecurityDashboard(interaction);
     }
-    
-    if (interaction.customId === 'toggle_autorole') {
-      config.autoroleEnabled = !config.autoroleEnabled;
+    if (interaction.customId === 'sec_toggle_link') {
+      config.security.antiLink = !config.security.antiLink;
       saveConfigs(serverConfigs);
-      return await updateAutoroleDashboard(interaction);
+      return await updateSecurityDashboard(interaction);
     }
-
-    if (interaction.customId === 'test_welcome') {
-      if (!config.channelId) {
-        return await interaction.reply({ content: '❌ กรุณาเลือกช่อง (Channel) สำหรับส่งข้อความต้อนรับก่อนกดทดสอบครับ!', ephemeral: true });
-      }
-
-      await interaction.reply({ content: `🔄 กำลังส่งข้อความทดสอบไปที่ห้อง <#${config.channelId}>...`, ephemeral: true });
-
-      try {
-        const channel = await interaction.guild.channels.fetch(config.channelId);
-        if (channel) {
-          const embedConfig = config.embed;
-          const finalTitle = embedConfig.title ? embedConfig.title
-            .replace('{user}', interaction.user.username)
-            .replace('{server}', interaction.guild.name) : null;
-          const finalDesc = embedConfig.description
-            .replace('{user}', `${interaction.user}`)
-            .replace('{server}', interaction.guild.name);
-
-          let embedColor = '#66FFFF';
-          try {
-            embedColor = embedConfig.color;
-          } catch (e) {
-            embedColor = '#66FFFF';
-          }
-
-          const embed = new EmbedBuilder()
-            .setDescription(finalDesc)
-            .setColor(embedColor);
-
-          if (finalTitle) {
-            embed.setTitle(finalTitle);
-          }
-
-          if (embedConfig.image && embedConfig.image.trim() !== '') {
-            embed.setImage(embedConfig.image.trim());
-          }
-
-          if (embedConfig.footerText && embedConfig.footerText.trim() !== '') {
-            const memberCount = interaction.guild.memberCount.toString();
-            const finalFooterText = embedConfig.footerText.replace('{server_membercount}', memberCount);
-            
-            if (embedConfig.footerIcon && embedConfig.footerIcon.trim() !== '') {
-              embed.setFooter({ text: finalFooterText, iconURL: embedConfig.footerIcon.trim() });
-            } else {
-              embed.setFooter({ text: finalFooterText });
-            }
-          }
-
-          if (embedConfig.timestamp && embedConfig.timestamp.toLowerCase() === 'yes') {
-            embed.setTimestamp();
-          }
-          
-          await channel.send({ embeds: [embed] });
-        }
-      } catch (err) {
-        console.error('Test welcome send error:', err);
-      }
-      return;
+    if (interaction.customId === 'sec_toggle_spam') {
+      config.security.antiSpam = !config.security.antiSpam;
+      saveConfigs(serverConfigs);
+      return await updateSecurityDashboard(interaction);
     }
-
-    if (interaction.customId === 'edit_embed') {
-      const modal = new ModalBuilder()
-        .setCustomId('editEmbedModal')
-        .setTitle('Editing: welcome embed');
-
-      const titleInput = new TextInputBuilder()
-        .setCustomId('embedTitle')
-        .setLabel('Title (เว้นว่างไว้ได้)')
-        .setStyle(TextInputStyle.Short)
-        .setValue(config.embed.title || '')
-        .setRequired(false);
-
-      const descInput = new TextInputBuilder()
-        .setCustomId('embedDesc')
-        .setLabel('Description')
-        .setStyle(TextInputStyle.Paragraph)
-        .setValue(config.embed.description || '')
-        .setRequired(true);
-
-      const colorInput = new TextInputBuilder()
-        .setCustomId('embedColor')
-        .setLabel('Hex Color (เช่น 66FFFF)')
-        .setStyle(TextInputStyle.Short)
-        .setValue(config.embed.color || '#66FFFF')
-        .setRequired(true);
-
-      const imageInput = new TextInputBuilder()
-        .setCustomId('embedImage')
-        .setLabel('Image URL (ลิงก์รูปภาพ หรือเว้นว่าง)')
-        .setStyle(TextInputStyle.Short)
-        .setValue(config.embed.image || '')
-        .setRequired(false);
-
-      modal.addComponents(
-        new ActionRowBuilder().addComponents(titleInput),
-        new ActionRowBuilder().addComponents(descInput),
-        new ActionRowBuilder().addComponents(colorInput),
-        new ActionRowBuilder().addComponents(imageInput),
-      );
-
-      return await interaction.showModal(modal);
+    if (interaction.customId === 'sec_toggle_mrbeast') {
+      config.security.antiMrBeast = !config.security.antiMrBeast;
+      saveConfigs(serverConfigs);
+      return await updateSecurityDashboard(interaction);
     }
-
-    if (interaction.customId === 'edit_footer') {
-      const modal = new ModalBuilder()
-        .setCustomId('editFooterModal')
-        .setTitle('Editing: welcome footer');
-
-      const footerTextInput = new TextInputBuilder()
-        .setCustomId('embedFooterText')
-        .setLabel('Footer Text')
-        .setStyle(TextInputStyle.Short)
-        .setValue(config.embed.footerText || '')
-        .setRequired(false);
-
-      const footerIconInput = new TextInputBuilder()
-        .setCustomId('embedFooterIcon')
-        .setLabel('Footer Image (optional)')
-        .setStyle(TextInputStyle.Short)
-        .setValue(config.embed.footerIcon || '')
-        .setRequired(false);
-
-      const timestampInput = new TextInputBuilder()
-        .setCustomId('embedTimestamp')
-        .setLabel('Timestamp? (yes/no)')
-        .setStyle(TextInputStyle.Short)
-        .setValue(config.embed.timestamp || 'no')
-        .setRequired(false);
-
-      modal.addComponents(
-        new ActionRowBuilder().addComponents(footerTextInput),
-        new ActionRowBuilder().addComponents(footerIconInput),
-        new ActionRowBuilder().addComponents(timestampInput),
-      );
-
-      return await interaction.showModal(modal);
+    if (interaction.customId === 'sec_reset') {
+      config.security = { enabled: false, antiLink: true, antiSpam: true, antiMrBeast: true, spamCount: 3, spamSeconds: 6, timeoutSeconds: 3000, inviteAction: 'timeout', spamAction: 'timeout', mrBeastAction: 'timeout', selectedChannels: [] };
+      saveConfigs(serverConfigs);
+      return await updateSecurityDashboard(interaction);
     }
   }
 
-  if (interaction.isChannelSelectMenu() && interaction.customId === 'select_channel') {
-    await interaction.deferUpdate();
-    config.channelId = interaction.values[0];
-    saveConfigs(serverConfigs);
-    return await updateDashboardAfterDefer(interaction);
-  }
-
-  if (interaction.isRoleSelectMenu() && interaction.customId === 'select_autorole') {
-    await interaction.deferUpdate();
-    config.autoroleId = interaction.values[0];
-    saveConfigs(serverConfigs);
-    return await updateAutoroleDashboardAfterDefer(interaction);
-  }
-
-  if (interaction.isModalSubmit() && interaction.customId === 'editEmbedModal') {
-    config.embed.title = interaction.fields.getTextInputValue('embedTitle');
-    config.embed.description = interaction.fields.getTextInputValue('embedDesc');
-    
-    let colorVal = interaction.fields.getTextInputValue('embedColor').trim();
-    if (!colorVal.startsWith('#')) colorVal = '#' + colorVal;
-    if (colorVal.length === 4) {
-      colorVal = '#' + colorVal[1] + colorVal[1] + colorVal[2] + colorVal[2] + colorVal[3] + colorVal[3];
+  if (interaction.isStringSelectMenu()) {
+    if (interaction.customId === 'sec_action_select') {
+      const val = interaction.values[0];
+      // อัปเดต action ทั้งหมดตามที่เลือกจากเมนู
+      config.security.inviteAction = val;
+      config.security.spamAction = val;
+      config.security.mrBeastAction = val;
+      saveConfigs(serverConfigs);
+      return await interaction.update(getSecurityDashboardContent(config));
     }
-    config.embed.color = colorVal;
-    
-    config.embed.image = interaction.fields.getTextInputValue('embedImage');
-    saveConfigs(serverConfigs);
-
-    return await interaction.reply({ content: '✅ บันทึกรูปแบบ Embed และรูปภาพเรียบร้อยแล้ว!', ephemeral: true });
-  }
-
-  if (interaction.isModalSubmit() && interaction.customId === 'editFooterModal') {
-    config.embed.footerText = interaction.fields.getTextInputValue('embedFooterText');
-    config.embed.footerIcon = interaction.fields.getTextInputValue('embedFooterIcon');
-    config.embed.timestamp = interaction.fields.getTextInputValue('embedTimestamp');
-    
-    saveConfigs(serverConfigs);
-
-    return await interaction.reply({ content: '✅ บันทึกรูปแบบ Footer เรียบร้อยแล้ว!', ephemeral: true });
   }
 });
 
-function getDashboardContent(config) {
-  const channelName = config.channelId ? `<#${config.channelId}>` : 'ยังไม่ได้เลือกช่อง';
-  const statusText = config.welcomeEnabled ? '✅ เปิดอยู่' : '❌ ปิดอยู่';
+function getSecurityDashboardContent(config) {
+  const sec = config.security;
+  
+  // แปลงรายชื่อห้องที่เลือกให้แสดงผลเป็นแท็กช่อง
+  let channelTags = 'ทุกห้องในเซิร์ฟเวอร์';
+  if (sec.selectedChannels && sec.selectedChannels.length > 0) {
+    channelTags = sec.selectedChannels.map(id => `<#${id}>`).join(', ');
+  }
 
   const embed = new EmbedBuilder()
-    .setTitle('⚙️ ตั้งค่าระบบ Welcome')
-    .setDescription('เลือกช่อง เปิด/ปิดระบบ และตั้งค่ารูป Embed ได้จากปุ่มด้านล่าง')
-    .setColor('#5865F2')
+    .setTitle('🛡️ แผงควบคุมระบบป้องกัน (Security Dashboard)')
+    .setDescription('ตั้งค่าระบบป้องกันสแปม ลิงก์เชิญ และระบบกลั่นกรองความปลอดภัยขั้นสูง')
+    .setColor('#66FFFF')
     .addFields(
-      { name: '📥 Welcome Status', value: statusText, inline: true },
-      { name: '📢 ห้องต้อนรับ', value: channelName, inline: true }
+      { name: 'สถานะระบบหลัก', value: sec.enabled ? '🟢 เปิดอยู่' : '🔴 ปิดอยู่', inline: true },
+      { name: 'ลบลิงก์เชิญ', value: sec.antiLink ? 'เปิด' : 'ปิด', inline: true },
+      { name: 'ลบข้อความสแปม', value: sec.antiSpam ? 'เปิด' : 'ปิด', inline: true },
+      { name: 'ลบสแปม MrBeast', value: sec.antiMrBeast ? 'เปิด' : 'ปิด', inline: true },
+      { name: 'สแปมตั้งค่า', value: `${sec.spamCount} ข้อความ / ${sec.spamSeconds} วินาที`, inline: true },
+      { name: 'ระงับผู้ใช้ (Timeout)', value: `${sec.timeoutSeconds} วินาที`, inline: true },
+      { name: 'Action ลงโทษ', value: `Invite: **${sec.inviteAction}**\nSpam: **${sec.spamAction}**`, inline: false },
+      { name: 'ห้องที่เลือกดูแล', value: channelTags, inline: false }
     );
 
   const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('toggle_welcome')
-      .setLabel(config.welcomeEnabled ? 'ปิด Welcome' : 'เปิด Welcome')
-      .setStyle(config.welcomeEnabled ? ButtonStyle.Danger : ButtonStyle.Success),
-    new ButtonBuilder()
-      .setCustomId('edit_embed')
-      .setLabel('ตั้งค่ารูป Embed')
-      .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId('edit_footer')
-      .setLabel('ตั้งค่า Footer')
-      .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId('test_welcome')
-      .setLabel('ทดสอบ Welcome')
-      .setStyle(ButtonStyle.Secondary)
+    new ButtonBuilder().setCustomId('sec_toggle_main').setLabel(sec.enabled ? 'ปิดระบบ' : 'เปิดระบบ').setStyle(sec.enabled ? ButtonStyle.Danger : ButtonStyle.Success),
+    new ButtonBuilder().setCustomId('sec_toggle_link').setLabel(`ลิงก์เชิญ: ${sec.antiLink ? 'เปิด' : 'ปิด'}`).setStyle(sec.antiLink ? ButtonStyle.Primary : ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('sec_toggle_spam').setLabel(`สแปม: ${sec.antiSpam ? 'เปิด' : 'ปิด'}`).setStyle(sec.antiSpam ? ButtonStyle.Primary : ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('sec_toggle_mrbeast').setLabel(`MrBeast: ${sec.antiMrBeast ? 'เปิด' : 'ปิด'}`).setStyle(sec.antiMrBeast ? ButtonStyle.Primary : ButtonStyle.Secondary),
   );
 
-  const channelRow = new ActionRowBuilder().addComponents(
-    new ChannelSelectMenuBuilder()
-      .setCustomId('select_channel')
-      .setPlaceholder('📂 เลือกช่องสำหรับส่งข้อความต้อนรับ')
-      .addChannelTypes(ChannelType.GuildText)
+  const row2 = new ActionRowBuilder().addComponents(
+    new StringSelectMenuBuilder()
+      .setCustomId('sec_action_select')
+      .setPlaceholder('⚙️ เลือก Action ลงโทษ (Timeout / Kick / Ban)')
+      .addOptions([
+        { label: 'Timeout 3000s', value: 'timeout', description: 'ระงับการพิมพ์ชั่วคราว' },
+        { label: 'Timeout + Kick', value: 'timeout+kick', description: 'ระงับแล้วเตะออกจากเซิร์ฟเวอร์' },
+        { label: 'Ban', value: 'ban', description: 'แบนถาวรทันที' }
+      ])
   );
 
-  return { embeds: [embed], components: [row1, channelRow] };
+  const row3 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('sec_reset').setLabel('รีเซ็ตทั้งหมด').setStyle(ButtonStyle.Danger)
+  );
+
+  return { embeds: [embed], components: [row1, row2, row3] };
 }
 
-function getAutoroleDashboardContent(config) {
-  const roleName = config.autoroleId ? `<@&${config.autoroleId}>` : 'ยังไม่ได้เลือกยศ';
-  const statusText = config.autoroleEnabled ? '✅ เปิดอยู่' : '❌ ปิดอยู่';
-
-  const embed = new EmbedBuilder()
-    .setTitle('🛡️ ตั้งค่าระบบ Autorole (ยศอัตโนมัติ)')
-    .setDescription('เลือกยศที่ต้องการแจกให้สมาชิกใหม่เมื่อเข้าเซิร์ฟเวอร์')
-    .setColor('#5865F2')
-    .addFields(
-      { name: '📥 Autorole Status', value: statusText, inline: true },
-      { name: '👑 ยศที่จะได้รับ', value: roleName, inline: true }
-    );
-
-  const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('toggle_autorole')
-      .setLabel(config.autoroleEnabled ? 'ปิด Autorole' : 'เปิด Autorole')
-      .setStyle(config.autoroleEnabled ? ButtonStyle.Danger : ButtonStyle.Success)
-  );
-
-  const roleRow = new ActionRowBuilder().addComponents(
-    new RoleSelectMenuBuilder()
-      .setCustomId('select_autorole')
-      .setPlaceholder('👑 เลือกยศสำหรับแจกสมาชิกใหม่')
-  );
-
-  return { embeds: [embed], components: [row1, roleRow] };
-}
-
-async function sendDashboard(interaction) {
+async function sendSecurityDashboard(interaction) {
   const codeConfig = serverConfigs[interaction.guildId];
-  const content = getDashboardContent(codeConfig);
+  const content = getSecurityDashboardContent(codeConfig);
   await interaction.reply({ ...content, ephemeral: true });
 }
 
-async function updateDashboard(interaction) {
+async function updateSecurityDashboard(interaction) {
   const codeConfig = serverConfigs[interaction.guildId];
-  const content = getDashboardContent(codeConfig);
+  const content = getSecurityDashboardContent(codeConfig);
   await interaction.update({ ...content });
-}
-
-async function updateDashboardAfterDefer(interaction) {
-  const codeConfig = serverConfigs[interaction.guildId];
-  const content = getDashboardContent(codeConfig);
-  await interaction.editReply({ ...content });
-}
-
-async function sendAutoroleDashboard(interaction) {
-  const codeConfig = serverConfigs[interaction.guildId];
-  const content = getAutoroleDashboardContent(codeConfig);
-  await interaction.reply({ ...content, ephemeral: true });
-}
-
-async function updateAutoroleDashboard(interaction) {
-  const codeConfig = serverConfigs[interaction.guildId];
-  const content = getAutoroleDashboardContent(codeConfig);
-  await interaction.update({ ...content });
-}
-
-async function updateAutoroleDashboardAfterDefer(interaction) {
-  const codeConfig = serverConfigs[interaction.guildId];
-  const content = getAutoroleDashboardContent(codeConfig);
-  await interaction.editReply({ ...content });
 }
 
 client.login(process.env.DISCORD_TOKEN);
