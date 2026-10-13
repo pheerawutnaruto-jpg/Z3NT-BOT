@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
 
-// 1. ฟังก์ชันแจก XP และส่งข้อความเลเวลอัปไปยังห้องที่ตั้งค่าไว้ (หรือห้องปัจจุบัน)
+// 1. ฟังก์ชันแจก XP และส่งข้อความเลเวลอัป
 function handleLeveling(message, serverConfigs, saveConfigs) {
   if (!message.guild || message.author.bot) return;
 
@@ -13,8 +13,10 @@ function handleLeveling(message, serverConfigs, saveConfigs) {
       minXp: 15,
       maxXp: 25,
       xpMultiplier: 100,
-      channelId: null, // ห้องสำหรับแจ้งเตือนเลเวลอัป (ถ้าไม่เลือก จะส่งห้องที่พิมพ์)
+      channelId: null,
       levelUpMessage: '🎉 ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว! 🚀',
+      cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD',
+      cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**',
       embedColor: '#66FFFF',
       embedImage: ''
     };
@@ -47,14 +49,12 @@ function handleLeveling(message, serverConfigs, saveConfigs) {
       .replace('{user}', `<@${userId}>`)
       .replace('{level}', userStat.level);
 
-    // เลือกห้องส่งข้อความ (ถ้าตั้งค่าห้องไว้ จะส่งไปห้องนั้น ถ้าไม่ได้ตั้งจะส่งห้องที่พิมพ์)
     let targetChannel = message.channel;
     if (lConfig.channelId) {
       const fetchedChannel = message.guild.channels.cache.get(lConfig.channelId);
       if (fetchedChannel) targetChannel = fetchedChannel;
     }
 
-    // สร้าง Embed แจ้งเตือนเลเวลอัปที่ตกแต่งได้
     const embed = new EmbedBuilder()
       .setDescription(customMsg)
       .setColor(lConfig.embedColor || '#66FFFF');
@@ -65,7 +65,6 @@ function handleLeveling(message, serverConfigs, saveConfigs) {
 
     targetChannel.send({ embeds: [embed] })
       .then(msg => {
-        // ถ้าส่งในห้องทั่วไป ตั้งเวลาลบได้ (แต่ถ้าเป็นห้องเฉพาะปล่อยไว้ก็ได้)
         if (!lConfig.channelId) {
           setTimeout(() => msg.delete().catch(() => {}), 6000);
         }
@@ -75,7 +74,7 @@ function handleLeveling(message, serverConfigs, saveConfigs) {
   saveConfigs(serverConfigs);
 }
 
-// 2. คำสั่งเช็กเลเวล (/level)
+// 2. คำสั่งเช็กเลเวล (/level) แสดงผลตามที่ Customize ไว้
 const levelCommand = new SlashCommandBuilder()
   .setName('level')
   .setDescription('เช็กเลเวลและค่าประสบการณ์ (XP) ของคุณ')
@@ -92,7 +91,7 @@ async function handleLevelCommand(interaction, serverConfigs) {
 
   const config = serverConfigs[guildId] || {};
   const levels = config.levels || {};
-  const lConfig = config.levelConfig || { xpMultiplier: 100 };
+  const lConfig = config.levelConfig || { xpMultiplier: 100, cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD', cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**', embedColor: '#66FFFF' };
 
   const userStat = levels[userId] || { xp: 0, level: 1 };
   const requiredXp = userStat.level * lConfig.xpMultiplier;
@@ -100,9 +99,12 @@ async function handleLevelCommand(interaction, serverConfigs) {
   const percentage = Math.min(Math.round((userStat.xp / requiredXp) * 10), 10);
   const progressBar = '█'.repeat(percentage) + '░'.repeat(10 - percentage);
 
+  const finalTitle = (lConfig.cardTitle || '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD').replace('{user}', targetUser.username);
+  const finalDesc = (lConfig.cardDescription || 'การ์ดข้อมูลเลเวลของ **{user}**').replace('{user}', targetUser.username);
+
   const embed = new EmbedBuilder()
-    .setTitle(`📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD`)
-    .setDescription(`การ์ดข้อมูลเลเวลของ **${targetUser.username}**`)
+    .setTitle(finalTitle)
+    .setDescription(finalDesc)
     .setColor(lConfig.embedColor || '#66FFFF')
     .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
     .addFields(
@@ -121,10 +123,10 @@ async function handleLevelCommand(interaction, serverConfigs) {
   await interaction.reply({ embeds: [embed], ephemeral: true });
 }
 
-// 3. แผงควบคุมตั้งค่าระบบเลเวล (/set-level) พร้อมปุ่มเลือกห้องและตกแต่ง
+// 3. แผงควบคุมตั้งค่าระบบเลเวล (/set-level) เพิ่มปุ่มตกแต่งการ์ด Status Card
 const setLevelCommand = new SlashCommandBuilder()
   .setName('set-level')
-  .setDescription('เปิดแผงควบคุมตั้งค่าระบบเลเวลและเลือกห้องแจ้งเตือน');
+  .setDescription('เปิดแผงควบคุมตั้งค่าระบบเลเวลและตกแต่งการ์ด Stat Card');
 
 function getLevelDashboardContent(config) {
   if (!config.levelConfig) {
@@ -135,6 +137,8 @@ function getLevelDashboardContent(config) {
       xpMultiplier: 100,
       channelId: null,
       levelUpMessage: '🎉 ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว! 🚀',
+      cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD',
+      cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**',
       embedColor: '#66FFFF',
       embedImage: ''
     };
@@ -146,29 +150,32 @@ function getLevelDashboardContent(config) {
 
   const embed = new EmbedBuilder()
     .setTitle('⚙️ แผงควบคุมระบบเลเวล (Level Dashboard)')
-    .setDescription('ตั้งค่าสถานะ เลือกห้องแจ้งเตือน ปรับเรต XP และตกแต่ง Embed เลเวลอัปได้จากด้านล่าง')
+    .setDescription('จัดการสถานะ เลือกห้องแจ้งเตือน ปรับเรต XP และตกแต่งการ์ด Stat Card รวมถึงข้อความเลเวลอัปได้จากด้านล่าง')
     .setColor('#5865F2')
     .addFields(
-      { name: '📥 สถานะระบบเลเวล', value: statusText, inline: true },
+      { name: '📥 สถานะ', value: statusText, inline: true },
       { name: '📢 ห้องแจ้งเตือน', value: channelName, inline: true },
-      { name: '📊 เรต XP ต่อข้อความ', value: `${lc.minXp} -${lc.maxXp} XP`, inline: true },
-      { name: '📈 ตัวคูณเลเวลอัป', value: `${lc.xpMultiplier} XP`, inline: true },
-      { name: '🎨 สี / รูปภาพ Embed', value: `Color: \`${lc.embedColor}\` | Image: ${lc.embedImage ? 'มีรูปภาพ' : 'ไม่มี'}`, inline: false },
-      { name: '💬 ข้อความแจ้งเตือน', value: `\`\`\`${lc.levelUpMessage}\`\`\``, inline: false }
+      { name: '📊 เรต XP', value: `${lc.minXp} -${lc.maxXp} XP`, inline: true },
+      { name: '🎨 ตกแต่งการ์ด Level', value: `Title: \`${lc.cardTitle}\`\nColor: \`${lc.embedColor}\``, inline: false },
+      { name: '💬 ข้อความเลเวลอัป', value: `\`\`\`${lc.levelUpMessage}\`\`\``, inline: false }
     );
 
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('toggle_level')
-      .setLabel(lc.enabled ? 'ปิดระบบเลเวล' : 'เปิดระบบเลเวล')
+      .setLabel(lc.enabled ? 'ปิดระบบ' : 'เปิดระบบ')
       .setStyle(lc.enabled ? ButtonStyle.Danger : ButtonStyle.Success),
     new ButtonBuilder()
       .setCustomId('edit_level_rate')
       .setLabel('ตั้งค่าเรต XP')
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
-      .setCustomId('edit_level_embed')
-      .setLabel('ตกแต่ง Embed/ข้อความ')
+      .setCustomId('edit_level_card')
+      .setLabel('ตกแต่งการ์ด Level')
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId('edit_level_msg')
+      .setLabel('ข้อความเลเวลอัป')
       .setStyle(ButtonStyle.Secondary)
   );
 
