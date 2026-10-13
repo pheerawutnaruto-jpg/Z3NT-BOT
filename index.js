@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelSelectMenuBuilder, RoleSelectMenuBuilder, ChannelType, PermissionFlagsBits, StringSelectMenuBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelSelectMenuBuilder, ChannelType, PermissionFlagsBits, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const http = require('http');
 const fs = require('fs');
 const cron = require('node-cron');
@@ -24,22 +24,15 @@ function loadConfigs() {
   try {
     if (fs.existsSync(CONFIG_FILE)) {
       const data = fs.readFileSync(CONFIG_FILE, 'utf8');
-      if (data.trim() !== '') {
-        return JSON.parse(data);
-      }
+      if (data.trim() !== '') return JSON.parse(data);
     }
-  } catch (e) {
-    console.error('Error loading config:', e);
-  }
+  } catch (e) { console.error('Error loading config:', e); }
   return {};
 }
 
 function saveConfigs(configs) {
-  try {
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify(configs, null, 2));
-  } catch (e) {
-    console.error('Error saving config:', e);
-  }
+  try { fs.writeFileSync(CONFIG_FILE, JSON.stringify(configs, null, 2)); }
+  catch (e) { console.error('Error saving config:', e); }
 }
 
 let serverConfigs = loadConfigs();
@@ -51,28 +44,20 @@ client.once('ready', async () => {
 
   const commands = [
     new SlashCommandBuilder().setName('ping').setDescription('เช็กความเร็วและสถานะของบอท'),
-    new SlashCommandBuilder().setName('set-welcom').setDescription('เปิดแผงควบคุมระบบต้อนรับ (Welcome Dashboard)'),
-    new SlashCommandBuilder().setName('set-autorole').setDescription('ตั้งค่าระบบแจกยศอัตโนมัติสำหรับสมาชิกใหม่'),
-    new SlashCommandBuilder().setName('set-security').setDescription('เปิดแผงควบคุมระบบป้องกันความปลอดภัยขั้นสูง (Anti-Spam / Anti-Link)'),
-    new SlashCommandBuilder()
-      .setName('clear')
-      .setDescription('ลบข้อความในแชทจำนวน 1-100 ข้อความ')
-      .addIntegerOption(option => option.setName('amount').setDescription('จำนวนข้อความที่ต้องการลบ (1-100)').setRequired(true)),
-    new SlashCommandBuilder()
-      .setName('set-autoclear')
-      .setDescription('ตั้งเวลาระบบลบข้อความอัตโนมัติ')
-      .addStringOption(option => option.setName('time').setDescription('ระบุเวลาในรูปแบบ HH:MM เช่น 06:00').setRequired(true))
-      .addChannelOption(option => option.setName('channel').setDescription('เลือกห้องที่ต้องการให้ลบข้อความอัตโนมัติ').addChannelTypes(ChannelType.GuildText).setRequired(true)),
-  ].map(command => command.toJSON());
+    new SlashCommandBuilder().setName('set-welcom').setDescription('เปิดแผงควบคุมระบบต้อนรับ'),
+    new SlashCommandBuilder().setName('set-autorole').setDescription('ตั้งค่าระบบแจกยศอัตโนมัติ'),
+    new SlashCommandBuilder().setName('set-security').setDescription('เปิดแผงควบคุมระบบป้องกันความปลอดภัยขั้นสูง'),
+    new SlashCommandBuilder().setName('clear').setDescription('ลบข้อความ').addIntegerOption(o => o.setName('amount').setDescription('จำนวน 1-100').setRequired(true)),
+    new SlashCommandBuilder().setName('set-autoclear').setDescription('ตั้งเวลาลบข้อความ')
+      .addStringOption(o => o.setName('time').setDescription('HH:MM').setRequired(true))
+      .addChannelOption(o => o.setName('channel').setDescription('ห้อง').addChannelTypes(ChannelType.GuildText).setRequired(true)),
+  ].map(c => c.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
-
   try {
     await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
-    console.log('ลงทะเบียนคำสั่งสำเร็จเรียบร้อย!');
-  } catch (error) {
-    console.error(error);
-  }
+    console.log('ลงทะเบียนคำสั่งสำเร็จ!');
+  } catch (error) { console.error(error); }
 
   for (const guildId in serverConfigs) {
     const config = serverConfigs[guildId];
@@ -87,13 +72,10 @@ function setupCronJob(guildId, timeStr, channelId) {
     activeCronJobs[guildId].stop();
     delete activeCronJobs[guildId];
   }
-
   const [hour, minute] = timeStr.split(':');
   if (!hour || !minute) return;
 
-  const cronExpression = `${minute} ${hour} * * *`;
-
-  activeCronJobs[guildId] = cron.schedule(cronExpression, async () => {
+  activeCronJobs[guildId] = cron.schedule(`${minute} ${hour} * * *`, async () => {
     try {
       const guild = await client.guilds.fetch(guildId);
       if (!guild) return;
@@ -101,17 +83,12 @@ function setupCronJob(guildId, timeStr, channelId) {
       if (channel && channel.isTextBased()) {
         const fetched = await channel.messages.fetch({ limit: 100 });
         await channel.bulkDelete(fetched, true);
-        console.log(`✅ ลบข้อความอัตโนมัติเวลา ${timeStr} สำเร็จในห้อง #${channel.name}`);
       }
-    } catch (err) {
-      console.error(`❌ เกิดข้อผิดพลาดในการลบข้อความอัตโนมัติ (Guild: ${guildId}):`, err);
-    }
-  }, {
-    timezone: "Asia/Bangkok"
-  });
+    } catch (err) { console.error(err); }
+  }, { timezone: "Asia/Bangkok" });
 }
 
-// ระบบตรวจจับข้อความและป้องกันภัยคุกคามตามค่า Config
+// ระบบป้องกันข้อความ (Anti-Spam / Anti-Link / Anti-MrBeast)
 client.on('messageCreate', async message => {
   if (!message.guild || message.author.bot) return;
 
@@ -119,70 +96,62 @@ client.on('messageCreate', async message => {
   const config = serverConfigs[guildId];
   if (!config || !config.security || !config.security.enabled) return;
 
-  // ตรวจสอบห้องที่ได้รับการยกเว้น หรือกำหนดให้บอทดูแลเฉพาะห้องที่เลือก
+  // ตรวจสอบห้องที่บล็อก (ถ้ามีการเลือกห้องเฉพาะ)
   if (config.security.selectedChannels && config.security.selectedChannels.length > 0) {
     if (!config.security.selectedChannels.includes(message.channel.id)) return;
   }
 
   if (message.member.permissions.has(PermissionFlagsBits.ManageMessages)) return;
-
   const sec = config.security;
 
-  // 1. Anti-Link (ลบลิงก์เชิญ / ลิงก์ทั่วไป)
+  // 1. Anti-Link (ลิงก์เชิญ / ลิงก์ทั่วไป)
   if (sec.antiLink) {
     const linkRegex = /(https?:\/\/[^\s]+)/gi;
     if (linkRegex.test(message.content)) {
       try {
         await message.delete();
-        await applyPunishment(message.member, sec.inviteAction || 'timeout');
+        await applyPunishment(message.member, sec.inviteAction || 'timeout', sec.timeoutSeconds || 3000);
         const warning = await message.channel.send(`⚠️ <@${message.author.id}> ตรวจพบลิงก์ห้ามส่งในห้องนี้!`);
         setTimeout(() => warning.delete().catch(() => {}), 4000);
         return;
-      } catch (err) {
-        console.error('Anti-link error:', err);
-      }
+      } catch (err) { console.error(err); }
     }
   }
 
-  // 2. Anti-MrBeast Spam / Scam Keywords
+  // 2. Anti-MrBeast / Scam
   if (sec.antiMrBeast) {
-    const scamKeywords = ['mrbeast', 'free nitro', 'claim free', 'nitro generator', 'steam gift'];
+    const scamKeywords = ['mrbeast', 'free nitro', 'claim free', 'nitro generator'];
     const contentLower = message.content.toLowerCase();
-    if (scamKeywords.some(keyword => contentLower.includes(keyword))) {
+    if (scamKeywords.some(kw => contentLower.includes(kw))) {
       try {
         await message.delete();
-        await applyPunishment(message.member, sec.mrBeastAction || 'timeout');
-        const warning = await message.channel.send(`⚠️ <@${message.author.id}> ตรวจพบข้อความสแปมอันตราย (MrBeast/Scam)!`);
+        await applyPunishment(message.member, sec.mrBeastAction || 'timeout', sec.timeoutSeconds || 3000);
+        const warning = await message.channel.send(`⚠️ <@${message.author.id}> ตรวจพบสแปมอันตราย (MrBeast/Scam)!`);
         setTimeout(() => warning.delete().catch(() => {}), 4000);
         return;
-      } catch (err) {
-        console.error('Anti-MrBeast error:', err);
-      }
+      } catch (err) { console.error(err); }
     }
   }
 
-  // 3. Anti-Spam (เช็คจำนวนข้อความในเวลาที่กำหนด เช่น 3 ข้อความ / 6 วินาที)
+  // 3. Anti-Spam (ข้อความ / วินาที)
   if (sec.antiSpam) {
     const userId = message.author.id;
     const now = Date.now();
     const limitSec = sec.spamSeconds || 6;
     const maxMsg = sec.spamCount || 3;
 
-    const userSpam = spamTracker.get(userId) || { count: 0, startTime: now };
-
+    let userSpam = spamTracker.get(userId) || { count: 0, startTime: now };
     if (now - userSpam.startTime < limitSec * 1000) {
       userSpam.count++;
       if (userSpam.count > maxMsg) {
         try {
           await message.delete();
-          await applyPunishment(message.member, sec.spamAction || 'timeout');
+          await applyPunishment(message.member, sec.spamAction || 'timeout', sec.timeoutSeconds || 3000);
           const warning = await message.channel.send(`⚠️ <@${userId}> ส่งข้อความเร็วเกินกำหนด (Anti-Spam)`);
           setTimeout(() => warning.delete().catch(() => {}), 4000);
           spamTracker.set(userId, { count: 0, startTime: now });
           return;
-        } catch (err) {
-          console.error('Anti-spam error:', err);
-        }
+        } catch (err) { console.error(err); }
       }
     } else {
       userSpam.count = 1;
@@ -192,65 +161,21 @@ client.on('messageCreate', async message => {
   }
 });
 
-async function applyPunishment(member, action) {
+async function applyPunishment(member, action, timeoutSec) {
   if (!member) return;
   try {
-    if (action.includes('timeout') || action === 'timeout') {
-      await member.timeout(3000 * 1000, 'Security Violation (Anti-Spam/Link)');
-    }
-    if (action.includes('kick') || action === 'kick') {
+    if (action === 'timeout') {
+      await member.timeout(timeoutSec * 1000, 'Security Violation');
+    } else if (action === 'kick') {
       if (member.kickable) await member.kick('Security Violation');
-    }
-    if (action.includes('ban') || action === 'ban') {
+    } else if (action === 'ban') {
       if (member.bannable) await member.ban({ reason: 'Security Violation' });
+    } else if (action === 'timeout+kick') {
+      await member.timeout(timeoutSec * 1000, 'Security Violation');
+      setTimeout(async () => { if (member.kickable) await member.kick('Security Violation'); }, 3000);
     }
-  } catch (e) {
-    console.error('Punishment error:', e);
-  }
+  } catch (e) { console.error('Punishment error:', e); }
 }
-
-client.on('guildMemberAdd', async member => {
-  const guildId = member.guild.id;
-  const config = serverConfigs[guildId];
-  if (!config) return;
-
-  if (config.autoroleEnabled && config.autoroleId) {
-    try {
-      const role = await member.guild.roles.fetch(config.autoroleId);
-      if (role) await member.roles.add(role);
-    } catch (err) { console.error('Autorole error:', err); }
-  }
-
-  if (!config.welcomeEnabled || !config.channelId) return;
-
-  try {
-    const channel = await member.guild.channels.fetch(config.channelId);
-    if (!channel) return;
-
-    const embedConfig = config.embed || {
-      title: '',
-      description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!',
-      color: '#66FFFF',
-      image: '',
-      footerText: '',
-      footerIcon: '',
-      timestamp: 'no'
-    };
-
-    const finalTitle = embedConfig.title ? embedConfig.title.replace('{user}', member.user.username).replace('{server}', member.guild.name) : null;
-    const finalDesc = embedConfig.description.replace('{user}', `${member}`).replace('{server}', member.guild.name);
-
-    const embed = new EmbedBuilder().setDescription(finalDesc).setColor(embedConfig.color || '#66FFFF');
-    if (finalTitle) embed.setTitle(finalTitle);
-    if (embedConfig.image) embed.setImage(embedConfig.image);
-    if (embedConfig.footerText) {
-      embed.setFooter({ text: embedConfig.footerText.replace('{server_membercount}', member.guild.memberCount.toString()) });
-    }
-    if (embedConfig.timestamp === 'yes') embed.setTimestamp();
-
-    await channel.send({ embeds: [embed] });
-  } catch (err) { console.error('Welcome send error:', err); }
-});
 
 client.on('interactionCreate', async interaction => {
   const guildId = interaction.guildId;
@@ -258,32 +183,14 @@ client.on('interactionCreate', async interaction => {
 
   if (!serverConfigs[guildId]) {
     serverConfigs[guildId] = {
-      welcomeEnabled: false,
-      channelId: null,
-      autoroleEnabled: false,
-      autoroleId: null,
+      welcomeEnabled: false, channelId: null, autoroleEnabled: false, autoroleId: null,
       security: {
-        enabled: false,
-        antiLink: true,
-        antiSpam: true,
-        antiMrBeast: true,
-        spamCount: 3,
-        spamSeconds: 6,
-        timeoutSeconds: 3000,
-        inviteAction: 'timeout',
-        spamAction: 'timeout',
-        mrBeastAction: 'timeout',
+        enabled: false, antiLink: true, antiSpam: true, antiMrBeast: true,
+        spamCount: 3, spamSeconds: 6, timeoutSeconds: 3000,
+        inviteAction: 'timeout', spamAction: 'timeout', mrBeastAction: 'timeout',
         selectedChannels: []
       },
-      embed: {
-        title: '',
-        description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!',
-        color: '#66FFFF',
-        image: '',
-        footerText: '',
-        footerIcon: '',
-        timestamp: 'no'
-      },
+      embed: { title: '', description: '', color: '#66FFFF', image: '', footerText: '', footerIcon: '', timestamp: 'no' },
       autoClear: { enabled: false, time: '06:00', channelId: null }
     };
   }
@@ -292,31 +199,12 @@ client.on('interactionCreate', async interaction => {
     config.security = { enabled: false, antiLink: true, antiSpam: true, antiMrBeast: true, spamCount: 3, spamSeconds: 6, timeoutSeconds: 3000, inviteAction: 'timeout', spamAction: 'timeout', mrBeastAction: 'timeout', selectedChannels: [] };
   }
 
-  if (interaction.isChatInputCommand() && interaction.commandName === 'ping') {
-    return await interaction.reply({ content: 'Pong! 🏓 บอททำงานระบบ Slash Command ปกติบน Render ครับ 🚀', ephemeral: true });
-  }
-
-  if (interaction.isChatInputCommand() && interaction.commandName === 'clear') {
-    if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
-      return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์จัดการข้อความครับ', ephemeral: true });
+  if (interaction.isChatInputCommand()) {
+    if (interaction.commandName === 'ping') return await interaction.reply({ content: 'Pong! 🏓 บอททำงานปกติบน Render', ephemeral: true });
+    if (interaction.commandName === 'set-security') {
+      if (!interaction.member.permissions.has('Administrator')) return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
+      return await sendSecurityDashboard(interaction);
     }
-    const amount = interaction.options.getInteger('amount');
-    await interaction.deferReply({ ephemeral: true });
-    try {
-      const messages = await interaction.channel.messages.fetch({ limit: amount });
-      await interaction.channel.bulkDelete(messages, true);
-      await interaction.editReply({ content: `🧹 ลบข้อความจำนวน **${amount}** ข้อความเรียบร้อยแล้ว!` });
-    } catch (err) {
-      await interaction.editReply({ content: '❌ เกิดข้อผิดพลาด ไม่สามารถลบข้อความเก่าเกิน 14 วันได้ครับ' });
-    }
-    return;
-  }
-
-  if (interaction.isChatInputCommand() && interaction.commandName === 'set-security') {
-    if (!interaction.member.permissions.has('Administrator')) {
-      return await interaction.reply({ content: '❌ คุณต้องเป็น Administrator ถึงจะใช้งานได้ครับ', ephemeral: true });
-    }
-    return await sendSecurityDashboard(interaction);
   }
 
   if (interaction.isButton()) {
@@ -340,6 +228,16 @@ client.on('interactionCreate', async interaction => {
       saveConfigs(serverConfigs);
       return await updateSecurityDashboard(interaction);
     }
+    if (interaction.customId === 'sec_config_time') {
+      // เปิด Modal ตั้งค่าเวลาสแปมและ Timeout
+      const modal = new ModalBuilder().setCustomId('secTimeModal').setTitle('ตั้งค่าเวลาและเกณฑ์สแปม');
+      const countInput = new TextInputBuilder().setCustomId('spamCount').setLabel('จำนวนข้อความสแปม (เช่น 3)').setStyle(TextInputStyle.Short).setValue(config.security.spamCount.toString()).setRequired(true);
+      const secInput = new TextInputBuilder().setCustomId('spamSec').setLabel('ภายในกี่วินาที (เช่น 6)').setStyle(TextInputStyle.Short).setValue(config.security.spamSeconds.toString()).setRequired(true);
+      const timeoutInput = new TextInputBuilder().setCustomId('timeoutSec').setLabel('ระงับผู้ใช้กี่วินาที (เช่น 3000)').setStyle(TextInputStyle.Short).setValue(config.security.timeoutSeconds.toString()).setRequired(true);
+
+      modal.addComponents(new ActionRowBuilder().addComponents(countInput), new ActionRowBuilder().addComponents(secInput), new ActionRowBuilder().addComponents(timeoutInput));
+      return await interaction.showModal(modal);
+    }
     if (interaction.customId === 'sec_reset') {
       config.security = { enabled: false, antiLink: true, antiSpam: true, antiMrBeast: true, spamCount: 3, spamSeconds: 6, timeoutSeconds: 3000, inviteAction: 'timeout', spamAction: 'timeout', mrBeastAction: 'timeout', selectedChannels: [] };
       saveConfigs(serverConfigs);
@@ -347,78 +245,33 @@ client.on('interactionCreate', async interaction => {
     }
   }
 
-  if (interaction.isStringSelectMenu()) {
-    if (interaction.customId === 'sec_action_select') {
-      const val = interaction.values[0];
-      // อัปเดต action ทั้งหมดตามที่เลือกจากเมนู
-      config.security.inviteAction = val;
-      config.security.spamAction = val;
-      config.security.mrBeastAction = val;
-      saveConfigs(serverConfigs);
-      return await interaction.update(getSecurityDashboardContent(config));
-    }
-  }
-});
-
-function getSecurityDashboardContent(config) {
-  const sec = config.security;
-  
-  // แปลงรายชื่อห้องที่เลือกให้แสดงผลเป็นแท็กช่อง
-  let channelTags = 'ทุกห้องในเซิร์ฟเวอร์';
-  if (sec.selectedChannels && sec.selectedChannels.length > 0) {
-    channelTags = sec.selectedChannels.map(id => `<#${id}>`).join(', ');
+  // เลือกห้องที่จะให้บอทดูแล
+  if (interaction.isChannelSelectMenu() && interaction.customId === 'sec_select_channels') {
+    await interaction.deferUpdate();
+    config.security.selectedChannels = interaction.values;
+    saveConfigs(serverConfigs);
+    return await interaction.editReply(getSecurityDashboardContent(config));
   }
 
-  const embed = new EmbedBuilder()
-    .setTitle('🛡️ แผงควบคุมระบบป้องกัน (Security Dashboard)')
-    .setDescription('ตั้งค่าระบบป้องกันสแปม ลิงก์เชิญ และระบบกลั่นกรองความปลอดภัยขั้นสูง')
-    .setColor('#66FFFF')
-    .addFields(
-      { name: 'สถานะระบบหลัก', value: sec.enabled ? '🟢 เปิดอยู่' : '🔴 ปิดอยู่', inline: true },
-      { name: 'ลบลิงก์เชิญ', value: sec.antiLink ? 'เปิด' : 'ปิด', inline: true },
-      { name: 'ลบข้อความสแปม', value: sec.antiSpam ? 'เปิด' : 'ปิด', inline: true },
-      { name: 'ลบสแปม MrBeast', value: sec.antiMrBeast ? 'เปิด' : 'ปิด', inline: true },
-      { name: 'สแปมตั้งค่า', value: `${sec.spamCount} ข้อความ / ${sec.spamSeconds} วินาที`, inline: true },
-      { name: 'ระงับผู้ใช้ (Timeout)', value: `${sec.timeoutSeconds} วินาที`, inline: true },
-      { name: 'Action ลงโทษ', value: `Invite: **${sec.inviteAction}**\nSpam: **${sec.spamAction}**`, inline: false },
-      { name: 'ห้องที่เลือกดูแล', value: channelTags, inline: false }
-    );
+  // เลือก Action ลงโทษ
+  if (interaction.isStringSelectMenu() && interaction.customId === 'sec_action_select') {
+    const val = interaction.values[0];
+    config.security.inviteAction = val;
+    config.security.spamAction = val;
+    config.security.mrBeastAction = val;
+    saveConfigs(serverConfigs);
+    return await interaction.update(getSecurityDashboardContent(config));
+  }
 
-  const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('sec_toggle_main').setLabel(sec.enabled ? 'ปิดระบบ' : 'เปิดระบบ').setStyle(sec.enabled ? ButtonStyle.Danger : ButtonStyle.Success),
-    new ButtonBuilder().setCustomId('sec_toggle_link').setLabel(`ลิงก์เชิญ: ${sec.antiLink ? 'เปิด' : 'ปิด'}`).setStyle(sec.antiLink ? ButtonStyle.Primary : ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('sec_toggle_spam').setLabel(`สแปม: ${sec.antiSpam ? 'เปิด' : 'ปิด'}`).setStyle(sec.antiSpam ? ButtonStyle.Primary : ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('sec_toggle_mrbeast').setLabel(`MrBeast: ${sec.antiMrBeast ? 'เปิด' : 'ปิด'}`).setStyle(sec.antiMrBeast ? ButtonStyle.Primary : ButtonStyle.Secondary),
-  );
+  // บันทึกค่าจาก Modal ตั้งเวลา
+  if (interaction.isModalSubmit() && interaction.customId === 'secTimeModal') {
+    const c = parseInt(interaction.fields.getTextInputValue('spamCount'));
+    const s = parseInt(interaction.fields.getTextInputValue('spamSec'));
+    const t = parseInt(interaction.fields.getTextInputValue('timeoutSec'));
 
-  const row2 = new ActionRowBuilder().addComponents(
-    new StringSelectMenuBuilder()
-      .setCustomId('sec_action_select')
-      .setPlaceholder('⚙️ เลือก Action ลงโทษ (Timeout / Kick / Ban)')
-      .addOptions([
-        { label: 'Timeout 3000s', value: 'timeout', description: 'ระงับการพิมพ์ชั่วคราว' },
-        { label: 'Timeout + Kick', value: 'timeout+kick', description: 'ระงับแล้วเตะออกจากเซิร์ฟเวอร์' },
-        { label: 'Ban', value: 'ban', description: 'แบนถาวรทันที' }
-      ])
-  );
+    if (!isNaN(c)) config.security.spamCount = c;
+    if (!isNaN(s)) config.security.spamSeconds = s;
+    if (!isNaN(t)) config.security.timeoutSeconds = t;
+    saveConfigs(serverConfigs);
 
-  const row3 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('sec_reset').setLabel('รีเซ็ตทั้งหมด').setStyle(ButtonStyle.Danger)
-  );
-
-  return { embeds: [embed], components: [row1, row2, row3] };
-}
-
-async function sendSecurityDashboard(interaction) {
-  const codeConfig = serverConfigs[interaction.guildId];
-  const content = getSecurityDashboardContent(codeConfig);
-  await interaction.reply({ ...content, ephemeral: true });
-}
-
-async function updateSecurityDashboard(interaction) {
-  const codeConfig = serverConfigs[interaction.guildId];
-  const content = getSecurityDashboardContent(codeConfig);
-  await interaction.update({ ...content });
-}
-
-client.login(process.env.DISCORD_TOKEN);
+    return await interaction.reply({ content: '✅ บันทึกค่าเวลาและเกณฑ์การลงโทษเรียบร้อยแล้ว
