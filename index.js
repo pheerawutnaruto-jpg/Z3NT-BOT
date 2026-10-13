@@ -266,7 +266,10 @@ client.on('interactionCreate', async interaction => {
         minXp: 15,
         maxXp: 25,
         xpMultiplier: 100,
-        levelUpMessage: '🎉 ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว! 🚀'
+        channelId: null,
+        levelUpMessage: '🎉 ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว! 🚀',
+        embedColor: '#66FFFF',
+        embedImage: ''
       },
       embed: {
         title: '',
@@ -309,7 +312,10 @@ client.on('interactionCreate', async interaction => {
       minXp: 15,
       maxXp: 25,
       xpMultiplier: 100,
-      levelUpMessage: '🎉 ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว! 🚀'
+      channelId: null,
+      levelUpMessage: '🎉 ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว! 🚀',
+      embedColor: '#66FFFF',
+      embedImage: ''
     };
   }
 
@@ -424,11 +430,13 @@ client.on('interactionCreate', async interaction => {
       modal.addComponents(new ActionRowBuilder().addComponents(minInput), new ActionRowBuilder().addComponents(maxInput), new ActionRowBuilder().addComponents(multInput));
       return await interaction.showModal(modal);
     }
-    if (id === 'edit_level_msg') {
-      const modal = new ModalBuilder().setCustomId('levelMsgModal').setTitle('แก้ไขข้อความเลเวลอัป');
+    if (id === 'edit_level_embed') {
+      const modal = new ModalBuilder().setCustomId('levelEmbedModal').setTitle('ตกแต่ง Embed และข้อความเลเวลอัป');
       const msgInput = new TextInputBuilder().setCustomId('levelMsg').setLabel('ข้อความ ({user}, {level})').setStyle(TextInputStyle.Paragraph).setValue(config.levelConfig.levelUpMessage).setRequired(true);
+      const colorInput = new TextInputBuilder().setCustomId('embedColor').setLabel('Hex Color (เช่น 66FFFF)').setStyle(TextInputStyle.Short).setValue(config.levelConfig.embedColor || '#66FFFF').setRequired(true);
+      const imageInput = new TextInputBuilder().setCustomId('embedImage').setLabel('Image URL (ลิงก์รูปภาพ หรือเว้นว่าง)').setStyle(TextInputStyle.Short).setValue(config.levelConfig.embedImage || '').setRequired(false);
 
-      modal.addComponents(new ActionRowBuilder().addComponents(msgInput));
+      modal.addComponents(new ActionRowBuilder().addComponents(msgInput), new ActionRowBuilder().addComponents(colorInput), new ActionRowBuilder().addComponents(imageInput));
       return await interaction.showModal(modal);
     }
 
@@ -634,11 +642,25 @@ client.on('interactionCreate', async interaction => {
     }
   }
 
-  if (interaction.isChannelSelectMenu() && interaction.customId === 'select_channel') {
-    await interaction.deferUpdate();
-    config.channelId = interaction.values[0];
-    saveConfigs(serverConfigs);
-    return await updateDashboardAfterDefer(interaction);
+  if (interaction.isChannelSelectMenu()) {
+    if (interaction.customId === 'select_channel') {
+      await interaction.deferUpdate();
+      config.channelId = interaction.values[0];
+      saveConfigs(serverConfigs);
+      return await updateDashboardAfterDefer(interaction);
+    }
+    if (interaction.customId === 'select_level_channel') {
+      await interaction.deferUpdate();
+      config.levelConfig.channelId = interaction.values[0];
+      saveConfigs(serverConfigs);
+      return await interaction.editReply(getLevelDashboardContent(config));
+    }
+    if (interaction.customId === 'sec_select_ignored') {
+      await interaction.deferUpdate();
+      config.security.ignoredChannels = interaction.values;
+      saveConfigs(serverConfigs);
+      return await interaction.editReply(getSecurityDashboardContent(config));
+    }
   }
 
   if (interaction.isRoleSelectMenu() && interaction.customId === 'select_autorole') {
@@ -646,13 +668,6 @@ client.on('interactionCreate', async interaction => {
     config.autoroleId = interaction.values[0];
     saveConfigs(serverConfigs);
     return await updateAutoroleDashboardAfterDefer(interaction);
-  }
-
-  if (interaction.isChannelSelectMenu() && interaction.customId === 'sec_select_ignored') {
-    await interaction.deferUpdate();
-    config.security.ignoredChannels = interaction.values;
-    saveConfigs(serverConfigs);
-    return await interaction.editReply(getSecurityDashboardContent(config));
   }
 
   if (interaction.isModalSubmit()) {
@@ -706,15 +721,20 @@ client.on('interactionCreate', async interaction => {
       if (!isNaN(mult)) config.levelConfig.xpMultiplier = mult;
       saveConfigs(serverConfigs);
 
-      return await interaction.reply({ content: '✅ บันทึกเรต XP และตัวคูณเรียบร้อยแล้ว!', ephemeral: true });
+      return await interaction.reply({ content: '✅ บันทึกเรต XP เรียบร้อยแล้ว!', ephemeral: true });
     }
 
-    if (interaction.customId === 'levelMsgModal') {
-      const customMsg = interaction.fields.getTextInputValue('levelMsg');
-      config.levelConfig.levelUpMessage = customMsg;
+    if (interaction.customId === 'levelEmbedModal') {
+      config.levelConfig.levelUpMessage = interaction.fields.getTextInputValue('levelMsg');
+      
+      let colorVal = interaction.fields.getTextInputValue('embedColor').trim();
+      if (!colorVal.startsWith('#')) colorVal = '#' + colorVal;
+      config.levelConfig.embedColor = colorVal;
+      
+      config.levelConfig.embedImage = interaction.fields.getTextInputValue('embedImage');
       saveConfigs(serverConfigs);
 
-      return await interaction.reply({ content: '✅ บันทึกข้อความแจ้งเตือนเลเวลอัปเรียบร้อยแล้ว!', ephemeral: true });
+      return await interaction.reply({ content: '✅ บันทึกการตกแต่ง Embed เลเวลอัปเรียบร้อยแล้ว!', ephemeral: true });
     }
   }
 });
