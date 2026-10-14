@@ -109,7 +109,6 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
 
   // 🎁 แยกประเภทการทำงานของสินค้าแต่ละชนิด
   if (item.type === 'gacha') {
-    // สุ่มกาชา (มีโอกาสได้เหรียญคืน 10-150 หรือเกลือ)
     const outcomes = [
       { reward: 0, text: 'เกลือ! รอบนี้ไม่ได้อะไรเลย เสียใจด้วยนะ 😢' },
       { reward: 20, text: 'ได้ทุนคืน! รับไป 20 Zen Coins 🪙' },
@@ -127,10 +126,12 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
   } 
   
   else if (item.type === 'buff') {
-    // บัฟ XP 1 ชั่วโมง
+    // บัฟ XP 1 ชั่วโมง (รองรับการทบเวลาถ้าซื้อซ้ำตอนเวลายังไม่หมด)
     const now = Date.now();
     const oneHour = 60 * 60 * 1000;
-    userStat.boostUntil = Math.max(userStat.lastBoost || now, now) + oneHour;
+    const currentBoost = userStat.boostUntil && userStat.boostUntil > now ? userStat.boostUntil : now;
+    userStat.boostUntil = currentBoost + oneHour;
+    
     await saveConfigs(serverConfigs);
 
     return await interaction.reply({ 
@@ -140,7 +141,6 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
   } 
   
   else if (item.type === 'role') {
-    // มอบยศพิเศษ
     await saveConfigs(serverConfigs);
     try {
       const member = await interaction.guild.members.fetch(userId);
@@ -157,7 +157,6 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
   } 
   
   else if (item.type === 'theme') {
-    // ปลดล็อกธีมการ์ดเลเวล
     userStat.customTheme = item.imageUrl;
     await saveConfigs(serverConfigs);
 
