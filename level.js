@@ -1,7 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, RoleSelectMenuBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
 const cron = require('node-cron');
 
-// ตัวแปรชั่วคราวสำหรับเก็บรูปภาพของยศรางวัลก่อนเลือกยศ
 const pendingRoleRewardImages = new Map();
 
 async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConfigs, saveConfigs, isVoice = false) {
@@ -57,12 +56,19 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
         if (member && config.levelConfig.roleRewards) {
           const rewardData = config.levelConfig.roleRewards[userStat.level];
           if (rewardData) {
-            // รองรับทั้งรูปแบบเก่า (เก็บแค่ ID) และรูปแบบใหม่ (เก็บ Object มี URL รูปภาพด้วย)
             const rewardRoleId = typeof rewardData === 'object' ? rewardData.roleId : rewardData;
             const rewardImgUrl = typeof rewardData === 'object' ? rewardData.imageUrl : '';
 
             const roleToGive = guild.roles.cache.get(rewardRoleId);
             if (roleToGive) {
+              // ถอดตัวยศรางวัลเลเวลเก่าออกอัตโนมัติ เพื่อป้องกันยศซ้อนทับกัน
+              const allRewardRoleIds = Object.values(config.levelConfig.roleRewards).map(r => typeof r === 'object' ? r.roleId : r);
+              for (const oldRoleId of allRewardRoleIds) {
+                if (oldRoleId !== rewardRoleId && member.roles.cache.has(oldRoleId)) {
+                  await member.roles.remove(oldRoleId).catch(() => {});
+                }
+              }
+
               await member.roles.add(roleToGive);
               if (targetChannel) {
                 const embed = new EmbedBuilder()
@@ -282,6 +288,7 @@ function getLevelDashboardContent(config) {
   const channelName = lc.channelId ? `<#${lc.channelId}>` : 'ส่งในห้องที่พิมพ์';
   
   let rewardsList = Object.entries(lc.roleRewards)
+    .sort((a, b) => parseInt(a[0]) - parseInt(b[0]))
     .map(([lvl, data]) => {
       const rId = typeof data === 'object' ? data.roleId : data;
       return `Lv.${lvl} ➔ <@&${rId}>`;
@@ -314,7 +321,8 @@ function getLevelDashboardContent(config) {
   );
 
   const row3 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('set_role_reward').setLabel('➕ ตั้งค่ายศรางวัลเลเวล').setStyle(ButtonStyle.Success)
+    new ButtonBuilder().setCustomId('set_role_reward').setLabel('➕ ตั้งค่ายศรางวัลเลเวล').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId('delete_role_reward').setLabel('🗑️ ลบยศรางวัลเลเวล').setStyle(ButtonStyle.Danger)
   );
 
   const channelRow = new ActionRowBuilder().addComponents(
