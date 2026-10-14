@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
 
-// 🛠️ คำสั่งสำหรับแอดมินใช้ส่งแผงปุ่มเควสต์ถาวรไปไว้ในห้องแชท
+// 🛠️ คำสั่งสำหรับแอดมินใช้ส่งแผงปุ่มเควสต์ประจำวันถาวรไปไว้ในห้องแชท
 const setupQuestCommand = new SlashCommandBuilder()
   .setName('setup-quest')
   .setDescription('ส่งแผงปุ่มกดรับเควสต์ประจำวันถาวรไปยังห้องนี้ (สำหรับ Admin)');
@@ -11,14 +11,14 @@ async function handleSetupQuestCommand(interaction) {
   }
 
   const embed = new EmbedBuilder()
-    .setTitle('🎁 𝙕𝙀𝙉 𝘽𝙊𝙏 • DAILY QUEST') // เอาคำว่า PANEL ออกแล้ว
-    .setDescription('กดปุ่มด้านล่างเพื่อรับ **Discord Orbs** ฟรีประจำวัน (รีเซ็ตทุกๆ 24 ชั่วโมง) สะสมไว้แลกของรางวัลพิเศษในเซิร์ฟเวอร์!')
-    .setColor('#66FFFF'); // เอา .setTimestamp() ออกแล้ว
+    .setTitle('🎁 𝙕𝙀𝙉 𝘽𝙊𝙏 • DAILY QUEST')
+    .setDescription('กดปุ่มด้านล่างเพื่อรับ **Zen Coins** ฟรีประจำวัน (รีเซ็ตทุกๆ 24 ชั่วโมง) สะสมไว้แลกของรางวัลพิเศษในเซิร์ฟเวอร์!')
+    .setColor('#66FFFF');
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('claim_daily_orb')
-      .setLabel('🎁 รับ Daily Orbs ประจำวัน')
+      .setLabel('🎁 รับ Zen Coins ประจำวัน')
       .setStyle(ButtonStyle.Success)
   );
 
@@ -27,7 +27,7 @@ async function handleSetupQuestCommand(interaction) {
   await interaction.reply({ content: '✅ ส่งแผงปุ่มเควสต์ประจำวันถาวรไปยังห้องนี้สำเร็จแล้ว!', ephemeral: true });
 }
 
-// 🎁 ระบบกดปุ่มรับรางวัล (เช็กคูลดาวน์ 24 ชั่วโมง และแจก Orbs)
+// 🎁 ระบบกดปุ่มรับรางวัล (เช็กคูลดาวน์ 24 ชั่วโมง และแจก Zen Coins)
 async function handleQuestButton(interaction, serverConfigs, saveConfigs) {
   if (interaction.customId !== 'claim_daily_orb') return false;
 
@@ -50,13 +50,13 @@ async function handleQuestButton(interaction, serverConfigs, saveConfigs) {
     return await interaction.reply({ content: `⏳ คุณรับรางวัลประจำวันไปแล้ว! กรุณารออีกประมาณ **${remainingTime} ชั่วโมง** ถึงจะกดรับใหม่ได้ครับ`, ephemeral: true });
   }
 
-  // แจก 50 Orbs (ปรับจำนวนได้ตามชอบ)
-  const rewardOrbs = 50;
-  userStat.orbs = (userStat.orbs || 0) + rewardOrbs;
+  // แจก 50 Zen Coins (ปรับจำนวนได้ตามชอบ)
+  const rewardCoins = 50;
+  userStat.orbs = (userStat.orbs || 0) + rewardCoins;
   userStat.lastDaily = now;
   await saveConfigs(serverConfigs);
 
-  await interaction.reply({ content: `🎉 ยินดีด้วย! คุณกดรับ **${rewardOrbs} Discord Orbs** ประจำวันสำเร็จแล้ว! (ยอดสะสมปัจจุบัน: ${userStat.orbs} Orbs)`, ephemeral: true });
+  await interaction.reply({ content: `🎉 ยินดีด้วย! คุณกดรับ **${rewardCoins} Zen Coins** ประจำวันสำเร็จแล้ว! (ยอดสะสมปัจจุบัน: ${userStat.orbs} Zen Coins)`, ephemeral: true });
   return true;
 }
 
