@@ -3,7 +3,19 @@ const http = require('http');
 const cron = require('node-cron');
 const { Redis } = require('@upstash/redis');
 const { getSecurityDashboardContent, handleSecurityMessage } = require('./security');
-const { handleLeveling, handleCommandLeveling, levelCommand, handleLevelCommand, leaderboardCommand, handleLeaderboardCommand, setLevelCommand, handleSetLevelCommand, getLevelDashboardContent, startVoiceXpCron } = require('./level');
+const { 
+  handleLeveling, 
+  handleCommandLeveling, 
+  levelCommand, 
+  handleLevelCommand, 
+  leaderboardCommand, 
+  handleLeaderboardCommand, 
+  setLevelCommand, 
+  handleSetLevelCommand, 
+  getLevelDashboardContent, 
+  startVoiceXpCron, 
+  pendingRoleRewardImages 
+} = require('./level');
 
 // เชื่อมต่อ Upstash Redis จาก Environment Variables
 const redis = new Redis({
@@ -504,7 +516,12 @@ client.on('interactionCreate', async interaction => {
     if (id === 'set_role_reward') {
       const modal = new ModalBuilder().setCustomId('roleRewardModal').setTitle('ตั้งค่ายศรางวัลตามเลเวล');
       const levelInput = new TextInputBuilder().setCustomId('targetLevel').setLabel('ระบุเลเวลที่ต้องการให้ได้รับยศ (เช่น 5)').setStyle(TextInputStyle.Short).setRequired(true);
-      modal.addComponents(new ActionRowBuilder().addComponents(levelInput));
+      const imageInput = new TextInputBuilder().setCustomId('rewardImage').setLabel('Image URL รูปประกาศ (เว้นว่างได้)').setStyle(TextInputStyle.Short).setRequired(false);
+      
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(levelInput),
+        new ActionRowBuilder().addComponents(imageInput)
+      );
       return await interaction.showModal(modal);
     }
 
@@ -741,14 +758,19 @@ client.on('interactionCreate', async interaction => {
     if (interaction.customId.startsWith('select_reward_role_')) {
       const levelNum = interaction.customId.replace('select_reward_role_', '');
       const selectedRoleId = interaction.values[0];
+      const imageUrl = pendingRoleRewardImages.get(`${interaction.user.id}_${levelNum}`) || '';
 
       if (!config.levelConfig.roleRewards) {
         config.levelConfig.roleRewards = {};
       }
-      config.levelConfig.roleRewards[levelNum] = selectedRoleId;
+      config.levelConfig.roleRewards[levelNum] = {
+        roleId: selectedRoleId,
+        imageUrl: imageUrl
+      };
       await saveConfigs(serverConfigs);
+      pendingRoleRewardImages.delete(`${interaction.user.id}_${levelNum}`);
 
-      return await interaction.update({ content: `✅ ตั้งค่ายศรางวัลสำเร็จ! สมาชิกที่อัปถึง **Level ${levelNum}** จะได้รับยศ <@&${selectedRoleId}> อัตโนมัติ`, components: [] });
+      return await interaction.update({ content: `✅ ตั้งค่ายศรางวัลสำเร็จ! สมาชิกที่อัปถึง **Level ${levelNum}** จะได้รับยศ <@&${selectedRoleId}> พร้อมรูปประกาศอัตโนมัติ`, components: [] });
     }
   }
 
@@ -837,9 +859,13 @@ client.on('interactionCreate', async interaction => {
 
     if (interaction.customId === 'roleRewardModal') {
       const targetLevel = interaction.fields.getTextInputValue('targetLevel');
+      const rewardImage = interaction.fields.getTextInputValue('rewardImage') || '';
+
       if (isNaN(targetLevel)) {
         return await interaction.reply({ content: '❌ กรุณากรอกเป็นตัวเลขเลเวลที่ถูกต้องครับ!', ephemeral: true });
       }
+
+      pendingRoleRewardImages.set(`${interaction.user.id}_${targetLevel}`, rewardImage);
 
       const roleSelectMenu = new RoleSelectMenuBuilder()
         .setCustomId(`select_reward_role_${targetLevel}`)
@@ -939,4 +965,3 @@ async function updateAutoroleDashboardAfterDefer(interaction) {
 }
 
 client.login(process.env.DISCORD_TOKEN);
-
