@@ -1,6 +1,9 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, RoleSelectMenuBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
 const cron = require('node-cron');
 
+// ตัวแปรชั่วคราวสำหรับเก็บรูปภาพของยศรางวัลก่อนเลือกยศ
+const pendingRoleRewardImages = new Map();
+
 async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConfigs, saveConfigs, isVoice = false) {
   if (!serverConfigs[guildId]) return;
 
@@ -52,13 +55,26 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
       try {
         const member = await guild.members.fetch(userId).catch(() => null);
         if (member && config.levelConfig.roleRewards) {
-          const rewardRoleId = config.levelConfig.roleRewards[userStat.level];
-          if (rewardRoleId) {
+          const rewardData = config.levelConfig.roleRewards[userStat.level];
+          if (rewardData) {
+            // รองรับทั้งรูปแบบเก่า (เก็บแค่ ID) และรูปแบบใหม่ (เก็บ Object มี URL รูปภาพด้วย)
+            const rewardRoleId = typeof rewardData === 'object' ? rewardData.roleId : rewardData;
+            const rewardImgUrl = typeof rewardData === 'object' ? rewardData.imageUrl : '';
+
             const roleToGive = guild.roles.cache.get(rewardRoleId);
             if (roleToGive) {
               await member.roles.add(roleToGive);
               if (targetChannel) {
-                targetChannel.send({ content: `👑 ยินดีด้วยคุณ <@${userId}> ได้รับยศพิเศษ <@&${rewardRoleId}> เนื่องในโอกาสอัปถึงเลเวล ${userStat.level}!` });
+                const embed = new EmbedBuilder()
+                  .setTitle('👑 ยศรางวัลเลเวลอัปพิเศษ!')
+                  .setDescription(`👑 ยินดีด้วยคุณ <@${userId}> ได้รับยศพิเศษ <@&${rewardRoleId}> เนื่องในโอกาสอัปถึงเลเวล ${userStat.level}!`)
+                  .setColor(config.levelConfig.embedColor || '#66FFFF');
+
+                if (rewardImgUrl && rewardImgUrl.trim() !== '') {
+                  embed.setImage(rewardImgUrl.trim());
+                }
+
+                targetChannel.send({ embeds: [embed] });
               }
             }
           }
@@ -198,7 +214,6 @@ async function handleLevelCommand(interaction, serverConfigs) {
   await interaction.reply({ embeds: [embed], ephemeral: true });
 }
 
-// 🏆 คำสั่งจัดอันดับ Leaderboard
 const leaderboardCommand = new SlashCommandBuilder()
   .setName('leaderboard')
   .setDescription('ดู 10 อันดับผู้ที่มีเลเวลและ XP สูงสุดในเซิร์ฟเวอร์');
@@ -267,13 +282,16 @@ function getLevelDashboardContent(config) {
   const channelName = lc.channelId ? `<#${lc.channelId}>` : 'ส่งในห้องที่พิมพ์';
   
   let rewardsList = Object.entries(lc.roleRewards)
-    .map(([lvl, roleId]) => `Lv.${lvl} ➔ <@&${roleId}>`)
+    .map(([lvl, data]) => {
+      const rId = typeof data === 'object' ? data.roleId : data;
+      return `Lv.${lvl} ➔ <@&${rId}>`;
+    })
     .join(', ');
   if (!rewardsList) rewardsList = 'ยังไม่ได้ตั้งค่ายศรางวัล';
 
   const embed = new EmbedBuilder()
     .setTitle('⚙️ แผงควบคุมระบบเลเวล (Level Dashboard)')
-    .setDescription('จัดการสถานะ เลือกห้องแจ้งเตือน ปรับเรต XP และตั้งค่าการตกแต่งการ์ด/ข้อความเลเวลอัปได้จากปุ่มด้านล่าง')
+    .setDescription('จัดการสถานะ เลือกห้องแจ้งเตือน ปรับเรต XP และตั้งค่าการ์ด/รูปภาพได้จากปุ่มด้านล่าง')
     .setColor('#5865F2')
     .addFields(
       { name: '📥 สถานะเลเวลแชท', value: statusText, inline: true },
@@ -324,5 +342,6 @@ module.exports = {
   setLevelCommand, 
   handleSetLevelCommand, 
   getLevelDashboardContent, 
-  startVoiceXpCron 
+  startVoiceXpCron,
+  pendingRoleRewardImages
 };
