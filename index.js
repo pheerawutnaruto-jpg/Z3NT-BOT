@@ -19,8 +19,9 @@ const {
   pendingRoleRewardImages 
 } = require('./level');
 const { setupQuestCommand, handleSetupQuestCommand, handleQuestButton } = require('./quest');
-const { shopCommand, boostStatusCommand, handleBoostStatusCommand, handleShopCommand, handleShopButton, handleShopSelectMenu } = require('./shop');
+const { shopCommand, boostStatusCommand, handleBoostStatusCommand, handleShopCommand, handleShopButton } = require('./shop');
 
+// เชื่อมต่อ Upstash Redis จาก Environment Variables
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
@@ -472,9 +473,6 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.isStringSelectMenu()) {
-    const handledShopMenu = await handleShopSelectMenu(interaction, serverConfigs, saveConfigs);
-    if (handledShopMenu) return;
-
     await interaction.deferUpdate().catch(() => {});
     if (interaction.customId === 'act_invite_select') {
       const vals = interaction.values;
