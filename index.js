@@ -114,7 +114,7 @@ function setupCronJob(guildId, timeStr, channelId) {
   const [hour, minute] = timeStr.split(':');
   if (!hour || !minute) return;
 
-  const cronExpression = `${minute} ${hour} * * *`;
+  const cronExpression = `${minute}${hour} * * *`;
 
   activeCronJobs[guildId] = cron.schedule(cronExpression, async () => {
     try {
@@ -383,6 +383,51 @@ client.on('interactionCreate', async interaction => {
       const levelInput = new TextInputBuilder().setCustomId('targetLevel').setLabel('ระบุเลเวลที่ต้องการลบยศรางวัล (เช่น 5)').setStyle(TextInputStyle.Short).setRequired(true);
       modal.addComponents(new ActionRowBuilder().addComponents(levelInput));
       return await interaction.showModal(modal);
+    }
+    if (id === 'edit_embed') {
+      const modal = new ModalBuilder().setCustomId('editEmbedModal').setTitle('Editing: welcome embed');
+      const titleInput = new TextInputBuilder().setCustomId('embedTitle').setLabel('Title').setStyle(TextInputStyle.Short).setValue(config.embed.title || '').setRequired(false);
+      const descInput = new TextInputBuilder().setCustomId('embedDesc').setLabel('Description').setStyle(TextInputStyle.Paragraph).setValue(config.embed.description || '').setRequired(true);
+      const colorInput = new TextInputBuilder().setCustomId('embedColor').setLabel('Hex Color').setStyle(TextInputStyle.Short).setValue(config.embed.color || '#66FFFF').setRequired(true);
+      const imageInput = new TextInputBuilder().setCustomId('embedImage').setLabel('Image URL').setStyle(TextInputStyle.Short).setValue(config.embed.image || '').setRequired(false);
+      modal.addComponents(new ActionRowBuilder().addComponents(titleInput), new ActionRowBuilder().addComponents(descInput), new ActionRowBuilder().addComponents(colorInput), new ActionRowBuilder().addComponents(imageInput));
+      return await interaction.showModal(modal);
+    }
+    if (id === 'edit_footer') {
+      const modal = new ModalBuilder().setCustomId('editFooterModal').setTitle('Editing: welcome footer');
+      const footerTextInput = new TextInputBuilder().setCustomId('embedFooterText').setLabel('Footer Text').setStyle(TextInputStyle.Short).setValue(config.embed.footerText || '').setRequired(false);
+      const footerIconInput = new TextInputBuilder().setCustomId('embedFooterIcon').setLabel('Footer Image').setStyle(TextInputStyle.Short).setValue(config.embed.footerIcon || '').setRequired(false);
+      const timestampInput = new TextInputBuilder().setCustomId('embedTimestamp').setLabel('Timestamp? (yes/no)').setStyle(TextInputStyle.Short).setValue(config.embed.timestamp || 'no').setRequired(false);
+      modal.addComponents(new ActionRowBuilder().addComponents(footerTextInput), new ActionRowBuilder().addComponents(footerIconInput), new ActionRowBuilder().addComponents(timestampInput));
+      return await interaction.showModal(modal);
+    }
+    if (id === 'test_welcome') {
+      if (!config.channelId) {
+        return await interaction.reply({ content: '❌ กรุณาเลือกช่องสำหรับส่งข้อความต้อนรับก่อนกดทดสอบครับ!', ephemeral: true });
+      }
+      await interaction.reply({ content: `🔄 กำลังส่งข้อความทดสอบ...`, ephemeral: true });
+      try {
+        const channel = await interaction.guild.channels.fetch(config.channelId);
+        if (channel) {
+          const embedConfig = config.embed;
+          const finalTitle = embedConfig.title ? embedConfig.title.replace('{user}', interaction.user.username).replace('{server}', interaction.guild.name) : null;
+          const finalDesc = embedConfig.description.replace('{user}', `${interaction.user}`).replace('{server}`, interaction.guild.name);
+          const embed = new EmbedBuilder().setDescription(finalDesc).setColor(embedConfig.color || '#66FFFF');
+          if (finalTitle) embed.setTitle(finalTitle);
+          if (embedConfig.image?.trim()) embed.setImage(embedConfig.image.trim());
+          if (embedConfig.footerText?.trim()) {
+            const memberCount = interaction.guild.memberCount.toString();
+            const finalFooterText = embedConfig.footerText.replace('{server_membercount}', memberCount);
+            if (embedConfig.footerIcon?.trim()) embed.setFooter({ text: finalFooterText, iconURL: embedConfig.footerIcon.trim() });
+            else embed.setFooter({ text: finalFooterText });
+          }
+          if (embedConfig.timestamp?.toLowerCase() === 'yes') embed.setTimestamp();
+          await channel.send({ embeds: [embed] });
+        }
+      } catch (err) {
+        console.error('Test welcome error:', err);
+      }
+      return;
     }
 
     if (id === 'sec_toggle_main') config.security.enabled = !config.security.enabled;
