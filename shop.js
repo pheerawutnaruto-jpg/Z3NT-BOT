@@ -16,7 +16,7 @@ const SHOP_ITEMS = [
     type: 'buff',
     roleId: '1559992075095773184', 
     buttonLabel: 'ซื้อ น้ำยาคูณ (100c)',
-    description: 'คูณ XP 2 เท่า พร้อมรับยศพิเศษ `Xp Booster` นาน 1 ชั่วโมง!' 
+    description: 'คูณ XP 2 เท่า พร้อมรับยศพิเศษ XP Booster นาน 1 ชั่วโมง!' 
   },
   { 
     id: 'role_chilling', 
