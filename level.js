@@ -11,13 +11,20 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
 
   if (!config.levels) config.levels = {};
   if (!config.levels[userId]) {
-    config.levels[userId] = { xp: 0, level: 1 };
+    config.levels[userId] = { xp: 0, level: 1, orbs: 0, lastDaily: 0, boostUntil: 0, customTheme: '' };
   }
 
   const userStat = config.levels[userId];
   const multiplier = config.levelConfig.xpMultiplier || 100;
 
-  userStat.xp += amount;
+  // ⚡ ตรวจสอบระบบบัฟ XP (ถ้ายังมีเวลาเหลือ คูณ XP ให้ 2 เท่า)
+  let finalAmount = amount;
+  const now = Date.now();
+  if (userStat.boostUntil && now < userStat.boostUntil) {
+    finalAmount *= 2; // คูณ 2 เท่า
+  }
+
+  userStat.xp += finalAmount;
   const requiredXp = userStat.level * multiplier;
 
   if (userStat.xp >= requiredXp) {
@@ -192,7 +199,7 @@ async function handleLevelCommand(interaction, serverConfigs) {
   const levels = config.levels || {};
   const lConfig = config.levelConfig || { xpMultiplier: 100, cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD', cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**', embedColor: '#66FFFF', statsCardImageUrl: '' };
 
-  const userStat = levels[userId] || { xp: 0, level: 1 };
+  const userStat = levels[userId] || { xp: 0, level: 1, customTheme: '' };
   const requiredXp = userStat.level * lConfig.xpMultiplier;
 
   const percentage = Math.min(Math.round((userStat.xp / requiredXp) * 10), 10);
@@ -212,7 +219,10 @@ async function handleLevelCommand(interaction, serverConfigs) {
       { name: 'ความคืบหน้า', value: `\`[${progressBar}]\` (${Math.floor((userStat.xp / requiredXp) * 100)}%)`, inline: false }
     );
 
-  if (lConfig.statsCardImageUrl && lConfig.statsCardImageUrl.trim() !== '') {
+  // 🎨 ถ้ารผู้ใช้ซื้อธีมพิเศษมา ให้ดึงภาพธีมส่วนตัวมาแสดงผลแทนภาพปกติ
+  if (userStat.customTheme && userStat.customTheme.trim() !== '') {
+    embed.setImage(userStat.customTheme.trim());
+  } else if (lConfig.statsCardImageUrl && lConfig.statsCardImageUrl.trim() !== '') {
     embed.setImage(lConfig.statsCardImageUrl.trim());
   }
 
@@ -261,7 +271,6 @@ async function handleLeaderboardCommand(interaction, serverConfigs) {
   await interaction.reply({ embeds: [embed], ephemeral: true });
 }
 
-// 🔄 คำสั่งรีเซ็ตเลเวลทั้งเซิร์ฟเวอร์
 const resetLevelsCommand = new SlashCommandBuilder()
   .setName('reset-levels')
   .setDescription('รีเซ็ตข้อมูลเลเวลและ XP ของสมาชิกทุกคนในเซิร์ฟเวอร์นี้ (เฉพาะ Admin)');
@@ -276,7 +285,6 @@ async function handleResetLevelsCommand(interaction, serverConfigs, saveConfigs)
     serverConfigs[guildId] = {};
   }
 
-  // เคลียร์ข้อมูลเลเวลให้ว่างเปล่า
   serverConfigs[guildId].levels = {};
   await saveConfigs(serverConfigs);
 
