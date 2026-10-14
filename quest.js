@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
 
-// 🛠️ คำสั่งสำหรับแอดมินใช้ส่งแผงปุ่มเควสต์ถาวรไปไว้ในห้องแชท
+// 🛠️ คำสั่งสำหรับแอดมินใช้ส่งแผงปุ่มเควสต์ประจำวันถาวรไปยังห้องนี้
 const setupQuestCommand = new SlashCommandBuilder()
   .setName('setup-quest')
   .setDescription('ส่งแผงปุ่มกดรับเควสต์ประจำวันถาวรไปยังห้องนี้ (สำหรับ Admin)');
@@ -10,15 +10,14 @@ async function handleSetupQuestCommand(interaction) {
     return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้นที่จะใช้คำสั่งนี้ได้ครับ!', ephemeral: true });
   }
 
+  // ดึงรูปรูปโปรไฟล์ของบอทมาใส่ใน Footer Icon อัตโนมัติ
+  const botAvatar = interaction.client.user.displayAvatarURL();
+
   const embed = new EmbedBuilder()
     .setTitle('🎁 𝐃𝐀𝐈𝐋𝐘 𝐐𝐔𝐄𝐒𝐓𝐒')
-    .setDescription(
-      '> 🎁 **รางวัล:** รับรางวัล **50 Discord Orbs**\n\n' +
-      '_แต้มที่คุณสะสมสามารถนำไปใช้แลกของรางวัลพิเศษภายในเซิร์ฟเวอร์ได้ในอนาคต!_'
-    )
+    .setDescription('กดปุ่มด้านล่างเพื่อรับ **Discord Orbs** ฟรีประจำวัน (รีเซ็ตทุกๆ 24 ชั่วโมง) สะสมไว้แลกของรางวัลพิเศษในเซิร์ฟเวอร์!')
     .setColor('#66FFFF')
-    .setFooter({ text: '𝙕𝙀𝙉 𝘽𝙊𝙏 • ระบบเควสต์อัตโนมัติ' });
-    // เอา .setTimestamp() ออก เพื่อไม่ให้แสดงเวลาครับ
+    .setFooter({ text: '𝙕𝙀𝙉 𝘽𝙊𝙏', iconURL: botAvatar }); // เอาเวลาออก ใส่ข้อความและรูปไอคอนบอท
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -27,6 +26,7 @@ async function handleSetupQuestCommand(interaction) {
       .setStyle(ButtonStyle.Success)
   );
 
+  // ส่งแผงปุ่มไปที่ห้องแชทที่พิมพ์คำสั่งนี้
   await interaction.channel.send({ embeds: [embed], components: [row] });
   await interaction.reply({ content: '✅ ส่งแผงปุ่มเควสต์ประจำวันถาวรไปยังห้องนี้สำเร็จแล้ว!', ephemeral: true });
 }
@@ -54,18 +54,13 @@ async function handleQuestButton(interaction, serverConfigs, saveConfigs) {
     return await interaction.reply({ content: `⏳ คุณรับรางวัลประจำวันไปแล้ว! กรุณารออีกประมาณ **${remainingTime} ชั่วโมง** ถึงจะกดรับใหม่ได้ครับ`, ephemeral: true });
   }
 
-  // แจก 50 Orbs
+  // แจก 50 Orbs (ปรับจำนวนได้ตามชอบ)
   const rewardOrbs = 50;
   userStat.orbs = (userStat.orbs || 0) + rewardOrbs;
   userStat.lastDaily = now;
   await saveConfigs(serverConfigs);
 
-  const successEmbed = new EmbedBuilder()
-    .setTitle('🎉 รับรางวัลประจำวันสำเร็จ!')
-    .setDescription(`คุณได้รับ **+${rewardOrbs} Discord Orbs** เข้ากระเป๋าเรียบร้อยแล้ว!\n🔮 **ยอดสะสมปัจจุบัน:** \`${userStat.orbs} Orbs\``)
-    .setColor('#66FFFF');
-
-  await interaction.reply({ embeds: [successEmbed], ephemeral: true });
+  await interaction.reply({ content: `🎉 ยินดีด้วย! คุณกดรับ **${rewardOrbs} Discord Orbs** ประจำวันสำเร็จแล้ว! (ยอดสะสมปัจจุบัน: ${userStat.orbs} Orbs)`, ephemeral: true });
   return true;
 }
 
