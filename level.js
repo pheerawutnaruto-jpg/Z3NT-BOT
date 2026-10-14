@@ -3,7 +3,7 @@ const cron = require('node-cron');
 
 const pendingRoleRewardImages = new Map();
 
-// 🎲 คลังภาพสุ่มอัตโนมัติ (ใช้เฉพาะตอนแจกยศรางวัล)
+// 🎲 คลังภาพสุ่มอัตโนมัติ (ใช้สำหรับข้อความแจกยศรางวัล)
 const DEFAULT_RANDOM_IMAGES = [
   'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=800&auto=format&fit=crop&q=60',
   'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&auto=format&fit=crop&q=60',
@@ -63,7 +63,7 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
       }
     }
 
-    // 👑 1. ส่วนแจกยศรางวัล (ยังคงเป็น Embed + สุ่มภาพปกติ)
+    // 👑 1. ส่วนแจกยศรางวัล (ส่งเป็น Embed + สุ่มภาพ)
     if (guild) {
       try {
         const member = await guild.members.fetch(userId).catch(() => null);
@@ -109,7 +109,7 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
       }
     }
 
-    // 💬 2. ส่วนข้อความเลเวลอัปปกติ (ส่งเป็นข้อความธรรมดา Plain Text ล้วนๆ ไม่มี Embed ไม่มีสุ่มภาพ)
+    // 💬 2. ส่วนข้อความเลเวลอัปปกติ (ส่งเป็นข้อความธรรมดา Plain Text ล้วนๆ ไม่มี URL รูปภาพ)
     if (targetChannel) {
       targetChannel.send({ content: customMsg }).then(msg => {
         if (!config.levelConfig.channelId && !isVoice) {
@@ -325,11 +325,11 @@ function getLevelDashboardContent(config) {
     new ButtonBuilder().setCustomId('edit_voice_amount').setLabel('ตั้งค่า XP ห้องเสียง').setStyle(ButtonStyle.Primary)
   );
 
+  // 🗂️ ยุบปุ่มข้อความเลเวลอัปและข้อความแจกยศมารวมกันเหลือปุ่ม "ตั้งค่าข้อความทั้งหมด"
   const row2 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('edit_level_rate').setLabel('เรต XP').setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId('edit_level_card').setLabel('ตกแต่งการ์ด').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('edit_level_msg').setLabel('ข้อความเลเวลอัป').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('edit_role_reward_msg').setLabel('ข้อความแจกยศ').setStyle(ButtonStyle.Secondary)
+    new ButtonBuilder().setCustomId('edit_level_messages').setLabel('✉️ ตั้งค่าข้อความทั้งหมด').setStyle(ButtonStyle.Secondary)
   );
 
   const row3 = new ActionRowBuilder().addComponents(
