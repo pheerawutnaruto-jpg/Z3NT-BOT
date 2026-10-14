@@ -61,7 +61,7 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
 
             const roleToGive = guild.roles.cache.get(rewardRoleId);
             if (roleToGive) {
-              // ถอดตัวยศรางวัลเลเวลเก่าออกอัตโนมัติ เพื่อป้องกันยศซ้อนทับกัน
+              // ถอนตัวยศรางวัลเลเวลเก่าออกอัตโนมัติ เพื่อป้องกันยศซ้อนทับกัน
               const allRewardRoleIds = Object.values(config.levelConfig.roleRewards).map(r => typeof r === 'object' ? r.roleId : r);
               for (const oldRoleId of allRewardRoleIds) {
                 if (oldRoleId !== rewardRoleId && member.roles.cache.has(oldRoleId)) {
@@ -71,9 +71,15 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
 
               await member.roles.add(roleToGive);
               if (targetChannel) {
+                // ข้อความประกาศยศรางวัลที่ปรับแต่งได้อิสระ
+                const customRewardMsg = (config.levelConfig.roleRewardMessage || '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!')
+                  .replace('{user}', `<@${userId}>`)
+                  .replace('{role}', `<@&${rewardRoleId}>`)
+                  .replace('{level}', userStat.level);
+
                 const embed = new EmbedBuilder()
                   .setTitle('👑 ยศรางวัลเลเวลอัปพิเศษ!')
-                  .setDescription(`👑 ยินดีด้วยคุณ <@${userId}> ได้รับยศพิเศษ <@&${rewardRoleId}> เนื่องในโอกาสอัปถึงเลเวล ${userStat.level}!`)
+                  .setDescription(customRewardMsg)
                   .setColor(config.levelConfig.embedColor || '#66FFFF');
 
                 if (rewardImgUrl && rewardImgUrl.trim() !== '') {
@@ -144,6 +150,7 @@ function handleLeveling(message, serverConfigs, saveConfigs) {
     serverConfigs[guildId].levelConfig = {
       enabled: true, minXp: 15, maxXp: 25, cmdXp: 20, xpMultiplier: 100, channelId: null,
       levelUpMessage: 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว!',
+      roleRewardMessage: '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!',
       cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD',
       cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**',
       embedColor: '#66FFFF',
@@ -271,6 +278,7 @@ function getLevelDashboardContent(config) {
     config.levelConfig = {
       enabled: true, minXp: 15, maxXp: 25, cmdXp: 20, xpMultiplier: 100, channelId: null,
       levelUpMessage: 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว!',
+      roleRewardMessage: '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!',
       cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD',
       cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**',
       embedColor: '#66FFFF',
@@ -298,7 +306,7 @@ function getLevelDashboardContent(config) {
 
   const embed = new EmbedBuilder()
     .setTitle('⚙️ แผงควบคุมระบบเลเวล (Level Dashboard)')
-    .setDescription('จัดการสถานะ เลือกห้องแจ้งเตือน ปรับเรต XP และตั้งค่าการ์ด/รูปภาพได้จากปุ่มด้านล่าง')
+    .setDescription('จัดการสถานะ เลือกห้องแจ้งเตือน ปรับเรต XP และตั้งค่าการ์ด/ข้อความได้จากปุ่มด้านล่าง')
     .setColor('#5865F2')
     .addFields(
       { name: '📥 สถานะเลเวลแชท', value: statusText, inline: true },
@@ -315,9 +323,10 @@ function getLevelDashboardContent(config) {
   );
 
   const row2 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('edit_level_rate').setLabel('ตั้งค่าเรต XP แชท/คำสั่ง').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('edit_level_card').setLabel('ตกแต่งการ์ด Level (พร้อมรูป)').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('edit_level_msg').setLabel('ข้อความเลเวลอัป (พร้อมรูป)').setStyle(ButtonStyle.Secondary)
+    new ButtonBuilder().setCustomId('edit_level_rate').setLabel('เรต XP').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('edit_level_card').setLabel('ตกแต่งการ์ด').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('edit_level_msg').setLabel('ข้อความเลเวลอัป').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('edit_role_reward_msg').setLabel('ข้อความแจกยศ').setStyle(ButtonStyle.Secondary)
   );
 
   const row3 = new ActionRowBuilder().addComponents(
