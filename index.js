@@ -1,9 +1,15 @@
 const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, RoleSelectMenuBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
 const http = require('http');
-const fs = require('fs');
 const cron = require('node-cron');
+const { Redis } = require('@upstash/redis');
 const { getSecurityDashboardContent, handleSecurityMessage } = require('./security');
 const { handleLeveling, handleCommandLeveling, levelCommand, handleLevelCommand, setLevelCommand, handleSetLevelCommand, getLevelDashboardContent, startVoiceXpCron } = require('./level');
+
+// เชื่อมต่อ Upstash Redis จาก Environment Variables
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+});
 
 const httpServer = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -21,35 +27,36 @@ const client = new Client({
   ]
 });
 
-const CONFIG_FILE = './config.json';
+let serverConfigs = {};
 
-function loadConfigs() {
+// ฟังก์ชันโหลดข้อมูลจาก Redis บน Cloud
+async function loadConfigs() {
   try {
-    if (fs.existsSync(CONFIG_FILE)) {
-      const data = fs.readFileSync(CONFIG_FILE, 'utf8');
-      if (data.trim() !== '') {
-        return JSON.parse(data);
-      }
+    const data = await redis.get('server_configs');
+    if (data) {
+      return typeof data === 'string' ? JSON.parse(data) : data;
     }
   } catch (e) {
-    console.error('Error loading config:', e);
+    console.error('Error loading config from Redis:', e);
   }
   return {};
 }
 
-function saveConfigs(configs) {
+// ฟังก์ชันบันทึกข้อมูลลง Redis บน Cloud
+async function saveConfigs(configs) {
   try {
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify(configs, null, 2));
+    await redis.set('server_configs', JSON.stringify(configs));
   } catch (e) {
-    console.error('Error saving config:', e);
+    console.error('Error saving config to Redis:', e);
   }
 }
 
-let serverConfigs = loadConfigs();
 let activeCronJobs = {};
 const spamTracker = new Map();
 
 client.once('ready', async () => {
+  // โหลดข้อมูลการตั้งค่าทั้งหมดขึ้นมาจาก Cloud เมื่อบอทเริ่มทำงาน
+  serverConfigs = await loadConfigs();
   console.log(`Bot Online แล้วจ้า: ${client.user.tag}`);
 
   // เริ่มระบบแจก XP ห้องเสียงอัตโนมัติ
@@ -402,7 +409,7 @@ client.on('interactionCreate', async interaction => {
     config.autoClear.enabled = true;
     config.autoClear.time = timeInput;
     config.autoClear.channelId = channelInput.id;
-    saveConfigs(serverConfigs);
+    await saveConfigs(serverConfigs);
 
     setupCronJob(guildId, timeInput, channelInput.id);
 
@@ -427,24 +434,24 @@ client.on('interactionCreate', async interaction => {
     const id = interaction.customId;
     if (id === 'toggle_welcome') {
       config.welcomeEnabled = !config.welcomeEnabled;
-      saveConfigs(serverConfigs);
+      await saveConfigs(serverConfigs);
       return await updateDashboard(interaction);
     }
     
     if (id === 'toggle_autorole') {
       config.autoroleEnabled = !config.autoroleEnabled;
-      saveConfigs(serverConfigs);
+      await saveConfigs(serverConfigs);
       return await updateAutoroleDashboard(interaction);
     }
 
     if (id === 'toggle_level') {
       config.levelConfig.enabled = !config.levelConfig.enabled;
-      saveConfigs(serverConfigs);
+      await saveConfigs(serverConfigs);
       return await interaction.update(getLevelDashboardContent(config));
     }
     if (id === 'toggle_voice_xp') {
       config.levelConfig.voiceXpEnabled = !config.levelConfig.voiceXpEnabled;
-      saveConfigs(serverConfigs);
+      await saveConfigs(serverConfigs);
       return await interaction.update(getLevelDashboardContent(config));
     }
     if (id === 'edit_voice_amount') {
@@ -530,7 +537,7 @@ client.on('interactionCreate', async interaction => {
       };
     }
 
-    saveConfigs(serverConfigs);
+    await saveConfigs(serverConfigs);
 
     if (id === 'toggle_welcome') {
       return await updateDashboard(interaction);
@@ -685,7 +692,7 @@ client.on('interactionCreate', async interaction => {
       config.security.actions.invite.timeout = vals.includes('timeout');
       config.security.actions.invite.kick = vals.includes('kick');
       config.security.actions.invite.ban = vals.includes('ban');
-      saveConfigs(serverConfigs);
+      await saveConfigs(serverConfigs);
       return await interaction.update(getSecurityDashboardContent(config));
     }
     if (interaction.customId === 'act_spam_select') {
@@ -693,7 +700,7 @@ client.on('interactionCreate', async interaction => {
       config.security.actions.spam.timeout = vals.includes('timeout');
       config.security.actions.spam.kick = vals.includes('kick');
       config.security.actions.spam.ban = vals.includes('ban');
-      saveConfigs(serverConfigs);
+      await saveConfigs(serverConfigs);
       return await interaction.update(getSecurityDashboardContent(config));
     }
   }
@@ -702,19 +709,19 @@ client.on('interactionCreate', async interaction => {
     if (interaction.customId === 'select_channel') {
       await interaction.deferUpdate();
       config.channelId = interaction.values[0];
-      saveConfigs(serverConfigs);
+      await saveConfigs(serverConfigs);
       return await updateDashboardAfterDefer(interaction);
     }
     if (interaction.customId === 'select_level_channel') {
       await interaction.deferUpdate();
       config.levelConfig.channelId = interaction.values[0];
-      saveConfigs(serverConfigs);
+      await saveConfigs(serverConfigs);
       return await interaction.editReply(getLevelDashboardContent(config));
     }
     if (interaction.customId === 'sec_select_ignored') {
       await interaction.deferUpdate();
       config.security.ignoredChannels = interaction.values;
-      saveConfigs(serverConfigs);
+      await saveConfigs(serverConfigs);
       return await interaction.editReply(getSecurityDashboardContent(config));
     }
   }
@@ -723,7 +730,7 @@ client.on('interactionCreate', async interaction => {
     if (interaction.customId === 'select_autorole') {
       await interaction.deferUpdate();
       config.autoroleId = interaction.values[0];
-      saveConfigs(serverConfigs);
+      await saveConfigs(serverConfigs);
       return await updateAutoroleDashboardAfterDefer(interaction);
     }
     if (interaction.customId.startsWith('select_reward_role_')) {
@@ -734,7 +741,7 @@ client.on('interactionCreate', async interaction => {
         config.levelConfig.roleRewards = {};
       }
       config.levelConfig.roleRewards[levelNum] = selectedRoleId;
-      saveConfigs(serverConfigs);
+      await saveConfigs(serverConfigs);
 
       return await interaction.update({ content: `✅ ตั้งค่ายศรางวัลสำเร็จ! สมาชิกที่อัปถึง **Level ${levelNum}** จะได้รับยศ <@&${selectedRoleId}> อัตโนมัติ`, components: [] });
     }
@@ -753,7 +760,7 @@ client.on('interactionCreate', async interaction => {
       config.embed.color = colorVal;
       
       config.embed.image = interaction.fields.getTextInputValue('embedImage');
-      saveConfigs(serverConfigs);
+      await saveConfigs(serverConfigs);
 
       return await interaction.reply({ content: '✅ บันทึกรูปแบบ Embed และรูปภาพเรียบร้อยแล้ว!', ephemeral: true });
     }
@@ -763,7 +770,7 @@ client.on('interactionCreate', async interaction => {
       config.embed.footerIcon = interaction.fields.getTextInputValue('embedFooterIcon');
       config.embed.timestamp = interaction.fields.getTextInputValue('embedTimestamp');
       
-      saveConfigs(serverConfigs);
+      await saveConfigs(serverConfigs);
 
       return await interaction.reply({ content: '✅ บันทึกรูปแบบ Footer เรียบร้อยแล้ว!', ephemeral: true });
     }
@@ -776,7 +783,7 @@ client.on('interactionCreate', async interaction => {
       if (!isNaN(c)) config.security.spamCount = c;
       if (!isNaN(s)) config.security.spamSeconds = s;
       if (!isNaN(t)) config.security.timeoutSeconds = t;
-      saveConfigs(serverConfigs);
+      await saveConfigs(serverConfigs);
 
       return await interaction.reply({ content: '✅ บันทึกค่าเวลาเรียบร้อยแล้ว!', ephemeral: true });
     }
@@ -784,7 +791,7 @@ client.on('interactionCreate', async interaction => {
     if (interaction.customId === 'voiceAmountModal') {
       const amount = parseInt(interaction.fields.getTextInputValue('voiceXp'));
       if (!isNaN(amount)) config.levelConfig.voiceXpAmount = amount;
-      saveConfigs(serverConfigs);
+      await saveConfigs(serverConfigs);
       return await interaction.reply({ content: '✅ บันทึกจำนวน XP ห้องเสียงเรียบร้อยแล้ว!', ephemeral: true });
     }
 
@@ -798,7 +805,7 @@ client.on('interactionCreate', async interaction => {
       if (!isNaN(max)) config.levelConfig.maxXp = max;
       if (!isNaN(cmd)) config.levelConfig.cmdXp = cmd;
       if (!isNaN(mult)) config.levelConfig.xpMultiplier = mult;
-      saveConfigs(serverConfigs);
+      await saveConfigs(serverConfigs);
 
       return await interaction.reply({ content: '✅ บันทึกเรต XP เรียบร้อยแล้ว!', ephemeral: true });
     }
@@ -810,7 +817,7 @@ client.on('interactionCreate', async interaction => {
       if (!colorVal.startsWith('#')) colorVal = '#' + colorVal;
       config.levelConfig.embedColor = colorVal;
       config.levelConfig.statsCardImageUrl = interaction.fields.getTextInputValue('statsCardImg');
-      saveConfigs(serverConfigs);
+      await saveConfigs(serverConfigs);
 
       return await interaction.reply({ content: '✅ บันทึกการตกแต่งการ์ด Level และรูปภาพเรียบร้อยแล้ว!', ephemeral: true });
     }
@@ -818,7 +825,7 @@ client.on('interactionCreate', async interaction => {
     if (interaction.customId === 'levelMsgModal') {
       config.levelConfig.levelUpMessage = interaction.fields.getTextInputValue('levelMsg');
       config.levelConfig.levelUpImageUrl = interaction.fields.getTextInputValue('levelUpImg');
-      saveConfigs(serverConfigs);
+      await saveConfigs(serverConfigs);
 
       return await interaction.reply({ content: '✅ บันทึกข้อความและรูปตอนเลเวลอัปเรียบร้อยแล้ว!', ephemeral: true });
     }
