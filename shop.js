@@ -13,16 +13,32 @@ const SHOP_ITEMS = [
     name: '⚡ น้ำยาคูณ XP (1 ชั่วโมง + ยศ Booster)', 
     price: 100, 
     type: 'buff',
-    roleId: '1559992075095773184', // <-- ใส่ ID ยศที่คุณให้มาเรียบร้อยแล้ว
+    roleId: '1559992075095773184', 
     description: 'คูณ XP 2 เท่า พร้อมรับยศพิเศษ XP Booster นาน 1 ชั่วโมง!' 
   },
   { 
     id: 'role_cafe', 
-    name: '☕ ยศพิเศษ Cafe Chill', 
-    price: 200, 
+    name: '☕ สายคาเฟ่', 
+    price: 150, 
     type: 'role',
-    roleId: 'ใส่_ID_ยศ_Cafe_Chill_ตรงนี้',
-    description: 'ยศตกแต่งโปรไฟล์สุดชิล แยกจากสายแรงค์เลเวลปกติ' 
+    roleId: '1560002494204084395',
+    description: 'ยศตกแต่งโปรไฟล์สำหรับคนรักคาเฟ่และเสียงกาแฟ' 
+  },
+  { 
+    id: 'role_night_owl', 
+    name: '🌙 คนนอนดึก', 
+    price: 150, 
+    type: 'role',
+    roleId: '1560002616266854420',
+    description: 'ยศตกแต่งโปรไฟล์สำหรับสายโต้รุ่ง นอนดึกเป็นกิจวัตร' 
+  },
+  { 
+    id: 'role_sleepy', 
+    name: '💤 สายขี้เซา', 
+    price: 150, 
+    type: 'role',
+    roleId: '1560002724563521666',
+    description: 'ยศตกแต่งโปรไฟล์สำหรับคนรักการนอน หลับได้ทุกที่ทุกเวลา' 
   },
   { 
     id: 'card_galaxy', 
@@ -36,7 +52,7 @@ const SHOP_ITEMS = [
 
 const shopCommand = new SlashCommandBuilder()
   .setName('shop')
-  .setDescription('เปิดร้านค้าเซิร์ฟเวอร์ ใช้ Zen Coins ซื้อไอเทม กาชา บัฟ และธีมการ์ด');
+  .setDescription('เปิดร้านค้าเซิร์ฟเวอร์ ใช้ Zen Coins ซื้อไอเทม กาชา บัฟ ยศ และธีมการ์ด');
 
 const boostStatusCommand = new SlashCommandBuilder()
   .setName('boost-status')
