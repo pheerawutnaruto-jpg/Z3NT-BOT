@@ -16,7 +16,7 @@ const SHOP_ITEMS = [
     type: 'buff',
     roleId: '1559992075095773184', 
     buttonLabel: 'ซื้อ น้ำยาคูณ (100c)',
-    description: 'คูณ XP 2 เท่า พร้อมรับยศพิเศษ XP Booster นาน 1 ชั่วโมง!' 
+    description: 'คูณ XP 2 เท่า พร้อมรับยศพิเศษ `Xp Booster` นาน 1 ชั่วโมง!' 
   },
   { 
     id: 'role_chilling', 
@@ -43,7 +43,7 @@ const SHOP_ITEMS = [
     type: 'theme',
     imageUrl: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=800&auto=format&fit=crop&q=60',
     buttonLabel: 'ซื้อ ธีมการ์ด (150c)',
-    description: 'ปลดล็อกพื้นหลังการ์ด /level เป็นธีมจักรวาลกาแล็กซีสุดอลังการ' 
+    description: 'ปลดล็อกพื้นหลังการ์ด `/level` เป็นธีมจักรวาลกาแล็กซีสุดอลังการ' 
   }
 ];
 
@@ -180,7 +180,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
     }
 
     return await interaction.reply({ 
-      content: `⚡ เปิดใช้งานน้ำยาคูณ XP สำเร็จ! คุณได้รับสิทธิ์คูณ XP 2 เท่า และรับยศ Booster เป็นเวลา 1 ชั่วโมงเต็ม!`, 
+      content: `⚡ เปิดใช้งานน้ำยาคูณ XP สำเร็จ! คุณได้รับสิทธิ์คูณ XP 2 เท่า และรับยศ Xp Booster เป็นเวลา 1 ชั่วโมงเต็ม!`, 
       ephemeral: true 
     });
   } 
