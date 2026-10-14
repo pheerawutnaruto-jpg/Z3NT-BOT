@@ -13,7 +13,7 @@ const SHOP_ITEMS = [
     name: '⚡ น้ำยาคูณ XP (1 ชั่วโมง + ยศ Booster)', 
     price: 100, 
     type: 'buff',
-    roleId: 'ใส่_ID_ยศ_Boost_ตรงนี้', // <-- ใส่ ID ยศที่จะให้ชั่วคราวตรงนี้
+    roleId: '1559992075095773184', // <-- ใส่ ID ยศที่คุณให้มาเรียบร้อยแล้ว
     description: 'คูณ XP 2 เท่า พร้อมรับยศพิเศษ XP Booster นาน 1 ชั่วโมง!' 
   },
   { 
@@ -38,7 +38,6 @@ const shopCommand = new SlashCommandBuilder()
   .setName('shop')
   .setDescription('เปิดร้านค้าเซิร์ฟเวอร์ ใช้ Zen Coins ซื้อไอเทม กาชา บัฟ และธีมการ์ด');
 
-// ⏱️ คำสั่งใหม่: เช็กสถานะบัฟ XP Boost ของตัวเอง
 const boostStatusCommand = new SlashCommandBuilder()
   .setName('boost-status')
   .setDescription('เช็กสถานะและเวลาคงเหลือของน้ำยาคูณ XP (XP Booster)');
@@ -157,7 +156,6 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
     
     await saveConfigs(serverConfigs);
 
-    // ให้ยศ Booster ทันที
     try {
       const member = await interaction.guild.members.fetch(userId);
       const role = await interaction.guild.roles.fetch(item.roleId);
@@ -209,5 +207,5 @@ module.exports = {
   handleBoostStatusCommand,
   handleShopCommand,
   handleShopButton,
-  SHOP_ITEMS // ส่งออกรายการสินค้าเพื่อให้ level.js ดึง ID ยศมาถอดออกได้
+  SHOP_ITEMS
 };
