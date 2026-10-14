@@ -38,7 +38,7 @@ const SHOP_ITEMS = [
     price: 150, 
     type: 'theme',
     imageUrl: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=800&auto=format&fit=crop&q=60',
-    description: 'ปลดล็อกพื้นหลังการ์ด /level เป็นธีมจักรวาลกาแล็กซีสุดอลังการ' 
+    description: 'ปลดล็อกพื้นหลังการ์ด `/level` เป็นธีมจักรวาลกาแล็กซีสุดอลังการ' 
   }
 ];
 
