@@ -222,6 +222,7 @@ client.on('interactionCreate', async interaction => {
       levelConfig: {
         enabled: true, minXp: 15, maxXp: 25, cmdXp: 20, xpMultiplier: 100, channelId: null,
         levelUpMessage: 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว!',
+        roleRewardMessage: '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!',
         cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD', cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**',
         embedColor: '#66FFFF', levelUpImageUrl: '', statsCardImageUrl: '',
         voiceXpEnabled: false, voiceXpAmount: 10, roleRewards: {}
@@ -236,7 +237,10 @@ client.on('interactionCreate', async interaction => {
   }
   if (!config.levels) config.levels = {};
   if (!config.levelConfig) {
-    config.levelConfig = { enabled: true, minXp: 15, maxXp: 25, cmdXp: 20, xpMultiplier: 100, channelId: null, levelUpMessage: 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว!', cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD', cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**', embedColor: '#66FFFF', levelUpImageUrl: '', statsCardImageUrl: '', voiceXpEnabled: false, voiceXpAmount: 10, roleRewards: {} };
+    config.levelConfig = { enabled: true, minXp: 15, maxXp: 25, cmdXp: 20, xpMultiplier: 100, channelId: null, levelUpMessage: 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว!', roleRewardMessage: '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!', cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD', cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**', embedColor: '#66FFFF', levelUpImageUrl: '', statsCardImageUrl: '', voiceXpEnabled: false, voiceXpAmount: 10, roleRewards: {} };
+  }
+  if (!config.levelConfig.roleRewardMessage) {
+    config.levelConfig.roleRewardMessage = '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!';
   }
   if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
 
@@ -349,6 +353,12 @@ client.on('interactionCreate', async interaction => {
       modal.addComponents(new ActionRowBuilder().addComponents(msgInput), new ActionRowBuilder().addComponents(imageInput));
       return await interaction.showModal(modal);
     }
+    if (id === 'edit_role_reward_msg') {
+      const modal = new ModalBuilder().setCustomId('roleRewardMsgModal').setTitle('ตั้งค่าข้อความประกาศแจกยศ');
+      const msgInput = new TextInputBuilder().setCustomId('roleRewardMsg').setLabel('ข้อความ ({user}, {role}, {level})').setStyle(TextInputStyle.Paragraph).setValue(config.levelConfig.roleRewardMessage || '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!').setRequired(true);
+      modal.addComponents(new ActionRowBuilder().addComponents(msgInput));
+      return await interaction.showModal(modal);
+    }
     if (id === 'set_role_reward') {
       const modal = new ModalBuilder().setCustomId('roleRewardModal').setTitle('ตั้งค่ายศรางวัลตามเลเวล');
       const levelInput = new TextInputBuilder().setCustomId('targetLevel').setLabel('ระบุเลเวล (เช่น 5)').setStyle(TextInputStyle.Short).setRequired(true);
@@ -442,7 +452,6 @@ client.on('interactionCreate', async interaction => {
 
       if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
 
-      // ป้องกันยศซ้ำซ้อน: ถ้ามีการเลือกยศนี้ซ้ำกับเลเวลอื่น ให้ลบออกจากเลเวลเก่าทันที
       for (const [lvl, data] of Object.entries(config.levelConfig.roleRewards)) {
         const rId = typeof data === 'object' ? data.roleId : data;
         if (rId === selectedRoleId) {
@@ -511,6 +520,11 @@ client.on('interactionCreate', async interaction => {
       config.levelConfig.levelUpImageUrl = interaction.fields.getTextInputValue('levelUpImg');
       await saveConfigs(serverConfigs);
       return await interaction.reply({ content: '✅ บันทึกเรียบร้อย!', ephemeral: true });
+    }
+    if (interaction.customId === 'roleRewardMsgModal') {
+      config.levelConfig.roleRewardMessage = interaction.fields.getTextInputValue('roleRewardMsg');
+      await saveConfigs(serverConfigs);
+      return await interaction.reply({ content: '✅ บันทึกข้อความประกาศแจกยศเรียบร้อยแล้ว!', ephemeral: true });
     }
     if (interaction.customId === 'roleRewardModal') {
       const targetLevel = interaction.fields.getTextInputValue('targetLevel');
