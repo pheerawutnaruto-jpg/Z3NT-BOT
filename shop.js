@@ -13,32 +13,32 @@ const SHOP_ITEMS = [
     name: '⚡ น้ำยาคูณ XP (1 ชั่วโมง + ยศ Booster)', 
     price: 100, 
     type: 'buff',
-    roleId: '1559992075095773184', 
+    roleId: '1559992075095773184', // ID ยศ XP Booster
     description: 'คูณ XP 2 เท่า พร้อมรับยศพิเศษ XP Booster นาน 1 ชั่วโมง!' 
   },
   { 
     id: 'role_cafe', 
-    name: '☕ สายคาเฟ่', 
+    name: '☕ ยศพิเศษ สายคาเฟ่', 
     price: 150, 
     type: 'role',
-    roleId: '1560002494204084395',
-    description: 'ยศตกแต่งโปรไฟล์สำหรับคนรักคาเฟ่และเสียงกาแฟ' 
+    roleId: '1560002494204084395', // ID ยศ ☕ สายคาเฟ่
+    description: 'ยศตกแต่งโปรไฟล์สายคาเฟ่สุดชิล แยกจากสายแรงค์เลเวลปกติ' 
   },
   { 
-    id: 'role_night_owl', 
-    name: '🌙 คนนอนดึก', 
+    id: 'role_night', 
+    name: '🌙 ยศพิเศษ คนนอนดึก', 
     price: 150, 
     type: 'role',
-    roleId: '1560002616266854420',
+    roleId: '1560002616266854420', // ID ยศ 🌙 คนนอนดึก
     description: 'ยศตกแต่งโปรไฟล์สำหรับสายโต้รุ่ง นอนดึกเป็นกิจวัตร' 
   },
   { 
     id: 'role_sleepy', 
-    name: '💤 สายขี้เซา', 
+    name: '💤 ยศพิเศษ สายขี้เซา', 
     price: 150, 
     type: 'role',
-    roleId: '1560002724563521666',
-    description: 'ยศตกแต่งโปรไฟล์สำหรับคนรักการนอน หลับได้ทุกที่ทุกเวลา' 
+    roleId: '1560002724563521666', // ID ยศ 💤 สายขี้เซา
+    description: 'ยศตกแต่งโปรไฟล์สำหรับคนรักการนอนเป็นชีวิตจิตใจ' 
   },
   { 
     id: 'card_galaxy', 
@@ -52,7 +52,7 @@ const SHOP_ITEMS = [
 
 const shopCommand = new SlashCommandBuilder()
   .setName('shop')
-  .setDescription('เปิดร้านค้าเซิร์ฟเวอร์ ใช้ Zen Coins ซื้อไอเทม กาชา บัฟ ยศ และธีมการ์ด');
+  .setDescription('เปิดร้านค้าเซิร์ฟเวอร์ ใช้ Zen Coins ซื้อไอเทม กาชา บัฟ ยศพิเศษ และธีมการ์ด');
 
 const boostStatusCommand = new SlashCommandBuilder()
   .setName('boost-status')
@@ -111,7 +111,7 @@ async function handleShopCommand(interaction, serverConfigs) {
     row.addComponents(
       new ButtonBuilder()
         .setCustomId(`buy_item_${item.id}`)
-        .setLabel(`ซื้อ ${item.name.split(' ')[1]} (${item.price}c)`)
+        .setLabel(`ซื้อ ${item.name.split(' ')[2] || item.name.split(' ')[1]} (${item.price}c)`)
         .setStyle(ButtonStyle.Primary)
     );
   });
