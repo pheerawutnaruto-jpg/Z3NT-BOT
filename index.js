@@ -509,4 +509,434 @@ client.on('interactionCreate', async interaction => {
     }
 
     if (id === 'sec_toggle_main') {
-      config.security.enabled = !config.security.enab
+      config.security.enabled = !config.security.enabled;
+    } else if (id === 'sec_toggle_link') {
+      config.security.antiLink = !config.security.antiLink;
+    } else if (id === 'sec_toggle_spam') {
+      config.security.antiSpam = !config.security.antiSpam;
+    } else if (id === 'sec_toggle_mrbeast') {
+      config.security.antiMrBeast = !config.security.antiMrBeast;
+    } else if (id === 'sec_config_time') {
+      const modal = new ModalBuilder().setCustomId('secTimeModal').setTitle('ตั้งค่าเวลาและเกณฑ์สแปม');
+      const countInput = new TextInputBuilder().setCustomId('spamCount').setLabel('จำนวนข้อความ (เช่น 3)').setStyle(TextInputStyle.Short).setValue(config.security.spamCount.toString()).setRequired(true);
+      const secInput = new TextInputBuilder().setCustomId('spamSec').setLabel('ภายในกี่วินาที (เช่น 6)').setStyle(TextInputStyle.Short).setValue(config.security.spamSeconds.toString()).setRequired(true);
+      const timeoutInput = new TextInputBuilder().setCustomId('timeoutSec').setLabel('ระงับผู้ใช้กี่วินาที (เช่น 3000)').setStyle(TextInputStyle.Short).setValue(config.security.timeoutSeconds.toString()).setRequired(true);
+
+      modal.addComponents(new ActionRowBuilder().addComponents(countInput), new ActionRowBuilder().addComponents(secInput), new ActionRowBuilder().addComponents(timeoutInput));
+      return await interaction.showModal(modal);
+    } else if (id === 'sec_reset') {
+      config.security = {
+        enabled: false,
+        antiLink: true,
+        antiSpam: true,
+        antiMrBeast: true,
+        spamCount: 3,
+        spamSeconds: 6,
+        timeoutSeconds: 3000,
+        actions: {
+          invite: { timeout: true, kick: true, ban: false },
+          spam: { timeout: true, kick: true, ban: false },
+          mrbeast: { timeout: true, kick: true, ban: false }
+        },
+        ignoredChannels: []
+      };
+    }
+
+    await saveConfigs(serverConfigs);
+
+    if (id === 'toggle_welcome') {
+      return await updateDashboard(interaction);
+    } else if (id === 'toggle_autorole') {
+      return await updateAutoroleDashboard(interaction);
+    } else if (id.startsWith('sec_')) {
+      return await interaction.update(getSecurityDashboardContent(config));
+    }
+
+    if (interaction.customId === 'test_welcome') {
+      if (!config.channelId) {
+        return await interaction.reply({ content: '❌ กรุณาเลือกช่อง (Channel) สำหรับส่งข้อความต้อนรับก่อนกดทดสอบครับ!', ephemeral: true });
+      }
+
+      await interaction.reply({ content: `🔄 กำลังส่งข้อความทดสอบไปที่ห้อง <#${config.channelId}>...`, ephemeral: true });
+
+      try {
+        const channel = await interaction.guild.channels.fetch(config.channelId);
+        if (channel) {
+          const embedConfig = config.embed;
+          const finalTitle = embedConfig.title ? embedConfig.title
+            .replace('{user}', interaction.user.username)
+            .replace('{server}', interaction.guild.name) : null;
+          const finalDesc = embedConfig.description
+            .replace('{user}', `${interaction.user}`)
+            .replace('{server}', interaction.guild.name);
+
+          let embedColor = '#66FFFF';
+          try {
+            embedColor = embedConfig.color;
+          } catch (e) {
+            embedColor = '#66FFFF';
+          }
+
+          const embed = new EmbedBuilder()
+            .setDescription(finalDesc)
+            .setColor(embedColor);
+
+          if (finalTitle) {
+            embed.setTitle(finalTitle);
+          }
+
+          if (embedConfig.image && embedConfig.image.trim() !== '') {
+            embed.setImage(embedConfig.image.trim());
+          }
+
+          if (embedConfig.footerText && embedConfig.footerText.trim() !== '') {
+            const memberCount = interaction.guild.memberCount.toString();
+            const finalFooterText = embedConfig.footerText.replace('{server_membercount}', memberCount);
+            
+            if (embedConfig.footerIcon && embedConfig.footerIcon.trim() !== '') {
+              embed.setFooter({ text: finalFooterText, iconURL: embedConfig.footerIcon.trim() });
+            } else {
+              embed.setFooter({ text: finalFooterText });
+            }
+          }
+
+          if (embedConfig.timestamp && embedConfig.timestamp.toLowerCase() === 'yes') {
+            embed.setTimestamp();
+          }
+          
+          await channel.send({ embeds: [embed] });
+        }
+      } catch (err) {
+        console.error('Test welcome send error:', err);
+      }
+      return;
+    }
+
+    if (interaction.customId === 'edit_embed') {
+      const modal = new ModalBuilder()
+        .setCustomId('editEmbedModal')
+        .setTitle('Editing: welcome embed');
+
+      const titleInput = new TextInputBuilder()
+        .setCustomId('embedTitle')
+        .setLabel('Title (เว้นว่างไว้ได้)')
+        .setStyle(TextInputStyle.Short)
+        .setValue(config.embed.title || '')
+        .setRequired(false);
+
+      const descInput = new TextInputBuilder()
+        .setCustomId('embedDesc')
+        .setLabel('Description')
+        .setStyle(TextInputStyle.Paragraph)
+        .setValue(config.embed.description || '')
+        .setRequired(true);
+
+      const colorInput = new TextInputBuilder()
+        .setCustomId('embedColor')
+        .setLabel('Hex Color (เช่น 66FFFF)')
+        .setStyle(TextInputStyle.Short)
+        .setValue(config.embed.color || '#66FFFF')
+        .setRequired(true);
+
+      const imageInput = new TextInputBuilder()
+        .setCustomId('embedImage')
+        .setLabel('Image URL (ลิงก์รูปภาพ หรือเว้นว่าง)')
+        .setStyle(TextInputStyle.Short)
+        .setValue(config.embed.image || '')
+        .setRequired(false);
+
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(titleInput),
+        new ActionRowBuilder().addComponents(descInput),
+        new ActionRowBuilder().addComponents(colorInput),
+        new ActionRowBuilder().addComponents(imageInput),
+      );
+
+      return await interaction.showModal(modal);
+    }
+
+    if (interaction.customId === 'edit_footer') {
+      const modal = new ModalBuilder()
+        .setCustomId('editFooterModal')
+        .setTitle('Editing: welcome footer');
+
+      const footerTextInput = new TextInputBuilder()
+        .setCustomId('embedFooterText')
+        .setLabel('Footer Text')
+        .setStyle(TextInputStyle.Short)
+        .setValue(config.embed.footerText || '')
+        .setRequired(false);
+
+      const footerIconInput = new TextInputBuilder()
+        .setCustomId('embedFooterIcon')
+        .setLabel('Footer Image (optional)')
+        .setStyle(TextInputStyle.Short)
+        .setValue(config.embed.footerIcon || '')
+        .setRequired(false);
+
+      const timestampInput = new TextInputBuilder()
+        .setCustomId('embedTimestamp')
+        .setLabel('Timestamp? (yes/no)')
+        .setStyle(TextInputStyle.Short)
+        .setValue(config.embed.timestamp || 'no')
+        .setRequired(false);
+
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(footerTextInput),
+        new ActionRowBuilder().addComponents(footerIconInput),
+        new ActionRowBuilder().addComponents(timestampInput),
+      );
+
+      return await interaction.showModal(modal);
+    }
+  }
+
+  if (interaction.isStringSelectMenu()) {
+    if (interaction.customId === 'act_invite_select') {
+      const vals = interaction.values;
+      config.security.actions.invite.timeout = vals.includes('timeout');
+      config.security.actions.invite.kick = vals.includes('kick');
+      config.security.actions.invite.ban = vals.includes('ban');
+      await saveConfigs(serverConfigs);
+      return await interaction.update(getSecurityDashboardContent(config));
+    }
+    if (interaction.customId === 'act_spam_select') {
+      const vals = interaction.values;
+      config.security.actions.spam.timeout = vals.includes('timeout');
+      config.security.actions.spam.kick = vals.includes('kick');
+      config.security.actions.spam.ban = vals.includes('ban');
+      await saveConfigs(serverConfigs);
+      return await interaction.update(getSecurityDashboardContent(config));
+    }
+  }
+
+  if (interaction.isChannelSelectMenu()) {
+    if (interaction.customId === 'select_channel') {
+      await interaction.deferUpdate();
+      config.channelId = interaction.values[0];
+      await saveConfigs(serverConfigs);
+      return await updateDashboardAfterDefer(interaction);
+    }
+    if (interaction.customId === 'select_level_channel') {
+      await interaction.deferUpdate();
+      config.levelConfig.channelId = interaction.values[0];
+      await saveConfigs(serverConfigs);
+      return await interaction.editReply(getLevelDashboardContent(config));
+    }
+    if (interaction.customId === 'sec_select_ignored') {
+      await interaction.deferUpdate();
+      config.security.ignoredChannels = interaction.values;
+      await saveConfigs(serverConfigs);
+      return await interaction.editReply(getSecurityDashboardContent(config));
+    }
+  }
+
+  if (interaction.isRoleSelectMenu()) {
+    if (interaction.customId === 'select_autorole') {
+      await interaction.deferUpdate();
+      config.autoroleId = interaction.values[0];
+      await saveConfigs(serverConfigs);
+      return await updateAutoroleDashboardAfterDefer(interaction);
+    }
+    if (interaction.customId.startsWith('select_reward_role_')) {
+      const levelNum = interaction.customId.replace('select_reward_role_', '');
+      const selectedRoleId = interaction.values[0];
+
+      if (!config.levelConfig.roleRewards) {
+        config.levelConfig.roleRewards = {};
+      }
+      config.levelConfig.roleRewards[levelNum] = selectedRoleId;
+      await saveConfigs(serverConfigs);
+
+      return await interaction.update({ content: `✅ ตั้งค่ายศรางวัลสำเร็จ! สมาชิกที่อัปถึง **Level ${levelNum}** จะได้รับยศ <@&${selectedRoleId}> อัตโนมัติ`, components: [] });
+    }
+  }
+
+  if (interaction.isModalSubmit()) {
+    if (interaction.customId === 'editEmbedModal') {
+      config.embed.title = interaction.fields.getTextInputValue('embedTitle');
+      config.embed.description = interaction.fields.getTextInputValue('embedDesc');
+      
+      let colorVal = interaction.fields.getTextInputValue('embedColor').trim();
+      if (!colorVal.startsWith('#')) colorVal = '#' + colorVal;
+      if (colorVal.length === 4) {
+        colorVal = '#' + colorVal[1] + colorVal[1] + colorVal[2] + colorVal[2] + colorVal[3] + colorVal[3];
+      }
+      config.embed.color = colorVal;
+      
+      config.embed.image = interaction.fields.getTextInputValue('embedImage');
+      await saveConfigs(serverConfigs);
+
+      return await interaction.reply({ content: '✅ บันทึกรูปแบบ Embed และรูปภาพเรียบร้อยแล้ว!', ephemeral: true });
+    }
+
+    if (interaction.customId === 'editFooterModal') {
+      config.embed.footerText = interaction.fields.getTextInputValue('embedFooterText');
+      config.embed.footerIcon = interaction.fields.getTextInputValue('embedFooterIcon');
+      config.embed.timestamp = interaction.fields.getTextInputValue('embedTimestamp');
+      
+      await saveConfigs(serverConfigs);
+
+      return await interaction.reply({ content: '✅ บันทึกรูปแบบ Footer เรียบร้อยแล้ว!', ephemeral: true });
+    }
+
+    if (interaction.customId === 'secTimeModal') {
+      const c = parseInt(interaction.fields.getTextInputValue('spamCount'));
+      const s = parseInt(interaction.fields.getTextInputValue('spamSec'));
+      const t = parseInt(interaction.fields.getTextInputValue('timeoutSec'));
+
+      if (!isNaN(c)) config.security.spamCount = c;
+      if (!isNaN(s)) config.security.spamSeconds = s;
+      if (!isNaN(t)) config.security.timeoutSeconds = t;
+      await saveConfigs(serverConfigs);
+
+      return await interaction.reply({ content: '✅ บันทึกค่าเวลาเรียบร้อยแล้ว!', ephemeral: true });
+    }
+
+    if (interaction.customId === 'voiceAmountModal') {
+      const amount = parseInt(interaction.fields.getTextInputValue('voiceXp'));
+      if (!isNaN(amount)) config.levelConfig.voiceXpAmount = amount;
+      await saveConfigs(serverConfigs);
+      return await interaction.reply({ content: '✅ บันทึกจำนวน XP ห้องเสียงเรียบร้อยแล้ว!', ephemeral: true });
+    }
+
+    if (interaction.customId === 'levelRateModal') {
+      const min = parseInt(interaction.fields.getTextInputValue('minXp'));
+      const max = parseInt(interaction.fields.getTextInputValue('maxXp'));
+      const cmd = parseInt(interaction.fields.getTextInputValue('cmdXp'));
+      const mult = parseInt(interaction.fields.getTextInputValue('multiplier'));
+
+      if (!isNaN(min)) config.levelConfig.minXp = min;
+      if (!isNaN(max)) config.levelConfig.maxXp = max;
+      if (!isNaN(cmd)) config.levelConfig.cmdXp = cmd;
+      if (!isNaN(mult)) config.levelConfig.xpMultiplier = mult;
+      await saveConfigs(serverConfigs);
+
+      return await interaction.reply({ content: '✅ บันทึกเรต XP เรียบร้อยแล้ว!', ephemeral: true });
+    }
+
+    if (interaction.customId === 'levelCardModal') {
+      config.levelConfig.cardTitle = interaction.fields.getTextInputValue('cardTitle');
+      config.levelConfig.cardDescription = interaction.fields.getTextInputValue('cardDesc');
+      let colorVal = interaction.fields.getTextInputValue('embedColor').trim();
+      if (!colorVal.startsWith('#')) colorVal = '#' + colorVal;
+      config.levelConfig.embedColor = colorVal;
+      config.levelConfig.statsCardImageUrl = interaction.fields.getTextInputValue('statsCardImg');
+      await saveConfigs(serverConfigs);
+
+      return await interaction.reply({ content: '✅ บันทึกการตกแต่งการ์ด Level และรูปภาพเรียบร้อยแล้ว!', ephemeral: true });
+    }
+
+    if (interaction.customId === 'levelMsgModal') {
+      config.levelConfig.levelUpMessage = interaction.fields.getTextInputValue('levelMsg');
+      config.levelConfig.levelUpImageUrl = interaction.fields.getTextInputValue('levelUpImg');
+      await saveConfigs(serverConfigs);
+
+      return await interaction.reply({ content: '✅ บันทึกข้อความและรูปตอนเลเวลอัปเรียบร้อยแล้ว!', ephemeral: true });
+    }
+
+    if (interaction.customId === 'roleRewardModal') {
+      const targetLevel = interaction.fields.getTextInputValue('targetLevel');
+      if (isNaN(targetLevel)) {
+        return await interaction.reply({ content: '❌ กรุณากรอกเป็นตัวเลขเลเวลที่ถูกต้องครับ!', ephemeral: true });
+      }
+
+      const roleSelectMenu = new RoleSelectMenuBuilder()
+        .setCustomId(`select_reward_role_${targetLevel}`)
+        .setPlaceholder(`👑 เลือกยศที่จะได้รับเมื่อถึง Level ${targetLevel}`);
+
+      const row = new ActionRowBuilder().addComponents(roleSelectMenu);
+      return await interaction.reply({ content: `📌 กรุณาเลือกยศที่ต้องการมอบให้กับสมาชิกที่ถึง **Level ${targetLevel}**:`, components: [row], ephemeral: true });
+    }
+  }
+});
+
+function getDashboardContent(config) {
+  const channelName = config.channelId ? `<#${config.channelId}>` : 'ยังไม่ได้เลือกช่อง';
+  const statusText = config.welcomeEnabled ? '✅ เปิดอยู่' : '❌ ปิดอยู่';
+
+  const embed = new EmbedBuilder()
+    .setTitle('⚙️ ตั้งค่าระบบ Welcome')
+    .setDescription('เลือกช่อง เปิด/ปิดระบบ และตั้งค่ารูป Embed ได้จากปุ่มด้านล่าง')
+    .setColor('#5865F2')
+    .addFields(
+      { name: '📥 Welcome Status', value: statusText, inline: true },
+      { name: '📢 ห้องต้อนรับ', value: channelName, inline: true }
+    );
+
+  const row1 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('toggle_welcome').setLabel(config.welcomeEnabled ? 'ปิด Welcome' : 'เปิด Welcome').setStyle(config.welcomeEnabled ? ButtonStyle.Danger : ButtonStyle.Success),
+    new ButtonBuilder().setCustomId('edit_embed').setLabel('ตั้งค่ารูป Embed').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('edit_footer').setLabel('ตั้งค่า Footer').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('test_welcome').setLabel('ทดสอบ Welcome').setStyle(ButtonStyle.Secondary)
+  );
+
+  const channelRow = new ActionRowBuilder().addComponents(
+    new ChannelSelectMenuBuilder().setCustomId('select_channel').setPlaceholder('📂 เลือกช่องสำหรับส่งข้อความต้อนรับ').addChannelTypes(ChannelType.GuildText)
+  );
+
+  return { embeds: [embed], components: [row1, channelRow] };
+}
+
+function getAutoroleDashboardContent(config) {
+  const roleName = config.autoroleId ? `<@&${config.autoroleId}>` : 'ยังไม่ได้เลือกยศ';
+  const statusText = config.autoroleEnabled ? '✅ เปิดอยู่' : '❌ ปิดอยู่';
+
+  const embed = new EmbedBuilder()
+    .setTitle('🛡️ ตั้งค่าระบบ Autorole (ยศอัตโนมัติ)')
+    .setDescription('เลือกยศที่ต้องการแจกให้สมาชิกใหม่เมื่อเข้าเซิร์ฟเวอร์')
+    .setColor('#5865F2')
+    .addFields(
+      { name: '📥 Autorole Status', value: statusText, inline: true },
+      { name: '👑 ยศที่จะได้รับ', value: roleName, inline: true }
+    );
+
+  const row1 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('toggle_autorole').setLabel(config.autoroleEnabled ? 'ปิด Autorole' : 'เปิด Autorole').setStyle(config.autoroleEnabled ? ButtonStyle.Danger : ButtonStyle.Success)
+  );
+
+  const roleRow = new ActionRowBuilder().addComponents(
+    new RoleSelectMenuBuilder().setCustomId('select_autorole').setPlaceholder('👑 เลือกยศสำหรับแจกสมาชิกใหม่')
+  );
+
+  return { embeds: [embed], components: [row1, roleRow] };
+}
+
+async function sendDashboard(interaction) {
+  const codeConfig = serverConfigs[interaction.guildId];
+  const content = getDashboardContent(codeConfig);
+  await interaction.reply({ ...content, ephemeral: true });
+}
+
+async function updateDashboard(interaction) {
+  const codeConfig = serverConfigs[interaction.guildId];
+  const content = getDashboardContent(codeConfig);
+  await interaction.update({ ...content });
+}
+
+async function updateDashboardAfterDefer(interaction) {
+  const codeConfig = serverConfigs[interaction.guildId];
+  const content = getDashboardContent(codeConfig);
+  await interaction.editReply({ ...content });
+}
+
+async function sendAutoroleDashboard(interaction) {
+  const codeConfig = serverConfigs[interaction.guildId];
+  const content = getAutoroleDashboardContent(codeConfig);
+  await interaction.reply({ ...content, ephemeral: true });
+}
+
+async function updateAutoroleDashboard(interaction) {
+  const codeConfig = serverConfigs[interaction.guildId];
+  const content = getAutoroleDashboardContent(codeConfig);
+  await interaction.update({ ...content });
+}
+
+async function updateAutoroleDashboardAfterDefer(interaction) {
+  const codeConfig = serverConfigs[interaction.guildId];
+  const content = getAutoroleDashboardContent(codeConfig);
+  await interaction.editReply({ ...content });
+}
+
+client.login(process.env.DISCORD_TOKEN);
+
