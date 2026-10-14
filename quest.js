@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
 
-// 🛠️ คำสั่งสำหรับแอดมินใช้ส่งแผงปุ่มเควสต์ประจำวันถาวรไปไว้ในห้องแชท
+// 🛠️ คำสั่งสำหรับแอดมินใช้ส่งแผงปุ่มเควสต์ถาวรไปไว้ในห้องแชท
 const setupQuestCommand = new SlashCommandBuilder()
   .setName('setup-quest')
   .setDescription('ส่งแผงปุ่มกดรับเควสต์ประจำวันถาวรไปยังห้องนี้ (สำหรับ Admin)');
@@ -11,20 +11,20 @@ async function handleSetupQuestCommand(interaction) {
   }
 
   const embed = new EmbedBuilder()
-    .setTitle('✨ 𝙕𝙀𝙉 𝘽𝙊𝙏 • DAILY QUEST')
-    .setDescription('> **รับ Discord Orbs ฟรีประจำวัน**\n> กดปุ่มด้านล่างเพื่อรับสิทธิ์ (รีเซ็ตทุกๆ 24 ชั่วโมง) สะสมแต้มไว้แลกรับรางวัลพิเศษภายในเซิร์ฟเวอร์')
-    .setColor('#D4AF37'); // โทนสีทองหรูหรา (Luxury Gold)
+    .setTitle('✦ ── • 𝙕𝙀𝙉 • DAILY QUEST • ── ✦')
+    .setDescription('✨ **รับ Discord Orbs ประจำวัน**\n\nกดปุ่มด้านล่างเพื่อรับรางวัลฟรีทุกๆ 24 ชั่วโมง สะสมแต้มไว้แลกรับสิทธิพิเศษและของรางวัลภายในเซิร์ฟเวอร์ครับ')
+    .setColor('#FFFFFF'); // ใช้โทนสีขาวสะอาดตา เรียบหรู
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('claim_daily_orb')
-      .setLabel('รับ Discord Orbs ประจำวัน')
-      .setStyle(ButtonStyle.Success)
+      .setLabel('✦ รับ Daily Orbs')
+      .setStyle(ButtonStyle.Secondary) // ใช้ปุ่มสีเทาเข้ม/สไตล์มินิมอล
   );
 
   // ส่งแผงปุ่มไปที่ห้องแชทที่พิมพ์คำสั่งนี้
   await interaction.channel.send({ embeds: [embed], components: [row] });
-  await interaction.reply({ content: '✅ ส่งแผงปุ่มเควสต์ประจำวันเรียบร้อยแล้ว!', ephemeral: true });
+  await interaction.reply({ content: '✅ ส่งแผงปุ่มเควสต์ประจำวันแบบเรียบหรูไปยังห้องนี้สำเร็จแล้ว!', ephemeral: true });
 }
 
 // 🎁 ระบบกดปุ่มรับรางวัล (เช็กคูลดาวน์ 24 ชั่วโมง และแจก Orbs)
