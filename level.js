@@ -24,7 +24,7 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
     userStat.xp -= requiredXp;
     userStat.level += 1;
 
-    const customMsg = (config.levelConfig.levelUpMessage || 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}**แล้ว!')
+    const customMsg = (config.levelConfig.levelUpMessage || 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว!')
       .replace('{user}', `<@${userId}>`)
       .replace('{level}', userStat.level);
 
@@ -50,7 +50,6 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
       }
     }
 
-    // 👑 1. ส่วนแจกยศรางวัล (Embed + สุ่มจากลิงก์ที่ใส่ในช่อง rewardImage คั่นด้วยคอมมา)
     if (guild) {
       try {
         const member = await guild.members.fetch(userId).catch(() => null);
@@ -81,7 +80,6 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
                   .setDescription(customRewardMsg)
                   .setColor(config.levelConfig.embedColor || '#66FFFF');
 
-                // 🎲 แปลงข้อความในช่อง URL เป็นอาเรย์แล้วสุ่มเลือก 1 รูป
                 if (rewardImgUrl && rewardImgUrl.trim() !== '') {
                   const urls = rewardImgUrl.split(/,|\n/).map(s => s.trim()).filter(Boolean);
                   if (urls.length > 0) {
@@ -100,7 +98,6 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
       }
     }
 
-    // 💬 2. ส่วนข้อความเลเวลอัปปกติ (ข้อความธรรมดา Plain Text ล้วนๆ)
     if (targetChannel) {
       targetChannel.send({ content: customMsg }).then(msg => {
         if (!config.levelConfig.channelId && !isVoice) {
@@ -264,6 +261,28 @@ async function handleLeaderboardCommand(interaction, serverConfigs) {
   await interaction.reply({ embeds: [embed], ephemeral: true });
 }
 
+// 🔄 คำสั่งรีเซ็ตเลเวลทั้งเซิร์ฟเวอร์
+const resetLevelsCommand = new SlashCommandBuilder()
+  .setName('reset-levels')
+  .setDescription('รีเซ็ตข้อมูลเลเวลและ XP ของสมาชิกทุกคนในเซิร์ฟเวอร์นี้ (เฉพาะ Admin)');
+
+async function handleResetLevelsCommand(interaction, serverConfigs, saveConfigs) {
+  if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+    return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้นที่จะใช้งานคำสั่งนี้ได้ครับ!', ephemeral: true });
+  }
+
+  const guildId = interaction.guildId;
+  if (!serverConfigs[guildId]) {
+    serverConfigs[guildId] = {};
+  }
+
+  // เคลียร์ข้อมูลเลเวลให้ว่างเปล่า
+  serverConfigs[guildId].levels = {};
+  await saveConfigs(serverConfigs);
+
+  await interaction.reply({ content: '🔄 รีเซ็ตข้อมูลเลเวลและ XP ของสมาชิกทุกคนในเซิร์ฟเวอร์นี้เรียบร้อยแล้ว!', ephemeral: true });
+}
+
 const setLevelCommand = new SlashCommandBuilder()
   .setName('set-level')
   .setDescription('เปิดแผงควบคุมตั้งค่าระบบเลเวลและห้องเสียง');
@@ -349,6 +368,8 @@ module.exports = {
   handleLevelCommand, 
   leaderboardCommand,
   handleLeaderboardCommand,
+  resetLevelsCommand,
+  handleResetLevelsCommand,
   setLevelCommand, 
   handleSetLevelCommand, 
   getLevelDashboardContent, 
