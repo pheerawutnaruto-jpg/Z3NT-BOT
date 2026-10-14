@@ -6,6 +6,7 @@ const SHOP_ITEMS = [
     name: '🎁 กล่องสุ่มกาชาปอง (Gacha Box)', 
     price: 30, 
     type: 'gacha',
+    buttonLabel: 'ซื้อ กล่องสุ่ม (30c)',
     description: 'เสี่ยงโชคสุ่มรับ Zen Coins ก้อนโตหรือเกลือ! (ลุ้นรับสูงสุด 150 Coins)' 
   },
   { 
@@ -14,6 +15,7 @@ const SHOP_ITEMS = [
     price: 100, 
     type: 'buff',
     roleId: '1559992075095773184', 
+    buttonLabel: 'ซื้อ น้ำยาคูณ (100c)',
     description: 'คูณ XP 2 เท่า พร้อมรับยศพิเศษ XP Booster นาน 1 ชั่วโมง!' 
   },
   { 
@@ -22,6 +24,7 @@ const SHOP_ITEMS = [
     price: 150, 
     type: 'role',
     roleId: '1560002494204084395',
+    buttonLabel: 'ซื้อ ยศสายชิลล์ (150c)',
     description: 'ยศตกแต่งโปรไฟล์สายชิลล์ แสดงความเป็นกันเองในเซิร์ฟเวอร์' 
   },
   { 
@@ -30,6 +33,7 @@ const SHOP_ITEMS = [
     price: 150, 
     type: 'role',
     roleId: '1560002616266854420',
+    buttonLabel: 'ซื้อ ยศคนนอนดึก (150c)',
     description: 'ยศตกแต่งโปรไฟล์สำหรับสายโต้รุ่ง เที่ยงคืนไม่นอน!' 
   },
   { 
@@ -38,7 +42,8 @@ const SHOP_ITEMS = [
     price: 150, 
     type: 'theme',
     imageUrl: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=800&auto=format&fit=crop&q=60',
-    description: 'ปลดล็อกพื้นหลังการ์ด `/level` เป็นธีมจักรวาลกาแล็กซีสุดอลังการ' 
+    buttonLabel: 'ซื้อ ธีมการ์ด (150c)',
+    description: 'ปลดล็อกพื้นหลังการ์ด /level เป็นธีมจักรวาลกาแล็กซีสุดอลังการ' 
   }
 ];
 
@@ -103,7 +108,7 @@ async function handleShopCommand(interaction, serverConfigs) {
     row.addComponents(
       new ButtonBuilder()
         .setCustomId(`buy_item_${item.id}`)
-        .setLabel(`ซื้อ ${item.name.split(' ')[1]} (${item.price}c)`)
+        .setLabel(item.buttonLabel)
         .setStyle(ButtonStyle.Primary)
     );
   });
