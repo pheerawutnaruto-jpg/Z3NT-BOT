@@ -114,7 +114,7 @@ function setupCronJob(guildId, timeStr, channelId) {
   const [hour, minute] = timeStr.split(':');
   if (!hour || !minute) return;
 
-  const cronExpression = `${minute}${hour} * * *`;
+  const cronExpression = `${minute} ${hour} * * *`;
 
   activeCronJobs[guildId] = cron.schedule(cronExpression, async () => {
     try {
@@ -309,7 +309,6 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isButton()) {
     const id = interaction.customId;
     
-    // รายการปุ่มที่เปิด Modal หรือส่งข้อความพิเศษ ห้าม Defer ก่อน
     const modalButtons = [
       'edit_voice_amount', 'edit_level_rate', 'edit_level_card', 
       'edit_level_messages', 'set_role_reward', 'delete_role_reward', 
@@ -411,7 +410,7 @@ client.on('interactionCreate', async interaction => {
         if (channel) {
           const embedConfig = config.embed;
           const finalTitle = embedConfig.title ? embedConfig.title.replace('{user}', interaction.user.username).replace('{server}', interaction.guild.name) : null;
-          const finalDesc = embedConfig.description.replace('{user}', `${interaction.user}`).replace('{server}`, interaction.guild.name);
+          const finalDesc = embedConfig.description.replace('{user}', `${interaction.user}`).replace('{server}', interaction.guild.name);
           const embed = new EmbedBuilder().setDescription(finalDesc).setColor(embedConfig.color || '#66FFFF');
           if (finalTitle) embed.setTitle(finalTitle);
           if (embedConfig.image?.trim()) embed.setImage(embedConfig.image.trim());
@@ -533,26 +532,26 @@ client.on('interactionCreate', async interaction => {
       config.embed.color = colorVal;
       config.embed.image = interaction.fields.getTextInputValue('embedImage');
       await saveConfigs(serverConfigs);
-      return await interaction.update({ content: '✅ บันทึกรูปแบบ Embed เรียบร้อยแล้ว!', ...getDashboardContent(config) });
+      return await interaction.reply({ content: '✅ บันทึกรูปแบบ Embed เรียบร้อยแล้ว!', ephemeral: true });
     }
     if (interaction.customId === 'editFooterModal') {
       config.embed.footerText = interaction.fields.getTextInputValue('embedFooterText');
       config.embed.footerIcon = interaction.fields.getTextInputValue('embedFooterIcon');
       config.embed.timestamp = interaction.fields.getTextInputValue('embedTimestamp');
       await saveConfigs(serverConfigs);
-      return await interaction.update({ content: '✅ บันทึกรูปแบบ Footer เรียบร้อยแล้ว!', ...getDashboardContent(config) });
+      return await interaction.reply({ content: '✅ บันทึกรูปแบบ Footer เรียบร้อยแล้ว!', ephemeral: true });
     }
     if (interaction.customId === 'secTimeModal') {
       config.security.spamCount = parseInt(interaction.fields.getTextInputValue('spamCount')) || 3;
       config.security.spamSeconds = parseInt(interaction.fields.getTextInputValue('spamSec')) || 6;
       config.security.timeoutSeconds = parseInt(interaction.fields.getTextInputValue('timeoutSec')) || 3000;
       await saveConfigs(serverConfigs);
-      return await interaction.update({ content: '✅ บันทึกค่าเวลาความปลอดภัยเรียบร้อยแล้ว!', ...getSecurityDashboardContent(config) });
+      return await interaction.reply({ content: '✅ บันทึกค่าเวลาความปลอดภัยเรียบร้อยแล้ว!', ephemeral: true });
     }
     if (interaction.customId === 'voiceAmountModal') {
       config.levelConfig.voiceXpAmount = parseInt(interaction.fields.getTextInputValue('voiceXp')) || 10;
       await saveConfigs(serverConfigs);
-      return await interaction.update({ content: '✅ บันทึกจำนวน XP ห้องเสียงเรียบร้อยแล้ว!', ...getLevelDashboardContent(config) });
+      return await interaction.reply({ content: '✅ บันทึกจำนวน XP ห้องเสียงเรียบร้อยแล้ว!', ephemeral: true });
     }
     if (interaction.customId === 'levelRateModal') {
       config.levelConfig.minXp = parseInt(interaction.fields.getTextInputValue('minXp')) || 15;
@@ -560,7 +559,7 @@ client.on('interactionCreate', async interaction => {
       config.levelConfig.cmdXp = parseInt(interaction.fields.getTextInputValue('cmdXp')) || 20;
       config.levelConfig.xpMultiplier = parseInt(interaction.fields.getTextInputValue('multiplier')) || 100;
       await saveConfigs(serverConfigs);
-      return await interaction.update({ content: '✅ บันทึกเรต XP เรียบร้อยแล้ว!', ...getLevelDashboardContent(config) });
+      return await interaction.reply({ content: '✅ บันทึกเรต XP เรียบร้อยแล้ว!', ephemeral: true });
     }
     if (interaction.customId === 'levelCardModal') {
       config.levelConfig.cardTitle = interaction.fields.getTextInputValue('cardTitle');
@@ -570,13 +569,13 @@ client.on('interactionCreate', async interaction => {
       config.levelConfig.embedColor = colorVal;
       config.levelConfig.statsCardImageUrl = interaction.fields.getTextInputValue('statsCardImg');
       await saveConfigs(serverConfigs);
-      return await interaction.update({ content: '✅ บันทึกการ์ด Level เรียบร้อยแล้ว!', ...getLevelDashboardContent(config) });
+      return await interaction.reply({ content: '✅ บันทึกการ์ด Level เรียบร้อยแล้ว!', ephemeral: true });
     }
     if (interaction.customId === 'levelMessagesModal') {
       config.levelConfig.levelUpMessage = interaction.fields.getTextInputValue('levelMsg');
       config.levelConfig.roleRewardMessage = interaction.fields.getTextInputValue('roleRewardMsg');
       await saveConfigs(serverConfigs);
-      return await interaction.update({ content: '✅ บันทึกข้อความเรียบร้อยแล้ว!', ...getLevelDashboardContent(config) });
+      return await interaction.reply({ content: '✅ บันทึกข้อความเรียบร้อยแล้ว!', ephemeral: true });
     }
     if (interaction.customId === 'roleRewardModal') {
       const targetLevel = interaction.fields.getTextInputValue('targetLevel');
@@ -585,7 +584,7 @@ client.on('interactionCreate', async interaction => {
       pendingRoleRewardImages.set(`${interaction.user.id}_${targetLevel}`, rewardImage);
       const roleSelectMenu = new RoleSelectMenuBuilder().setCustomId(`select_reward_role_${targetLevel}`).setPlaceholder(`👑 เลือกยศ Level ${targetLevel}`);
       const row = new ActionRowBuilder().addComponents(roleSelectMenu);
-      return await interaction.update({ content: `📌 กรุณาเลือกยศสำหรับ Level ${targetLevel}:`, embeds: [], components: [row] });
+      return await interaction.reply({ content: `📌 กรุณาเลือกยศสำหรับ Level ${targetLevel}:`, components: [row], ephemeral: true });
     }
     if (interaction.customId === 'deleteRoleRewardModal') {
       const targetLevel = interaction.fields.getTextInputValue('targetLevel').trim();
@@ -594,10 +593,7 @@ client.on('interactionCreate', async interaction => {
       }
       delete config.levelConfig.roleRewards[targetLevel];
       await saveConfigs(serverConfigs);
-      return await interaction.update({
-        content: `✅ ลบยศรางวัลของ **Level ${targetLevel}** เรียบร้อยแล้ว!`,
-        ...getLevelDashboardContent(config)
-      });
+      return await interaction.reply({ content: `✅ ลบยศรางวัลของ **Level ${targetLevel}** เรียบร้อยแล้ว!`, ephemeral: true });
     }
   }
 });
@@ -624,7 +620,7 @@ function getAutoroleDashboardContent(config) {
     .addFields({ name: '📥 Status', value: statusText, inline: true }, { name: '👑 ยศที่จะได้รับ', value: roleName, inline: true });
   const row1 = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('toggle_autorole').setLabel(config.autoroleEnabled ? 'ปิด' : 'เปิด').setStyle(config.autoroleEnabled ? ButtonStyle.Danger : ButtonStyle.Success));
   const roleRow = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('select_autorole').setPlaceholder('👑 เลือกยศแจกใหม่'));
-  return { embeds: [embed], components: [roleRow] };
+  return { embeds: [embed], components: [row1, roleRow] };
 }
 
 async function sendDashboard(interaction) {
