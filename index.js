@@ -19,6 +19,7 @@ const {
   pendingRoleRewardImages 
 } = require('./level');
 const { setupQuestCommand, handleSetupQuestCommand, handleQuestButton } = require('./quest');
+const { shopCommand, handleShopCommand, handleShopButton } = require('./shop');
 
 // เชื่อมต่อ Upstash Redis จาก Environment Variables
 const redis = new Redis({
@@ -82,6 +83,7 @@ client.once('ready', async () => {
     leaderboardCommand,
     resetLevelsCommand,
     setupQuestCommand,
+    shopCommand,
     setLevelCommand,
     new SlashCommandBuilder().setName('clear').setDescription('ลบข้อความในแชทจำนวน 1-100 ข้อความ')
       .addIntegerOption(option => option.setName('amount').setDescription('จำนวนข้อความที่ต้องการลบ (1-100)').setRequired(true)),
@@ -268,6 +270,9 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isChatInputCommand() && interaction.commandName === 'setup-quest') {
     return await handleSetupQuestCommand(interaction);
   }
+  if (interaction.isChatInputCommand() && interaction.commandName === 'shop') {
+    return await handleShopCommand(interaction, serverConfigs);
+  }
   if (interaction.isChatInputCommand() && interaction.commandName === 'set-level') {
     return await handleSetLevelCommand(interaction, serverConfigs);
   }
@@ -314,9 +319,13 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isButton()) {
     const id = interaction.customId;
 
-    // 🎁 เช็กปุ่มกดรับเควสต์ประจำวันจาก quest.js ก่อน
+    // 🎁 เช็กปุ่มเควสต์จาก quest.js
     const handledQuest = await handleQuestButton(interaction, serverConfigs, saveConfigs);
     if (handledQuest) return;
+
+    // 🛒 เช็กปุ่มร้านค้าจาก shop.js
+    const handledShop = await handleShopButton(interaction, serverConfigs, saveConfigs);
+    if (handledShop) return;
     
     const modalButtons = [
       'edit_voice_amount', 'edit_level_rate', 'edit_level_card', 
