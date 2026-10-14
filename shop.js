@@ -13,32 +13,24 @@ const SHOP_ITEMS = [
     name: '⚡ น้ำยาคูณ XP (1 ชั่วโมง + ยศ Booster)', 
     price: 100, 
     type: 'buff',
-    roleId: '1559992075095773184', // ID ยศ XP Booster
+    roleId: '1559992075095773184', 
     description: 'คูณ XP 2 เท่า พร้อมรับยศพิเศษ XP Booster นาน 1 ชั่วโมง!' 
   },
   { 
-    id: 'role_cafe', 
-    name: '☕ ยศพิเศษ สายคาเฟ่', 
+    id: 'role_chilling', 
+    name: '☕ ยศพิเศษ สายชิลล์', 
     price: 150, 
     type: 'role',
-    roleId: '1560002494204084395', // ID ยศ ☕ สายคาเฟ่
-    description: 'ยศตกแต่งโปรไฟล์สายคาเฟ่สุดชิล แยกจากสายแรงค์เลเวลปกติ' 
+    roleId: '1560002494204084395',
+    description: 'ยศตกแต่งโปรไฟล์สายชิลล์ แสดงความเป็นกันเองในเซิร์ฟเวอร์' 
   },
   { 
-    id: 'role_night', 
+    id: 'role_nightowl', 
     name: '🌙 ยศพิเศษ คนนอนดึก', 
     price: 150, 
     type: 'role',
-    roleId: '1560002616266854420', // ID ยศ 🌙 คนนอนดึก
-    description: 'ยศตกแต่งโปรไฟล์สำหรับสายโต้รุ่ง นอนดึกเป็นกิจวัตร' 
-  },
-  { 
-    id: 'role_sleepy', 
-    name: '💤 ยศพิเศษ สายขี้เซา', 
-    price: 150, 
-    type: 'role',
-    roleId: '1560002724563521666', // ID ยศ 💤 สายขี้เซา
-    description: 'ยศตกแต่งโปรไฟล์สำหรับคนรักการนอนเป็นชีวิตจิตใจ' 
+    roleId: '1560002616266854420',
+    description: 'ยศตกแต่งโปรไฟล์สำหรับสายโต้รุ่ง เที่ยงคืนไม่นอน!' 
   },
   { 
     id: 'card_galaxy', 
@@ -52,7 +44,7 @@ const SHOP_ITEMS = [
 
 const shopCommand = new SlashCommandBuilder()
   .setName('shop')
-  .setDescription('เปิดร้านค้าเซิร์ฟเวอร์ ใช้ Zen Coins ซื้อไอเทม กาชา บัฟ ยศพิเศษ และธีมการ์ด');
+  .setDescription('เปิดร้านค้าเซิร์ฟเวอร์ ใช้ Zen Coins ซื้อไอเทม กาชา บัฟ และธีมการ์ด');
 
 const boostStatusCommand = new SlashCommandBuilder()
   .setName('boost-status')
@@ -106,30 +98,17 @@ async function handleShopCommand(interaction, serverConfigs) {
     });
   });
 
-  // 🛠️ ระบบจัดกลุ่มปุ่มอัตโนมัติ (แถวละไม่เกิน 5 ปุ่ม ป้องกัน Discord Error)
-  const rows = [];
-  let currentRow = new ActionRowBuilder();
-
-  SHOP_ITEMS.forEach((item, index) => {
-    if (index > 0 && index % 5 === 0) {
-      rows.push(currentRow);
-      currentRow = new ActionRowBuilder();
-    }
-    
-    // ตั้งชื่อปุ่มให้สั้นและกระชับ
-    let labelName = item.name.split(' ')[1] || item.name;
-    if (labelName.length > 15) labelName = labelName.substring(0, 12) + '..';
-
-    currentRow.addComponents(
+  const row = new ActionRowBuilder();
+  SHOP_ITEMS.forEach(item => {
+    row.addComponents(
       new ButtonBuilder()
         .setCustomId(`buy_item_${item.id}`)
-        .setLabel(`ซื้อ ${labelName} (${item.price}c)`)
+        .setLabel(`ซื้อ ${item.name.split(' ')[1]} (${item.price}c)`)
         .setStyle(ButtonStyle.Primary)
     );
   });
-  rows.push(currentRow);
 
-  await interaction.reply({ embeds: [embed], components: rows, ephemeral: true });
+  await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
 }
 
 async function handleShopButton(interaction, serverConfigs, saveConfigs) {
