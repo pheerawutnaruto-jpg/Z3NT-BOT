@@ -225,7 +225,7 @@ client.on('interactionCreate', async interaction => {
         roleRewardMessage: '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!',
         cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD', cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**',
         embedColor: '#66FFFF', statsCardImageUrl: '',
-        voiceXpEnabled: false, voiceXpAmount: 10, roleRewards: {}
+        voiceXpEnabled: false, voiceXpAmount: 10, customImages: [], roleRewards: {}
       },
       embed: { title: '', description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!', color: '#66FFFF', image: '', footerText: '', footerIcon: '', timestamp: 'no' },
       autoClear: { enabled: false, time: '06:00', channelId: null }
@@ -237,11 +237,12 @@ client.on('interactionCreate', async interaction => {
   }
   if (!config.levels) config.levels = {};
   if (!config.levelConfig) {
-    config.levelConfig = { enabled: true, minXp: 15, maxXp: 25, cmdXp: 20, xpMultiplier: 100, channelId: null, levelUpMessage: 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว!', roleRewardMessage: '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!', cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD', cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**', embedColor: '#66FFFF', statsCardImageUrl: '', voiceXpEnabled: false, voiceXpAmount: 10, roleRewards: {} };
+    config.levelConfig = { enabled: true, minXp: 15, maxXp: 25, cmdXp: 20, xpMultiplier: 100, channelId: null, levelUpMessage: 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว!', roleRewardMessage: '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!', cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD', cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**', embedColor: '#66FFFF', statsCardImageUrl: '', voiceXpEnabled: false, voiceXpAmount: 10, customImages: [], roleRewards: {} };
   }
   if (!config.levelConfig.roleRewardMessage) {
     config.levelConfig.roleRewardMessage = '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!';
   }
+  if (!config.levelConfig.customImages) config.levelConfig.customImages = [];
   if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
 
   if (interaction.isChatInputCommand()) {
@@ -346,12 +347,24 @@ client.on('interactionCreate', async interaction => {
       modal.addComponents(new ActionRowBuilder().addComponents(titleInput), new ActionRowBuilder().addComponents(descInput), new ActionRowBuilder().addComponents(colorInput), new ActionRowBuilder().addComponents(imageInput));
       return await interaction.showModal(modal);
     }
-    // ✉️ Modal รวมช่องข้อความเลเวลอัป และ ข้อความแจกยศ ไว้ในหน้าต่างเดียว
     if (id === 'edit_level_messages') {
       const modal = new ModalBuilder().setCustomId('levelMessagesModal').setTitle('ตั้งค่าข้อความเลเวลอัปและแจกยศ');
       const msgInput = new TextInputBuilder().setCustomId('levelMsg').setLabel('ข้อความเลเวลอัป ({user}, {level})').setStyle(TextInputStyle.Paragraph).setValue(config.levelConfig.levelUpMessage || '').setRequired(true);
       const rewardMsgInput = new TextInputBuilder().setCustomId('roleRewardMsg').setLabel('ข้อความแจกยศ ({user}, {role}, {level})').setStyle(TextInputStyle.Paragraph).setValue(config.levelConfig.roleRewardMessage || '').setRequired(true);
       modal.addComponents(new ActionRowBuilder().addComponents(msgInput), new ActionRowBuilder().addComponents(rewardMsgInput));
+      return await interaction.showModal(modal);
+    }
+    // 🖼️ Modal ตั้งค่าคลังรูปสุ่ม Custom Images
+    if (id === 'edit_custom_images') {
+      const modal = new ModalBuilder().setCustomId('customImagesModal').setTitle('ตั้งค่าคลังรูปสุ่ม Custom Images');
+      const currentImgs = Array.isArray(config.levelConfig.customImages) ? config.levelConfig.customImages.join(', ') : '';
+      const imgsInput = new TextInputBuilder()
+        .setCustomId('customImgsInput')
+        .setLabel('ลิงก์รูปภาพ (คั่นด้วยคอมมา , หรือขึ้นบรรทัดใหม่)')
+        .setStyle(TextInputStyle.Paragraph)
+        .setValue(currentImgs)
+        .setRequired(false);
+      modal.addComponents(new ActionRowBuilder().addComponents(imgsInput));
       return await interaction.showModal(modal);
     }
     if (id === 'set_role_reward') {
@@ -510,12 +523,19 @@ client.on('interactionCreate', async interaction => {
       await saveConfigs(serverConfigs);
       return await interaction.reply({ content: '✅ บันทึกเรียบร้อย!', ephemeral: true });
     }
-    // ✉️ บันทึกข้อความเลเวลอัปและข้อความแจกยศพร้อมกัน
     if (interaction.customId === 'levelMessagesModal') {
       config.levelConfig.levelUpMessage = interaction.fields.getTextInputValue('levelMsg');
       config.levelConfig.roleRewardMessage = interaction.fields.getTextInputValue('roleRewardMsg');
       await saveConfigs(serverConfigs);
       return await interaction.reply({ content: '✅ บันทึกข้อความเลเวลอัปและข้อความแจกยศเรียบร้อยแล้ว!', ephemeral: true });
+    }
+    // 🖼️ บันทึกคลังรูปสุ่ม Custom Images จาก Modal
+    if (interaction.customId === 'customImagesModal') {
+      const rawInput = interaction.fields.getTextInputValue('customImgsInput');
+      const urls = rawInput.split(/,|\n/).map(s => s.trim()).filter(s => s.length > 0);
+      config.levelConfig.customImages = urls;
+      await saveConfigs(serverConfigs);
+      return await interaction.reply({ content: `✅ บันทึกคลังรูปสุ่ม Custom สำเร็จ! (เพิ่มทั้งหมด ${urls.length} รูป)`, ephemeral: true });
     }
     if (interaction.customId === 'roleRewardModal') {
       const targetLevel = interaction.fields.getTextInputValue('targetLevel');
