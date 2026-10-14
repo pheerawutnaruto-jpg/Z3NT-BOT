@@ -16,7 +16,6 @@ const SHOP_ITEMS = [
     roleId: '1559992075095773184', 
     description: 'คูณ XP 2 เท่า พร้อมรับยศพิเศษ XP Booster นาน 1 ชั่วโมง!' 
   },
-  // ☕🌙💤 3 ยศพิเศษถูกจัดรวมกลุ่มไว้ในเมนูดรอปดาวน์
   { 
     id: 'role_cafe', 
     name: '☕ ยศพิเศษ สายคาเฟ่', 
@@ -96,7 +95,7 @@ async function handleShopCommand(interaction, serverConfigs) {
 
   const embed = new EmbedBuilder()
     .setTitle('🛒 𝙕𝙀𝙉 𝘽𝙊𝙏 • SERVER SHOP')
-    .setDescription(`ยินดีต้อนรับสู่ร้านค้าเซิร์ฟเวอร์!\n💰 Zen Coins ของคุณ: **${userCoins} Coins**\n\nเลือกกดปุ่มหรือเลือกเมวด้านล่างเพื่อซื้อสินค้า:`)
+    .setDescription(`ยินดีต้อนรับสู่ร้านค้าเซิร์ฟเวอร์!\n💰 Zen Coins ของคุณ: **${userCoins} Coins**\n\nเลือกกดปุ่มหรือเลือกเมนูด้านล่างเพื่อซื้อสินค้า:`)
     .setColor('#FFD700');
 
   SHOP_ITEMS.forEach(item => {
@@ -109,7 +108,7 @@ async function handleShopCommand(interaction, serverConfigs) {
 
   const rows = [];
   
-  // แถวที่ 1: ปุ่มสินค้าทั่วไป (กาชา, บัฟ, ธีมการ์ด)
+  // ปุ่มสินค้าทั่วไป (กาชา, บัฟ, ธีมการ์ด)
   const generalRow = new ActionRowBuilder();
   SHOP_ITEMS.filter(item => item.type !== 'role').forEach(item => {
     let labelName = item.name.split(' ')[1] || item.name;
@@ -124,7 +123,7 @@ async function handleShopCommand(interaction, serverConfigs) {
   });
   if (generalRow.components.length > 0) rows.push(generalRow);
 
-  // แถวที่ 2: เมนูดรอปดาวน์สำหรับเลือกซื้อ 3 ยศพิเศษรวมกัน
+  // เมนูดรอปดาวน์รวม 3 ยศพิเศษ
   const roleSelectMenu = new StringSelectMenuBuilder()
     .setCustomId('buy_special_roles')
     .setPlaceholder('☕ 🌙 💤 เลือกซื้อยศพิเศษแต่งโปรไฟล์ (150c)')
@@ -141,7 +140,6 @@ async function handleShopCommand(interaction, serverConfigs) {
   await interaction.reply({ embeds: [embed], components: rows, ephemeral: true });
 }
 
-// 🛒 ฟังก์ชันกลางสำหรับตัดเงินและมอบสินค้า
 async function processPurchase(interaction, serverConfigs, saveConfigs, itemId) {
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
@@ -232,15 +230,15 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
     await processPurchase(interaction, serverConfigs, saveConfigs, itemId);
     return true;
   }
+  return false;
+}
 
-  // รองรับการกดซื้อผ่านเมนูดรอปดาวน์เลือกยศพิเศษ
+async function handleShopSelectMenu(interaction, serverConfigs, saveConfigs) {
   if (interaction.isStringSelectMenu() && interaction.customId === 'buy_special_roles') {
-    await interaction.deferUpdate().catch(() => {});
     const selectedItemId = interaction.values[0];
     await processPurchase(interaction, serverConfigs, saveConfigs, selectedItemId);
     return true;
   }
-
   return false;
 }
 
@@ -250,5 +248,6 @@ module.exports = {
   handleBoostStatusCommand,
   handleShopCommand,
   handleShopButton,
+  handleShopSelectMenu,
   SHOP_ITEMS
 };
