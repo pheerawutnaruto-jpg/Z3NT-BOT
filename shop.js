@@ -1,34 +1,43 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
 
-// 🎨 รายการสินค้าในร้านค้า (เพิ่มยศสีพิเศษ หรือไอเทมอื่นๆ ตรงนี้ได้เลย)
+// 🛒 รายการสินค้าทั้งหมดใน Zen Shop (4 หมวดหมู่หลัก)
 const SHOP_ITEMS = [
   { 
-    id: 'role_pink', 
-    name: '🎨 ยศสีชมพูพาสเทล', 
-    price: 80, 
-    roleId: 'ใส่_ID_ยศ_สีชมพู_ตรงนี้', 
-    description: 'ยศสีชมพูสุดน่ารัก แต่งชื่อให้โดดเด่นไม่ซ้ำใคร!' 
+    id: 'gacha_box', 
+    name: '🎁 กล่องสุ่มกาชาปอง (Gacha Box)', 
+    price: 30, 
+    type: 'gacha',
+    description: 'เสี่ยงโชคสุ่มรับ Zen Coins ก้อนโตหรือเกลือ! (ลุ้นรับสูงสุด 150 Coins)' 
   },
   { 
-    id: 'role_blue', 
-    name: '🎨 ยศสีฟ้ามหาสมุทร', 
-    price: 80, 
-    roleId: 'ใส่_ID_ยศ_สีฟ้า_ตรงนี้', 
-    description: 'ยศสีฟ้าเท่ๆ สไตล์ดาร์กมืด เย็นตา' 
+    id: 'xp_boost', 
+    name: '⚡ น้ำยาคูณ XP (1 ชั่วโมง)', 
+    price: 100, 
+    type: 'buff',
+    description: 'เพิ่มเรตการได้รับ XP จากการพิมพ์แชทคูณ 2 เป็นเวลา 1 ชั่วโมงเต็ม!' 
   },
   { 
-    id: 'role_vip', 
-    name: '🌟 VIP Member', 
+    id: 'role_cafe', 
+    name: '☕ ยศพิเศษ Cafe Chill', 
+    price: 200, 
+    type: 'role',
+    roleId: 'ใส่_ID_ยศ_Cafe_Chill_ตรงนี้',
+    description: 'ยศตกแต่งโปรไฟล์สุดชิล แยกจากสายแรงค์เลเวลปกติ' 
+  },
+  { 
+    id: 'card_galaxy', 
+    name: '🌌 ธีมการ์ดกาแล็กซีพรีเมียม', 
     price: 150, 
-    roleId: 'ใส่_ID_ยศ_VIP_ตรงนี้', 
-    description: 'ยศพิเศษขั้นสูง แสดงสถานะคนสำคัญของเซิร์ฟเวอร์' 
+    type: 'theme',
+    imageUrl: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=800&auto=format&fit=crop&q=60',
+    description: 'ปลดล็อกพื้นหลังการ์ด /level เป็นธีมจักรวาลกาแล็กซีสุดอลังการ' 
   }
 ];
 
 // 🛍️ คำสั่งเปิดร้านค้า
 const shopCommand = new SlashCommandBuilder()
   .setName('shop')
-  .setDescription('เปิดร้านค้าเซิร์ฟเวอร์ ใช้ Zen Coins ซื้อยศสีพิเศษและไอเทม');
+  .setDescription('เปิดร้านค้าเซิร์ฟเวอร์ ใช้ Zen Coins ซื้อไอเทม กาชา บัฟ และธีมการ์ด');
 
 async function handleShopCommand(interaction, serverConfigs) {
   const guildId = interaction.guildId;
@@ -37,7 +46,7 @@ async function handleShopCommand(interaction, serverConfigs) {
   if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
   if (!serverConfigs[guildId].levels) serverConfigs[guildId].levels = {};
   if (!serverConfigs[guildId].levels[userId]) {
-    serverConfigs[guildId].levels[userId] = { xp: 0, level: 1, orbs: 0, lastDaily: 0 };
+    serverConfigs[guildId].levels[userId] = { xp: 0, level: 1, orbs: 0, lastDaily: 0, boostUntil: 0, customTheme: '' };
   }
 
   const userCoins = serverConfigs[guildId].levels[userId].orbs || 0;
@@ -60,7 +69,7 @@ async function handleShopCommand(interaction, serverConfigs) {
     row.addComponents(
       new ButtonBuilder()
         .setCustomId(`buy_item_${item.id}`)
-        .setLabel(`ซื้อ ${item.name} (${item.price}c)`)
+        .setLabel(`ซื้อ ${item.name.split(' ')[1]} (${item.price}c)`)
         .setStyle(ButtonStyle.Primary)
     );
   });
@@ -68,7 +77,7 @@ async function handleShopCommand(interaction, serverConfigs) {
   await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
 }
 
-// 🛒 ระบบกดปุ่มซื้อสินค้าและมอบยศอัตโนมัติ
+// 🛒 ระบบกดปุ่มซื้อสินค้าและแยกประเภทการทำงาน
 async function handleShopButton(interaction, serverConfigs, saveConfigs) {
   if (!interaction.customId.startsWith('buy_item_')) return false;
 
@@ -95,23 +104,67 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
     return true;
   }
 
-  // หักเหรียญ
+  // หักเงินค่าสินค้าก่อน
   userStat.orbs -= item.price;
-  await saveConfigs(serverConfigs);
 
-  // มอบยศให้ผู้ใช้
-  try {
-    const member = await interaction.guild.members.fetch(userId);
-    const role = await interaction.guild.roles.fetch(item.roleId);
-    if (role) {
-      await member.roles.add(role);
-      await interaction.reply({ content: `🎉 ซื้อสำเร็จ! คุณได้รับ **${item.name}** เรียบร้อยแล้ว (ยอดคงเหลือ: ${userStat.orbs} Zen Coins)`, ephemeral: true });
-    } else {
-      await interaction.reply({ content: `⚠️ ซื้อสำเร็จและหักเหรียญแล้ว แต่ยังไม่ได้ตั้งค่า ID ยศนี้ในระบบ กรุณาแจ้ง Admin ครับ!`, ephemeral: true });
+  // 🎁 แยกประเภทการทำงานของสินค้าแต่ละชนิด
+  if (item.type === 'gacha') {
+    // สุ่มกาชา (มีโอกาสได้เหรียญคืน 10-150 หรือเกลือ)
+    const outcomes = [
+      { reward: 0, text: 'เกลือ! รอบนี้ไม่ได้อะไรเลย เสียใจด้วยนะ 😢' },
+      { reward: 20, text: 'ได้ทุนคืน! รับไป 20 Zen Coins 🪙' },
+      { reward: 80, text: 'โชคดี! ได้กำไรรับไป 80 Zen Coins 🎉' },
+      { reward: 150, text: 'แจ็คพอตแตก! สุดยอดดด รับไปเลย 150 Zen Coins 🏆' }
+    ];
+    const roll = outcomes[Math.floor(Math.random() * outcomes.length)];
+    userStat.orbs += roll.reward;
+    await saveConfigs(serverConfigs);
+
+    return await interaction.reply({ 
+      content: `🎁 **ผลการสุ่มกาชาปอง:**\n${roll.text}\n(ยอด Zen Coins ปัจจุบันของคุณ: ${userStat.orbs} Coins)`, 
+      ephemeral: true 
+    });
+  } 
+  
+  else if (item.type === 'buff') {
+    // บัฟ XP 1 ชั่วโมง
+    const now = Date.now();
+    const oneHour = 60 * 60 * 1000;
+    userStat.boostUntil = Math.max(userStat.lastBoost || now, now) + oneHour;
+    await saveConfigs(serverConfigs);
+
+    return await interaction.reply({ 
+      content: `⚡ เปิดใช้งานน้ำยาคูณ XP สำเร็จ! คุณได้รับสิทธิ์คูณ XP 2 เท่า เป็นเวลา 1 ชั่วโมงเต็ม!`, 
+      ephemeral: true 
+    });
+  } 
+  
+  else if (item.type === 'role') {
+    // มอบยศพิเศษ
+    await saveConfigs(serverConfigs);
+    try {
+      const member = await interaction.guild.members.fetch(userId);
+      const role = await interaction.guild.roles.fetch(item.roleId);
+      if (role) {
+        await member.roles.add(role);
+        return await interaction.reply({ content: `🎉 ซื้อสำเร็จ! คุณได้รับ **${item.name}** เรียบร้อยแล้ว (ยอดคงเหลือ: ${userStat.orbs} Zen Coins)`, ephemeral: true });
+      } else {
+        return await interaction.reply({ content: `⚠️ ซื้อสำเร็จและหักเหรียญแล้ว แต่ยังไม่ได้ตั้งค่า ID ยศนี้ในระบบ กรุณาแจ้ง Admin ครับ!`, ephemeral: true });
+      }
+    } catch (err) {
+      return await interaction.reply({ content: `❌ เกิดข้อผิดพลาดในการมอบยศ กรุณาแจ้ง Admin ครับ`, ephemeral: true });
     }
-  } catch (err) {
-    console.error('Error giving shop role:', err);
-    await interaction.reply({ content: `❌ เกิดข้อผิดพลาดในการมอบยศ กรุณาแจ้ง Admin ครับ`, ephemeral: true });
+  } 
+  
+  else if (item.type === 'theme') {
+    // ปลดล็อกธีมการ์ดเลเวล
+    userStat.customTheme = item.imageUrl;
+    await saveConfigs(serverConfigs);
+
+    return await interaction.reply({ 
+      content: `🎨 ซื้อธีมการ์ดสำเร็จ! ตอนนี้การ์ด /level ของคุณเปลี่ยนเป็น **${item.name}** เรียบร้อยแล้ว ลองพิมพ์เช็กดูได้เลย!`, 
+      ephemeral: true 
+    });
   }
 
   return true;
