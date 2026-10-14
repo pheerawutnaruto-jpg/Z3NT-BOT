@@ -1,15 +1,34 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
 
-// 📦 รายการสินค้าในร้านค้า (คุณสามารถเปลี่ยนชื่อยศและราคา Zen Coins ได้ตามต้องการตรงนี้)
+// 🎨 รายการสินค้าในร้านค้า (เพิ่มยศสีพิเศษ หรือไอเทมอื่นๆ ตรงนี้ได้เลย)
 const SHOP_ITEMS = [
-  { id: 'role_vip', name: '🌟 VIP Member', price: 100, roleId: 'ใส่_ID_ยศ_VIP_ตรงนี้', description: 'ยศพิเศษสีสันสวยงาม เข้าถึงห้องลับและสิทธิประโยชน์เพียบ!' },
-  { id: 'role_legend', name: '🔥 Legend Role', price: 500, roleId: 'ใส่_ID_ยศ_Legend_ตรงนี้', description: 'ยศขั้นเทพ แสดงความเก๋าในเซิร์ฟเวอร์' }
+  { 
+    id: 'role_pink', 
+    name: '🎨 ยศสีชมพูพาสเทล', 
+    price: 80, 
+    roleId: 'ใส่_ID_ยศ_สีชมพู_ตรงนี้', 
+    description: 'ยศสีชมพูสุดน่ารัก แต่งชื่อให้โดดเด่นไม่ซ้ำใคร!' 
+  },
+  { 
+    id: 'role_blue', 
+    name: '🎨 ยศสีฟ้ามหาสมุทร', 
+    price: 80, 
+    roleId: 'ใส่_ID_ยศ_สีฟ้า_ตรงนี้', 
+    description: 'ยศสีฟ้าเท่ๆ สไตล์ดาร์กมืด เย็นตา' 
+  },
+  { 
+    id: 'role_vip', 
+    name: '🌟 VIP Member', 
+    price: 150, 
+    roleId: 'ใส่_ID_ยศ_VIP_ตรงนี้', 
+    description: 'ยศพิเศษขั้นสูง แสดงสถานะคนสำคัญของเซิร์ฟเวอร์' 
+  }
 ];
 
 // 🛍️ คำสั่งเปิดร้านค้า
 const shopCommand = new SlashCommandBuilder()
   .setName('shop')
-  .setDescription('เปิดร้านค้าเซิร์ฟเวอร์ ใช้ Zen Coins ซื้อยศและไอเทมพิเศษ');
+  .setDescription('เปิดร้านค้าเซิร์ฟเวอร์ ใช้ Zen Coins ซื้อยศสีพิเศษและไอเทม');
 
 async function handleShopCommand(interaction, serverConfigs) {
   const guildId = interaction.guildId;
@@ -49,7 +68,7 @@ async function handleShopCommand(interaction, serverConfigs) {
   await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
 }
 
-// 🛒 ระบบกดปุ่มซื้อสินค้า
+// 🛒 ระบบกดปุ่มซื้อสินค้าและมอบยศอัตโนมัติ
 async function handleShopButton(interaction, serverConfigs, saveConfigs) {
   if (!interaction.customId.startsWith('buy_item_')) return false;
 
@@ -72,11 +91,11 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
   const userCoins = userStat.orbs || 0;
 
   if (userCoins < item.price) {
-    await interaction.reply({ content: `❌ Zen Coins ของคุณไม่พอ! (คุณมี ${userCoins} Coins แต่สินค้า ${item.price} Coins)`, ephemeral: true });
+    await interaction.reply({ content: `❌ Zen Coins ของคุณไม่พอ! (คุณมี ${userCoins} Coins แต่สินค้าราคา ${item.price} Coins)`, ephemeral: true });
     return true;
   }
 
-  // หักเงิน
+  // หักเหรียญ
   userStat.orbs -= item.price;
   await saveConfigs(serverConfigs);
 
@@ -88,7 +107,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
       await member.roles.add(role);
       await interaction.reply({ content: `🎉 ซื้อสำเร็จ! คุณได้รับ **${item.name}** เรียบร้อยแล้ว (ยอดคงเหลือ: ${userStat.orbs} Zen Coins)`, ephemeral: true });
     } else {
-      await interaction.reply({ content: `⚠️ ซื้อสำเร็จและหักเหงียนแล้ว แต่ไม่พบยศ ID นี้ในเซิร์ฟเวอร์ กรุณาแจ้ง Admin!`, ephemeral: true });
+      await interaction.reply({ content: `⚠️ ซื้อสำเร็จและหักเหรียญแล้ว แต่ยังไม่ได้ตั้งค่า ID ยศนี้ในระบบ กรุณาแจ้ง Admin ครับ!`, ephemeral: true });
     }
   } catch (err) {
     console.error('Error giving shop role:', err);
