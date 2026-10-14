@@ -11,9 +11,15 @@ async function handleSetupQuestCommand(interaction) {
   }
 
   const embed = new EmbedBuilder()
-    .setTitle('🎁 𝙕𝙀𝙉 𝘽𝙊𝙏 • DAILY QUEST PANEL')
-    .setDescription('กดปุ่มด้านล่างเพื่อรับ **Discord Orbs** ฟรีประจำวัน (รีเซ็ตทุกๆ 24 ชั่วโมง) สะสมไว้แลกของรางวัลพิเศษในเซิร์ฟเวอร์!')
+    .setTitle('𝖅 • 𝐃𝐀𝐈𝐋𝐘 𝐐𝐔𝐄𝐒𝐓𝐒 & 𝐎𝐑𝐁𝐒')
+    .setDescription(
+      '✨ **ระบบเควสต์ประจำวันและสะสมแต้มพิเศษ**\n\n' +
+      '> 🎁 **รางวัล:** รับฟรีทันที **50 Discord Orbs** ทุกๆ 24 ชั่วโมง!\n' +
+      '> 🔮 **วิธีทำภารกิจ:** เพียงกดปุ่มด้านล่างเพื่อเช็คชื่อและรับ Orbs เข้ากระเป๋าของคุณทันที\n\n' +
+      '_แต้มที่คุณสะสมสามารถนำไปใช้แลกของรางวัลพิเศษภายในเซิร์ฟเวอร์ได้ในอนาคต!_'
+    )
     .setColor('#66FFFF')
+    .setFooter({ text: '𝙕𝙀𝙉 𝘽𝙊𝙏 • ระบบเควสต์อัตโนมัติ' })
     .setTimestamp();
 
   const row = new ActionRowBuilder().addComponents(
@@ -23,7 +29,6 @@ async function handleSetupQuestCommand(interaction) {
       .setStyle(ButtonStyle.Success)
   );
 
-  // ส่งแผงปุ่มไปที่ห้องแชทที่พิมพ์คำสั่งนี้
   await interaction.channel.send({ embeds: [embed], components: [row] });
   await interaction.reply({ content: '✅ ส่งแผงปุ่มเควสต์ประจำวันถาวรไปยังห้องนี้สำเร็จแล้ว!', ephemeral: true });
 }
@@ -51,13 +56,20 @@ async function handleQuestButton(interaction, serverConfigs, saveConfigs) {
     return await interaction.reply({ content: `⏳ คุณรับรางวัลประจำวันไปแล้ว! กรุณารออีกประมาณ **${remainingTime} ชั่วโมง** ถึงจะกดรับใหม่ได้ครับ`, ephemeral: true });
   }
 
-  // แจก 50 Orbs (ปรับจำนวนได้ตามชอบ)
+  // แจก 50 Orbs
   const rewardOrbs = 50;
   userStat.orbs = (userStat.orbs || 0) + rewardOrbs;
   userStat.lastDaily = now;
   await saveConfigs(serverConfigs);
 
-  await interaction.reply({ content: `🎉 ยินดีด้วย! คุณกดรับ **${rewardOrbs} Discord Orbs** ประจำวันสำเร็จแล้ว! (ยอดสะสมปัจจุบัน: ${userStat.orbs} Orbs)`, ephemeral: true });
+  // แจ้งเตือนส่วนตัวแบบ Embed สวยงามเมื่อกดรับสำเร็จ
+  const successEmbed = new EmbedBuilder()
+    .setTitle('🎉 รับรางวัลประจำวันสำเร็จ!')
+    .setDescription(`คุณได้รับ **+${rewardOrbs} Discord Orbs** เข้ากระเป๋าเรียบร้อยแล้ว!\n🔮 **ยอดสะสมปัจจุบัน:** \`${userStat.orbs} Orbs\``)
+    .setColor('#66FFFF')
+    .setTimestamp();
+
+  await interaction.reply({ embeds: [successEmbed], ephemeral: true });
   return true;
 }
 
