@@ -18,6 +18,7 @@ const {
   startVoiceXpCron, 
   pendingRoleRewardImages 
 } = require('./level');
+const { setupQuestCommand, handleSetupQuestCommand, handleQuestButton } = require('./quest');
 
 // เชื่อมต่อ Upstash Redis จาก Environment Variables
 const redis = new Redis({
@@ -80,6 +81,7 @@ client.once('ready', async () => {
     levelCommand,
     leaderboardCommand,
     resetLevelsCommand,
+    setupQuestCommand,
     setLevelCommand,
     new SlashCommandBuilder().setName('clear').setDescription('ลบข้อความในแชทจำนวน 1-100 ข้อความ')
       .addIntegerOption(option => option.setName('amount').setDescription('จำนวนข้อความที่ต้องการลบ (1-100)').setRequired(true)),
@@ -263,6 +265,9 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isChatInputCommand() && interaction.commandName === 'reset-levels') {
     return await handleResetLevelsCommand(interaction, serverConfigs, saveConfigs);
   }
+  if (interaction.isChatInputCommand() && interaction.commandName === 'setup-quest') {
+    return await handleSetupQuestCommand(interaction);
+  }
   if (interaction.isChatInputCommand() && interaction.commandName === 'set-level') {
     return await handleSetLevelCommand(interaction, serverConfigs);
   }
@@ -308,6 +313,10 @@ client.on('interactionCreate', async interaction => {
 
   if (interaction.isButton()) {
     const id = interaction.customId;
+
+    // 🎁 เช็กปุ่มกดรับเควสต์ประจำวันจาก quest.js ก่อน
+    const handledQuest = await handleQuestButton(interaction, serverConfigs, saveConfigs);
+    if (handledQuest) return;
     
     const modalButtons = [
       'edit_voice_amount', 'edit_level_rate', 'edit_level_card', 
@@ -620,7 +629,7 @@ function getAutoroleDashboardContent(config) {
     .addFields({ name: '📥 Status', value: statusText, inline: true }, { name: '👑 ยศที่จะได้รับ', value: roleName, inline: true });
   const row1 = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('toggle_autorole').setLabel(config.autoroleEnabled ? 'ปิด' : 'เปิด').setStyle(config.autoroleEnabled ? ButtonStyle.Danger : ButtonStyle.Success));
   const roleRow = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('select_autorole').setPlaceholder('👑 เลือกยศแจกใหม่'));
-  return { embeds: [embed], components: [row1, roleRow] };
+  return { embeds: [embed], components: [roleRow] };
 }
 
 async function sendDashboard(interaction) {
