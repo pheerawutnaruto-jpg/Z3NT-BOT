@@ -231,7 +231,7 @@ client.on('interactionCreate', async interaction => {
         enabled: true, minXp: 15, maxXp: 25, cmdXp: 20, xpMultiplier: 100, channelId: null,
         levelUpMessage: 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว!',
         roleRewardMessage: '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!',
-        cardTitle: '📊 𝙕𝙀𝙉 𝘽O𝙏 • STATS CARD', cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**',
+        cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD', cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**',
         embedColor: '#66FFFF', statsCardImageUrl: '',
         voiceXpEnabled: false, voiceXpAmount: 10, roleRewards: {}
       },
@@ -473,6 +473,9 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.isStringSelectMenu()) {
+    const handledShopMenu = await handleShopButton(interaction, serverConfigs, saveConfigs);
+    if (handledShopMenu) return;
+
     await interaction.deferUpdate().catch(() => {});
     if (interaction.customId === 'act_invite_select') {
       const vals = interaction.values;
