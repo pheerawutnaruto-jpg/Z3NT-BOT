@@ -10,6 +10,8 @@ const {
   handleLevelCommand, 
   leaderboardCommand, 
   handleLeaderboardCommand, 
+  resetLevelsCommand,
+  handleResetLevelsCommand,
   setLevelCommand, 
   handleSetLevelCommand, 
   getLevelDashboardContent, 
@@ -77,6 +79,7 @@ client.once('ready', async () => {
     new SlashCommandBuilder().setName('set-security').setDescription('เปิดแผงควบคุมระบบป้องกันความปลอดภัยขั้นสูง'),
     levelCommand,
     leaderboardCommand,
+    resetLevelsCommand,
     setLevelCommand,
     new SlashCommandBuilder().setName('clear').setDescription('ลบข้อความในแชทจำนวน 1-100 ข้อความ')
       .addIntegerOption(option => option.setName('amount').setDescription('จำนวนข้อความที่ต้องการลบ (1-100)').setRequired(true)),
@@ -256,6 +259,9 @@ client.on('interactionCreate', async interaction => {
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'leaderboard') {
     return await handleLeaderboardCommand(interaction, serverConfigs);
+  }
+  if (interaction.isChatInputCommand() && interaction.commandName === 'reset-levels') {
+    return await handleResetLevelsCommand(interaction, serverConfigs, saveConfigs);
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'set-level') {
     return await handleSetLevelCommand(interaction, serverConfigs);
