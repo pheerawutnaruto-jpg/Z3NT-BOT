@@ -61,6 +61,7 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
 
             const roleToGive = guild.roles.cache.get(rewardRoleId);
             if (roleToGive) {
+              // ถอนตัวยศรางวัลเลเวลเก่าออกอัตโนมัติ เพื่อป้องกันยศซ้อนทับกัน
               const allRewardRoleIds = Object.values(config.levelConfig.roleRewards).map(r => typeof r === 'object' ? r.roleId : r);
               for (const oldRoleId of allRewardRoleIds) {
                 if (oldRoleId !== rewardRoleId && member.roles.cache.has(oldRoleId)) {
@@ -70,6 +71,7 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
 
               await member.roles.add(roleToGive);
               if (targetChannel) {
+                // ข้อความประกาศยศรางวัลที่ปรับแต่งได้อิสระ
                 const customRewardMsg = (config.levelConfig.roleRewardMessage || '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!')
                   .replace('{user}', `<@${userId}>`)
                   .replace('{role}', `<@&${rewardRoleId}>`)
@@ -329,9 +331,7 @@ function getLevelDashboardContent(config) {
 
   const row3 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('set_role_reward').setLabel('➕ ตั้งค่ายศรางวัลเลเวล').setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId('delete_role_reward').setLabel('🗑️ ลบยศรางวัลเลเวล').setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId('test_level_up').setLabel('🧪 ทดสอบเลเวลอัป').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('test_role_reward').setLabel('🧪 ทดสอบแจกยศ').setStyle(ButtonStyle.Secondary)
+    new ButtonBuilder().setCustomId('delete_role_reward').setLabel('🗑️ ลบยศรางวัลเลเวล').setStyle(ButtonStyle.Danger)
   );
 
   const channelRow = new ActionRowBuilder().addComponents(
