@@ -309,8 +309,14 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isButton()) {
     const id = interaction.customId;
     
-    // 🛡️ ป้องกัน Timeout 3 วินาทีของ Discord ทันทีที่กดปุ่ม
-    if (!['test_welcome'].includes(id)) {
+    // รายการปุ่มที่เปิด Modal หรือส่งข้อความพิเศษ ห้าม Defer ก่อน
+    const modalButtons = [
+      'edit_voice_amount', 'edit_level_rate', 'edit_level_card', 
+      'edit_level_messages', 'set_role_reward', 'delete_role_reward', 
+      'sec_config_time', 'edit_embed', 'edit_footer', 'test_welcome'
+    ];
+
+    if (!modalButtons.includes(id)) {
       await interaction.deferUpdate().catch(() => {});
     }
 
