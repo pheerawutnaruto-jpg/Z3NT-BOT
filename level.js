@@ -3,6 +3,19 @@ const cron = require('node-cron');
 
 const pendingRoleRewardImages = new Map();
 
+// 🎲 คลังภาพสุ่มอัตโนมัติ (ใช้เฉพาะตอนแจกยศรางวัล)
+const DEFAULT_RANDOM_IMAGES = [
+  'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=800&auto=format&fit=crop&q=60',
+  'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&auto=format&fit=crop&q=60',
+  'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?w=800&auto=format&fit=crop&q=60',
+  'https://images.unsplash.com/photo-1612287230202-1ff1d85d1bdf?w=800&auto=format&fit=crop&q=60',
+  'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&auto=format&fit=crop&q=60'
+];
+
+function getRandomDefaultImage() {
+  return DEFAULT_RANDOM_IMAGES[Math.floor(Math.random() * DEFAULT_RANDOM_IMAGES.length)];
+}
+
 async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConfigs, saveConfigs, isVoice = false) {
   if (!serverConfigs[guildId]) return;
 
@@ -50,6 +63,7 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
       }
     }
 
+    // 👑 1. ส่วนแจกยศรางวัล (ยังคงเป็น Embed + สุ่มภาพปกติ)
     if (guild) {
       try {
         const member = await guild.members.fetch(userId).catch(() => null);
@@ -61,7 +75,6 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
 
             const roleToGive = guild.roles.cache.get(rewardRoleId);
             if (roleToGive) {
-              // ถอนตัวยศรางวัลเลเวลเก่าออกอัตโนมัติ เพื่อป้องกันยศซ้อนทับกัน
               const allRewardRoleIds = Object.values(config.levelConfig.roleRewards).map(r => typeof r === 'object' ? r.roleId : r);
               for (const oldRoleId of allRewardRoleIds) {
                 if (oldRoleId !== rewardRoleId && member.roles.cache.has(oldRoleId)) {
@@ -71,7 +84,6 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
 
               await member.roles.add(roleToGive);
               if (targetChannel) {
-                // ข้อความประกาศยศรางวัลที่ปรับแต่งได้อิสระ
                 const customRewardMsg = (config.levelConfig.roleRewardMessage || '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!')
                   .replace('{user}', `<@${userId}>`)
                   .replace('{role}', `<@&${rewardRoleId}>`)
@@ -82,8 +94,9 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
                   .setDescription(customRewardMsg)
                   .setColor(config.levelConfig.embedColor || '#66FFFF');
 
-                if (rewardImgUrl && rewardImgUrl.trim() !== '') {
-                  embed.setImage(rewardImgUrl.trim());
+                const finalRewardImage = (rewardImgUrl && rewardImgUrl.trim() !== '') ? rewardImgUrl.trim() : getRandomDefaultImage();
+                if (finalRewardImage) {
+                  embed.setImage(finalRewardImage);
                 }
 
                 targetChannel.send({ embeds: [embed] });
@@ -96,17 +109,9 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
       }
     }
 
+    // 💬 2. ส่วนข้อความเลเวลอัปปกติ (ส่งเป็นข้อความธรรมดา Plain Text ล้วนๆ ไม่มี Embed ไม่มีสุ่มภาพ)
     if (targetChannel) {
-      const levelUpImage = config.levelConfig.levelUpImageUrl || '';
-      const embed = new EmbedBuilder()
-        .setDescription(customMsg)
-        .setColor(config.levelConfig.embedColor || '#66FFFF');
-
-      if (levelUpImage.trim() !== '') {
-        embed.setImage(levelUpImage.trim());
-      }
-
-      targetChannel.send({ embeds: [embed] }).then(msg => {
+      targetChannel.send({ content: customMsg }).then(msg => {
         if (!config.levelConfig.channelId && !isVoice) {
           setTimeout(() => msg.delete().catch(() => {}), 6000);
         }
@@ -154,7 +159,6 @@ function handleLeveling(message, serverConfigs, saveConfigs) {
       cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD',
       cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**',
       embedColor: '#66FFFF',
-      levelUpImageUrl: '',
       statsCardImageUrl: '',
       voiceXpEnabled: false, voiceXpAmount: 10,
       roleRewards: {}
@@ -282,7 +286,6 @@ function getLevelDashboardContent(config) {
       cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD',
       cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**',
       embedColor: '#66FFFF',
-      levelUpImageUrl: '',
       statsCardImageUrl: '',
       voiceXpEnabled: false, voiceXpAmount: 10,
       roleRewards: {}
