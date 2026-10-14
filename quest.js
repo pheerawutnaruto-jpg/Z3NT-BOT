@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
 
+// 🛠️ คำสั่งสำหรับแอดมินใช้ส่งแผงปุ่มเควสต์ประจำวันถาวรไปไว้ในห้องแชท
 const setupQuestCommand = new SlashCommandBuilder()
   .setName('setup-quest')
   .setDescription('ส่งแผงปุ่มกดรับเควสต์ประจำวันถาวรไปยังห้องนี้ (สำหรับ Admin)');
@@ -10,27 +11,23 @@ async function handleSetupQuestCommand(interaction) {
   }
 
   const embed = new EmbedBuilder()
-    .setTitle('🌟 𝕯𝖆𝖎𝖑𝖞 𝕺𝖗𝖇𝖘 • ระบบเควสต์ประจำวัน')
-    .setDescription(
-      '> *ยินดีด้วยคุณก้าวเข้าสู่วิหารแห่งความมั่งคั่ง! กดรับ **Discord Orbs** เพื่อสะสมแต้มและเตรียมตัวแลกรับสิทธิพิเศษระดับพรีเมียมในเซิร์ฟเวอร์*\n\n' +
-      '💎 **รางวัลที่จะได้รับ:** `50 Orbs`\n' +
-      '⏳ **ระยะเวลาคูลดาวน์:** `ทุกๆ 24 ชั่วโมง`'
-    )
-    .setColor('#FFD700') // สีทองหรูหรา
-    .setFooter({ text: 'ZEN BOT • Exclusive Daily Rewards' }); 
-    // ❌ นำ .setTimestamp() ออกเรียบร้อยแล้วตามคำขอ
+    .setTitle('🪙 • DAILY REWARD')
+    .setDescription('กดปุ่มด้านล่างเพื่อรับ Discord Orbs ประจำวัน (สามารถกดรับได้ทุกๆ 24 ชั่วโมง)')
+    .setColor('#D4AF37'); // สีทองหรูหรา
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('claim_daily_orb')
-      .setLabel('💎 กดรับ Daily Orbs')
-      .setStyle(ButtonStyle.Success)
+      .setLabel('รับ Discord Orbs ประจำวัน')
+      .setStyle(ButtonStyle.Secondary)
   );
 
+  // ส่งแผงปุ่มไปที่ห้องแชทที่พิมพ์คำสั่งนี้
   await interaction.channel.send({ embeds: [embed], components: [row] });
-  await interaction.reply({ content: '✅ ส่งแผงปุ่มเควสต์ประจำวันแบบพรีเมียมไปยังห้องนี้สำเร็จแล้ว!', ephemeral: true });
+  await interaction.reply({ content: '✅ ส่งแผงปุ่มเควสต์ประจำวันเรียบร้อยแล้ว', ephemeral: true });
 }
 
+// 🎁 ระบบกดปุ่มรับรางวัล (เช็กคูลดาวน์ 24 ชั่วโมง และแจก Orbs)
 async function handleQuestButton(interaction, serverConfigs, saveConfigs) {
   if (interaction.customId !== 'claim_daily_orb') return false;
 
@@ -47,17 +44,19 @@ async function handleQuestButton(interaction, serverConfigs, saveConfigs) {
   const now = Date.now();
   const cooldownTime = 24 * 60 * 60 * 1000; // 24 ชั่วโมง
 
+  // เช็กว่าครบ 24 ชั่วโมงหรือยัง
   if (userStat.lastDaily && (now - userStat.lastDaily < cooldownTime)) {
     const remainingTime = Math.ceil((cooldownTime - (now - userStat.lastDaily)) / (1000 * 60 * 60));
-    return await interaction.reply({ content: `⏳ คุณได้ทำภารกิจวันนี้ไปแล้ว! โปรดรออีกประมาณ **${remainingTime} ชั่วโมง** ค่อยกลับมารับใหม่นะคับ`, ephemeral: true });
+    return await interaction.reply({ content: `⏳ คุณรับรางวัลประจำวันไปแล้ว กรุณารออีกประมาณ ${remainingTime} ชั่วโมง`, ephemeral: true });
   }
 
+  // แจก 50 Orbs
   const rewardOrbs = 50;
   userStat.orbs = (userStat.orbs || 0) + rewardOrbs;
   userStat.lastDaily = now;
   await saveConfigs(serverConfigs);
 
-  await interaction.reply({ content: `🎉 **ยอดเยี่ยม!** คุณได้รับ **${rewardOrbs} Discord Orbs** เข้ากระเป๋าเรียบร้อยแล้ว (ยอดสะสม: \`${userStat.orbs} Orbs\`)`, ephemeral: true });
+  await interaction.reply({ content: `✨ รับ ${rewardOrbs} Discord Orbs สำเร็จ (ยอดสะสม: ${userStat.orbs} Orbs)`, ephemeral: true });
   return true;
 }
 
