@@ -111,7 +111,7 @@ function setupCronJob(guildId, timeStr, channelId) {
   const [hour, minute] = timeStr.split(':');
   if (!hour || !minute) return;
 
-  const cronExpression = `${minute}${hour} * * *`;
+  const cronExpression = `${minute} ${hour} * * *`;
 
   activeCronJobs[guildId] = cron.schedule(cronExpression, async () => {
     try {
@@ -176,7 +176,7 @@ client.on('guildMemberAdd', async member => {
     };
 
     const finalTitle = embedConfig.title ? embedConfig.title.replace('{user}', member.user.username).replace('{server}', member.guild.name) : null;
-    const finalDesc = embedConfig.description.replace('{user}', `${member}`).replace('{server}`, member.guild.name);
+    const finalDesc = embedConfig.description.replace('{user}', `${member}`).replace('{server}', member.guild.name);
 
     let embedColor = '#66FFFF';
     try { embedColor = embedConfig.color; } catch (e) {}
@@ -371,71 +371,6 @@ client.on('interactionCreate', async interaction => {
       const levelInput = new TextInputBuilder().setCustomId('targetLevel').setLabel('ระบุเลเวลที่ต้องการลบยศรางวัล (เช่น 5)').setStyle(TextInputStyle.Short).setRequired(true);
       modal.addComponents(new ActionRowBuilder().addComponents(levelInput));
       return await interaction.showModal(modal);
-    }
-    if (id === 'test_level_up') {
-      const targetChannelId = config.levelConfig.channelId || interaction.channelId;
-      try {
-        const channel = await interaction.guild.channels.fetch(targetChannelId);
-        if (channel && channel.isTextBased()) {
-          const testMsg = (config.levelConfig.levelUpMessage || 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว!')
-            .replace('{user}', `<@${interaction.user.id}>`)
-            .replace('{level}', '5');
-
-          const levelUpImage = config.levelConfig.levelUpImageUrl || '';
-          const embed = new EmbedBuilder()
-            .setDescription(testMsg)
-            .setColor(config.levelConfig.embedColor || '#66FFFF');
-
-          if (levelUpImage.trim() !== '') {
-            embed.setImage(levelUpImage.trim());
-          }
-
-          await channel.send({ embeds: [embed] });
-          return await interaction.reply({ content: `✅ ส่งข้อความทดสอบเลเวลอัปไปที่ห้อง <#${targetChannelId}> เรียบร้อยแล้ว!`, ephemeral: true });
-        }
-      } catch (err) {
-        console.error('Test level up error:', err);
-        return await interaction.reply({ content: '❌ เกิดข้อผิดพลาดในการส่งข้อความทดสอบ', ephemeral: true });
-      }
-    }
-    if (id === 'test_role_reward') {
-      const targetChannelId = config.levelConfig.channelId || interaction.channelId;
-      try {
-        const channel = await interaction.guild.channels.fetch(targetChannelId);
-        if (channel && channel.isTextBased()) {
-          const roleEntries = Object.entries(config.levelConfig.roleRewards || {});
-          let sampleRoleId = interaction.guild.roles.cache.first()?.id || '000000000000000000';
-          let sampleLevel = '5';
-          let sampleImg = '';
-
-          if (roleEntries.length > 0) {
-            const [lvl, data] = roleEntries[0];
-            sampleLevel = lvl;
-            sampleRoleId = typeof data === 'object' ? data.roleId : data;
-            sampleImg = typeof data === 'object' ? data.imageUrl : '';
-          }
-
-          const testMsg = (config.levelConfig.roleRewardMessage || '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!')
-            .replace('{user}', `<@${interaction.user.id}>`)
-            .replace('{role}', `<@&${sampleRoleId}>`)
-            .replace('{level}', sampleLevel);
-
-          const embed = new EmbedBuilder()
-            .setTitle('👑 ยศรางวัลเลเวลอัปพิเศษ!')
-            .setDescription(testMsg)
-            .setColor(config.levelConfig.embedColor || '#66FFFF');
-
-          if (sampleImg && sampleImg.trim() !== '') {
-            embed.setImage(sampleImg.trim());
-          }
-
-          await channel.send({ embeds: [embed] });
-          return await interaction.reply({ content: `✅ ส่งข้อความทดสอบแจกยศไปที่ห้อง <#${targetChannelId}> เรียบร้อยแล้ว!`, ephemeral: true });
-        }
-      } catch (err) {
-        console.error('Test role reward error:', err);
-        return await interaction.reply({ content: '❌ เกิดข้อผิดพลาดในการส่งข้อความทดสอบแจกยศ', ephemeral: true });
-      }
     }
 
     if (id === 'sec_toggle_main') config.security.enabled = !config.security.enabled;
