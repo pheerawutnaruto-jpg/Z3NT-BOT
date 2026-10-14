@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
 
-// 🛒 รายการสินค้าทั้งหมดใน Zen Shop (4 หมวดหมู่หลัก)
+// 🛒 รายการสินค้าทั้งหมดใน Zen Shop
 const SHOP_ITEMS = [
   { 
     id: 'gacha_box', 
@@ -11,10 +11,11 @@ const SHOP_ITEMS = [
   },
   { 
     id: 'xp_boost', 
-    name: '⚡ น้ำยาคูณ XP (1 ชั่วโมง)', 
+    name: '⚡ น้ำยาคูณ XP (1 ชั่วโมง + ยศ Boost)', 
     price: 100, 
     type: 'buff',
-    description: 'เพิ่มเรตการได้รับ XP จากการพิมพ์แชทคูณ 2 เป็นเวลา 1 ชั่วโมงเต็ม!' 
+    boostRoleId: 'ใส่_ID_ยศ_XP_Boost_ในเซิร์ฟเวอร์_ตรงนี้', // <-- เอา ID ยศมาใส่ตรงนี้
+    description: 'เพิ่มเรต XP คูณ 2 พร้อมรับยศสถานะพิเศษโชว์หล่อ 1 ชั่วโมงเต็ม!' 
   },
   { 
     id: 'role_cafe', 
@@ -38,6 +39,11 @@ const SHOP_ITEMS = [
 const shopCommand = new SlashCommandBuilder()
   .setName('shop')
   .setDescription('เปิดร้านค้าเซิร์ฟเวอร์ ใช้ Zen Coins ซื้อไอเทม กาชา บัฟ และธีมการ์ด');
+
+// ⏱️ คำสั่งเช็กสถานะบัฟ XP
+const boostStatusCommand = new SlashCommandBuilder()
+  .setName('boost-status')
+  .setDescription('เช็กเวลาคงเหลือของสถานะคูณ XP และยศ Boost ของคุณ');
 
 async function handleShopCommand(interaction, serverConfigs) {
   const guildId = interaction.guildId;
@@ -77,7 +83,24 @@ async function handleShopCommand(interaction, serverConfigs) {
   await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
 }
 
-// 🛒 ระบบกดปุ่มซื้อสินค้าและแยกประเภทการทำงาน
+async function handleBoostStatusCommand(interaction, serverConfigs) {
+  const guildId = interaction.guildId;
+  const userId = interaction.user.id;
+
+  const userStat = serverConfigs[guildId]?.levels?.[userId];
+  const now = Date.now();
+
+  if (!userStat || !userStat.boostUntil || userStat.boostUntil <= now) {
+    return await interaction.reply({ content: '❌ ตอนนี้คุณยังไม่ได้เปิดใช้งานน้ำยาคูณ XP (สถานะบัฟหมดอายุหรือยังไม่เคยซื้อ)', ephemeral: true });
+  }
+
+  const remainingMs = userStat.boostUntil - now;
+  const remainingMinutes = Math.ceil(remainingMs / (1000 * 60));
+
+  await interaction.reply({ content: `⚡ **สถานะ XP Boost ของคุณ:**\nกำลังใช้งานอยู่ เหลือเวลาอีกประมาณ **${remainingMinutes} นาที** ครับ!`, ephemeral: true });
+}
+
+// 🛒 ระบบกดปุ่มซื้อสินค้า
 async function handleShopButton(interaction, serverConfigs, saveConfigs) {
   if (!interaction.customId.startsWith('buy_item_')) return false;
 
@@ -104,10 +127,8 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
     return true;
   }
 
-  // หักเงินค่าสินค้าก่อน
   userStat.orbs -= item.price;
 
-  // 🎁 แยกประเภทการทำงานของสินค้าแต่ละชนิด
   if (item.type === 'gacha') {
     const outcomes = [
       { reward: 0, text: 'เกลือ! รอบนี้ไม่ได้อะไรเลย เสียใจด้วยนะ 😢' },
@@ -126,7 +147,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
   } 
   
   else if (item.type === 'buff') {
-    // บัฟ XP 1 ชั่วโมง (รองรับการทบเวลาถ้าซื้อซ้ำตอนเวลายังไม่หมด)
+    // บัฟ XP 1 ชั่วโมง + ให้ยศ Boost ทันที
     const now = Date.now();
     const oneHour = 60 * 60 * 1000;
     const currentBoost = userStat.boostUntil && userStat.boostUntil > now ? userStat.boostUntil : now;
@@ -134,8 +155,19 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
     
     await saveConfigs(serverConfigs);
 
+    // มอบยศ Boost ให้ทันที
+    try {
+      const member = await interaction.guild.members.fetch(userId);
+      const role = await interaction.guild.roles.fetch(item.boostRoleId);
+      if (role && !member.roles.cache.has(item.boostRoleId)) {
+        await member.roles.add(role);
+      }
+    } catch (err) {
+      console.error('Error giving boost role:', err);
+    }
+
     return await interaction.reply({ 
-      content: `⚡ เปิดใช้งานน้ำยาคูณ XP สำเร็จ! คุณได้รับสิทธิ์คูณ XP 2 เท่า เป็นเวลา 1 ชั่วโมงเต็ม!`, 
+      content: `⚡ เปิดใช้งานน้ำยาคูณ XP สำเร็จ! คุณได้รับสิทธิ์คูณ XP 2 เท่า และได้รับ **ยศ Boost** เป็นเวลา 1 ชั่วโมงเต็ม! (ใช้คำสั่ง \`/boost-status\` เพื่อเช็กเวลาได้)`, 
       ephemeral: true 
     });
   } 
@@ -171,6 +203,9 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
 
 module.exports = {
   shopCommand,
+  boostStatusCommand,
   handleShopCommand,
-  handleShopButton
+  handleBoostStatusCommand,
+  handleShopButton,
+  SHOP_ITEMS
 };
