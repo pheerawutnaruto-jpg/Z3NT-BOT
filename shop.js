@@ -180,7 +180,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
     }
 
     return await interaction.reply({ 
-      content: `⚡ เปิดใช้งานน้ำยาคูณ XP สำเร็จ! คุณได้รับสิทธิ์คูณ XP 2 เท่า และรับยศ Xp Booster เป็นเวลา 1 ชั่วโมงเต็ม!`, 
+      content: `⚡ เปิดใช้งานน้ำยาคูณ XP สำเร็จ! คุณได้รับสิทธิ์คูณ XP 2 เท่า และรับยศ Booster เป็นเวลา 1 ชั่วโมงเต็ม!`, 
       ephemeral: true 
     });
   } 
