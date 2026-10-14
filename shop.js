@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
 
 const SHOP_ITEMS = [
   { 
@@ -13,7 +13,7 @@ const SHOP_ITEMS = [
     name: '⚡ น้ำยาคูณ XP (1 ชั่วโมง + ยศ Booster)', 
     price: 100, 
     type: 'buff',
-    roleId: '1559992075095773184', 
+    roleId: '1559992075095773184', // ID ยศ XP Booster
     description: 'คูณ XP 2 เท่า พร้อมรับยศพิเศษ XP Booster นาน 1 ชั่วโมง!' 
   },
   { 
@@ -21,24 +21,24 @@ const SHOP_ITEMS = [
     name: '☕ ยศพิเศษ สายคาเฟ่', 
     price: 150, 
     type: 'role',
-    roleId: '1560002494204084395', 
-    description: 'ยศตกแต่งโปรไฟล์สายคาเฟ่สุดชิล' 
+    roleId: '1560002494204084395', // ID ยศ ☕ สายคาเฟ่
+    description: 'ยศตกแต่งโปรไฟล์สายคาเฟ่สุดชิล แยกจากสายแรงค์เลเวลปกติ' 
   },
   { 
     id: 'role_night', 
     name: '🌙 ยศพิเศษ คนนอนดึก', 
     price: 150, 
     type: 'role',
-    roleId: '1560002616266854420', 
-    description: 'ยศตกแต่งโปรไฟล์สำหรับสายโต้รุ่ง' 
+    roleId: '1560002616266854420', // ID ยศ 🌙 คนนอนดึก
+    description: 'ยศตกแต่งโปรไฟล์สำหรับสายโต้รุ่ง นอนดึกเป็นกิจวัตร' 
   },
   { 
     id: 'role_sleepy', 
     name: '💤 ยศพิเศษ สายขี้เซา', 
     price: 150, 
     type: 'role',
-    roleId: '1560002724563521666', 
-    description: 'ยศตกแต่งโปรไฟล์สำหรับคนรักการนอน' 
+    roleId: '1560002724563521666', // ID ยศ 💤 สายขี้เซา
+    description: 'ยศตกแต่งโปรไฟล์สำหรับคนรักการนอนเป็นชีวิตจิตใจ' 
   },
   { 
     id: 'card_galaxy', 
@@ -52,7 +52,7 @@ const SHOP_ITEMS = [
 
 const shopCommand = new SlashCommandBuilder()
   .setName('shop')
-  .setDescription('เปิดร้านค้าเซิร์ฟเวอร์ ใช้ Zen Coins ซื้อไอเทม กาชา บัฟ และยศพิเศษ');
+  .setDescription('เปิดร้านค้าเซิร์ฟเวอร์ ใช้ Zen Coins ซื้อไอเทม กาชา บัฟ ยศพิเศษ และธีมการ์ด');
 
 const boostStatusCommand = new SlashCommandBuilder()
   .setName('boost-status')
@@ -95,7 +95,7 @@ async function handleShopCommand(interaction, serverConfigs) {
 
   const embed = new EmbedBuilder()
     .setTitle('🛒 𝙕𝙀𝙉 𝘽𝙊𝙏 • SERVER SHOP')
-    .setDescription(`ยินดีต้อนรับสู่ร้านค้าเซิร์ฟเวอร์!\n💰 Zen Coins ของคุณ: **${userCoins} Coins**\n\nเลือกกดปุ่มหรือเลือกเมนูด้านล่างเพื่อซื้อสินค้า:`)
+    .setDescription(`ยินดีต้อนรับสู่ร้านค้าเซิร์ฟเวอร์!\n💰 Zen Coins ของคุณ: **${userCoins} Coins**\n\nเลือกกดปุ่มสินค้าด้านล่างเพื่อซื้อได้เลย:`)
     .setColor('#FFD700');
 
   SHOP_ITEMS.forEach(item => {
@@ -106,54 +106,56 @@ async function handleShopCommand(interaction, serverConfigs) {
     });
   });
 
+  // 🛠️ ระบบจัดกลุ่มปุ่มอัตโนมัติ (แถวละไม่เกิน 5 ปุ่ม ป้องกัน Discord Error)
   const rows = [];
-  
-  // ปุ่มสินค้าทั่วไป (กาชา, บัฟ, ธีมการ์ด)
-  const generalRow = new ActionRowBuilder();
-  SHOP_ITEMS.filter(item => item.type !== 'role').forEach(item => {
+  let currentRow = new ActionRowBuilder();
+
+  SHOP_ITEMS.forEach((item, index) => {
+    if (index > 0 && index % 5 === 0) {
+      rows.push(currentRow);
+      currentRow = new ActionRowBuilder();
+    }
+    
+    // ตั้งชื่อปุ่มให้สั้นและกระชับ
     let labelName = item.name.split(' ')[1] || item.name;
     if (labelName.length > 15) labelName = labelName.substring(0, 12) + '..';
 
-    generalRow.addComponents(
+    currentRow.addComponents(
       new ButtonBuilder()
         .setCustomId(`buy_item_${item.id}`)
         .setLabel(`ซื้อ ${labelName} (${item.price}c)`)
         .setStyle(ButtonStyle.Primary)
     );
   });
-  if (generalRow.components.length > 0) rows.push(generalRow);
-
-  // เมนูดรอปดาวน์รวม 3 ยศพิเศษ
-  const roleSelectMenu = new StringSelectMenuBuilder()
-    .setCustomId('buy_special_roles')
-    .setPlaceholder('☕ 🌙 💤 เลือกซื้อยศพิเศษแต่งโปรไฟล์ (150c)')
-    .addOptions(
-      SHOP_ITEMS.filter(item => item.type === 'role').map(roleItem => ({
-        label: roleItem.name,
-        description: `ราคา ${roleItem.price} Zen Coins`,
-        value: roleItem.id
-      }))
-    );
-
-  rows.push(new ActionRowBuilder().addComponents(roleSelectMenu));
+  rows.push(currentRow);
 
   await interaction.reply({ embeds: [embed], components: rows, ephemeral: true });
 }
 
-async function processPurchase(interaction, serverConfigs, saveConfigs, itemId) {
+async function handleShopButton(interaction, serverConfigs, saveConfigs) {
+  if (!interaction.customId.startsWith('buy_item_')) return false;
+
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
+  const itemId = interaction.customId.replace('buy_item_', '');
 
   const item = SHOP_ITEMS.find(i => i.id === itemId);
   if (!item) {
-    return await interaction.reply({ content: '❌ ไม่พบสินค้านี้ในระบบ!', ephemeral: true });
+    await interaction.reply({ content: '❌ ไม่พบสินค้านี้ในระบบ!', ephemeral: true });
+    return true;
+  }
+
+  if (!serverConfigs[guildId] || !serverConfigs[guildId].levels || !serverConfigs[guildId].levels[userId]) {
+    await interaction.reply({ content: '❌ คุณยังไม่มี Zen Coins สะสมเลย!', ephemeral: true });
+    return true;
   }
 
   const userStat = serverConfigs[guildId].levels[userId];
   const userCoins = userStat.orbs || 0;
 
   if (userCoins < item.price) {
-    return await interaction.reply({ content: `❌ Zen Coins ของคุณไม่พอ! (คุณมี ${userCoins} Coins แต่สินค้าราคา ${item.price} Coins)`, ephemeral: true });
+    await interaction.reply({ content: `❌ Zen Coins ของคุณไม่พอ! (คุณมี ${userCoins} Coins แต่สินค้าราคา ${item.price} Coins)`, ephemeral: true });
+    return true;
   }
 
   userStat.orbs -= item.price;
@@ -186,7 +188,9 @@ async function processPurchase(interaction, serverConfigs, saveConfigs, itemId) 
     try {
       const member = await interaction.guild.members.fetch(userId);
       const role = await interaction.guild.roles.fetch(item.roleId);
-      if (role) await member.roles.add(role);
+      if (role) {
+        await member.roles.add(role);
+      }
     } catch (err) {
       console.error('Error adding boost role:', err);
     }
@@ -222,24 +226,8 @@ async function processPurchase(interaction, serverConfigs, saveConfigs, itemId) 
       ephemeral: true 
     });
   }
-}
 
-async function handleShopButton(interaction, serverConfigs, saveConfigs) {
-  if (interaction.isButton() && interaction.customId.startsWith('buy_item_')) {
-    const itemId = interaction.customId.replace('buy_item_', '');
-    await processPurchase(interaction, serverConfigs, saveConfigs, itemId);
-    return true;
-  }
-  return false;
-}
-
-async function handleShopSelectMenu(interaction, serverConfigs, saveConfigs) {
-  if (interaction.isStringSelectMenu() && interaction.customId === 'buy_special_roles') {
-    const selectedItemId = interaction.values[0];
-    await processPurchase(interaction, serverConfigs, saveConfigs, selectedItemId);
-    return true;
-  }
-  return false;
+  return true;
 }
 
 module.exports = {
@@ -248,6 +236,5 @@ module.exports = {
   handleBoostStatusCommand,
   handleShopCommand,
   handleShopButton,
-  handleShopSelectMenu,
   SHOP_ITEMS
 };
