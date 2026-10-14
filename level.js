@@ -86,7 +86,7 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
     }
   }
 
-  saveConfigs(serverConfigs);
+  await saveConfigs(serverConfigs);
 }
 
 function startVoiceXpCron(client, serverConfigs, saveConfigs) {
@@ -186,14 +186,57 @@ async function handleLevelCommand(interaction, serverConfigs) {
     .setColor(lConfig.embedColor || '#66FFFF')
     .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
     .addFields(
-      { name: '<:emoji_41:1557174553887768727> เลเวล (Level)', value: `\` Level ${userStat.level} \``, inline: true },
-      { name: '<a:emoji_87:1557232624664191048> ค่าประสบการณ์ (XP)', value: `\` ${userStat.xp} / ${requiredXp} XP \``, inline: true },
-      { name: '<:emoji_77:1557189348389298258> ความคืบหน้า', value: `\`[${progressBar}]\` (${Math.floor((userStat.xp / requiredXp) * 100)}%)`, inline: false }
+      { name: 'เลเวล (Level)', value: `\` Level ${userStat.level} \``, inline: true },
+      { name: 'ค่าประสบการณ์ (XP)', value: `\` ${userStat.xp} / ${requiredXp} XP \``, inline: true },
+      { name: 'ความคืบหน้า', value: `\`[${progressBar}]\` (${Math.floor((userStat.xp / requiredXp) * 100)}%)`, inline: false }
     );
 
   if (lConfig.statsCardImageUrl && lConfig.statsCardImageUrl.trim() !== '') {
     embed.setImage(lConfig.statsCardImageUrl.trim());
   }
+
+  await interaction.reply({ embeds: [embed], ephemeral: true });
+}
+
+// 🏆 คำสั่งจัดอันดับ Leaderboard
+const leaderboardCommand = new SlashCommandBuilder()
+  .setName('leaderboard')
+  .setDescription('ดู 10 อันดับผู้ที่มีเลเวลและ XP สูงสุดในเซิร์ฟเวอร์');
+
+async function handleLeaderboardCommand(interaction, serverConfigs) {
+  const guildId = interaction.guildId;
+  const config = serverConfigs[guildId] || {};
+  const levels = config.levels || {};
+
+  const sortedUsers = Object.entries(levels)
+    .sort((a, b) => {
+      if (b[1].level !== a[1].level) {
+        return b[1].level - a[1].level;
+      }
+      return b[1].xp - a[1].xp;
+    })
+    .slice(0, 10);
+
+  if (sortedUsers.length === 0) {
+    return await interaction.reply({ content: '📊 ยังไม่มีข้อมูลการเก็บเลเวลในเซิร์ฟเวอร์นี้ครับ!', ephemeral: true });
+  }
+
+  let description = '';
+  for (let i = 0; i < sortedUsers.length; i++) {
+    const [userId, stat] = sortedUsers[i];
+    let medal = `\`#${i + 1}\``;
+    if (i === 0) medal = '🥇';
+    else if (i === 1) medal = '🥈';
+    else if (i === 2) medal = '🥉';
+
+    description += `${medal} <@${userId}> ➔ Level **${stat.level}** (\`${stat.xp} XP\`)\n`;
+  }
+
+  const embed = new EmbedBuilder()
+    .setTitle('🏆 LEADERBOARD • 10 อันดับสูงสุด')
+    .setDescription(description)
+    .setColor(config.levelConfig?.embedColor || '#66FFFF')
+    .setTimestamp();
 
   await interaction.reply({ embeds: [embed], ephemeral: true });
 }
@@ -271,4 +314,15 @@ async function handleSetLevelCommand(interaction, serverConfigs) {
   await interaction.reply({ ...getLevelDashboardContent(config), ephemeral: true });
 }
 
-module.exports = { handleLeveling, handleCommandLeveling, levelCommand, handleLevelCommand, setLevelCommand, handleSetLevelCommand, getLevelDashboardContent, startVoiceXpCron };
+module.exports = { 
+  handleLeveling, 
+  handleCommandLeveling, 
+  levelCommand, 
+  handleLevelCommand, 
+  leaderboardCommand,
+  handleLeaderboardCommand,
+  setLevelCommand, 
+  handleSetLevelCommand, 
+  getLevelDashboardContent, 
+  startVoiceXpCron 
+};
