@@ -3,18 +3,6 @@ const cron = require('node-cron');
 
 const pendingRoleRewardImages = new Map();
 
-// 🖼️ ฟังก์ชันสุ่มเลือกรูปจากคลัง Custom Images ที่ผู้ใช้ตั้งค่าไว้
-function getCustomRandomImage(config, specificUrl) {
-  if (specificUrl && specificUrl.trim() !== '') {
-    return specificUrl.trim();
-  }
-  const customImgs = config.levelConfig?.customImages;
-  if (customImgs && Array.isArray(customImgs) && customImgs.length > 0) {
-    return customImgs[Math.floor(Math.random() * customImgs.length)];
-  }
-  return null;
-}
-
 async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConfigs, saveConfigs, isVoice = false) {
   if (!serverConfigs[guildId]) return;
 
@@ -36,7 +24,7 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
     userStat.xp -= requiredXp;
     userStat.level += 1;
 
-    const customMsg = (config.levelConfig.levelUpMessage || 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว!')
+    const customMsg = (config.levelConfig.levelUpMessage || 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}**แล้ว!')
       .replace('{user}', `<@${userId}>`)
       .replace('{level}', userStat.level);
 
@@ -62,7 +50,7 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
       }
     }
 
-    // 👑 1. ส่วนแจกยศรางวัล (ส่งเป็น Embed + สุ่มจาก Custom Images)
+    // 👑 1. ส่วนแจกยศรางวัล (Embed + สุ่มจากลิงก์ที่ใส่ในช่อง rewardImage คั่นด้วยคอมมา)
     if (guild) {
       try {
         const member = await guild.members.fetch(userId).catch(() => null);
@@ -93,9 +81,13 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
                   .setDescription(customRewardMsg)
                   .setColor(config.levelConfig.embedColor || '#66FFFF');
 
-                const finalRewardImage = getCustomRandomImage(config, rewardImgUrl);
-                if (finalRewardImage) {
-                  embed.setImage(finalRewardImage);
+                // 🎲 แปลงข้อความในช่อง URL เป็นอาเรย์แล้วสุ่มเลือก 1 รูป
+                if (rewardImgUrl && rewardImgUrl.trim() !== '') {
+                  const urls = rewardImgUrl.split(/,|\n/).map(s => s.trim()).filter(Boolean);
+                  if (urls.length > 0) {
+                    const randomImg = urls[Math.floor(Math.random() * urls.length)];
+                    embed.setImage(randomImg);
+                  }
                 }
 
                 targetChannel.send({ embeds: [embed] });
@@ -160,7 +152,6 @@ function handleLeveling(message, serverConfigs, saveConfigs) {
       embedColor: '#66FFFF',
       statsCardImageUrl: '',
       voiceXpEnabled: false, voiceXpAmount: 10,
-      customImages: [],
       roleRewards: {}
     };
   }
@@ -288,7 +279,6 @@ function getLevelDashboardContent(config) {
       embedColor: '#66FFFF',
       statsCardImageUrl: '',
       voiceXpEnabled: false, voiceXpAmount: 10,
-      customImages: [],
       roleRewards: {}
     };
   }
@@ -310,14 +300,13 @@ function getLevelDashboardContent(config) {
 
   const embed = new EmbedBuilder()
     .setTitle('⚙️ แผงควบคุมระบบเลเวล (Level Dashboard)')
-    .setDescription('จัดการสถานะ เลือกห้องแจ้งเตือน ปรับเรต XP และตั้งค่าคลังรูปสุ่มได้จากปุ่มด้านล่าง')
+    .setDescription('จัดการสถานะ เลือกห้องแจ้งเตือน ปรับเรต XP และตั้งค่าข้อความได้จากปุ่มด้านล่าง')
     .setColor('#5865F2')
     .addFields(
       { name: '📥 สถานะเลเวลแชท', value: statusText, inline: true },
       { name: '🎙️ ระบบ XP ห้องเสียง', value: voiceStatus, inline: true },
       { name: '📢 ห้องแจ้งเตือน', value: channelName, inline: true },
       { name: '👑 ยศรางวัลตามเลเวล', value: rewardsList, inline: false },
-      { name: '🖼️ รูปสุ่ม Custom ทั้งหมด', value: `\`${lc.customImages ? lc.customImages.length : 0} รูป\``, inline: true },
       { name: '📊 เรต XP (แชท / คำสั่ง)', value: `${lc.minXp}-${lc.maxXp} XP / ${lc.cmdXp} XP`, inline: true }
     );
 
@@ -330,8 +319,7 @@ function getLevelDashboardContent(config) {
   const row2 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('edit_level_rate').setLabel('เรต XP').setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId('edit_level_card').setLabel('ตกแต่งการ์ด').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('edit_level_messages').setLabel('✉️ ตั้งค่าข้อความ').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('edit_custom_images').setLabel('🖼️ ตั้งค่าคลังรูปสุ่ม').setStyle(ButtonStyle.Secondary)
+    new ButtonBuilder().setCustomId('edit_level_messages').setLabel('✉️ ตั้งค่าข้อความ').setStyle(ButtonStyle.Secondary)
   );
 
   const row3 = new ActionRowBuilder().addComponents(
