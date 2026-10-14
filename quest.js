@@ -11,16 +11,14 @@ async function handleSetupQuestCommand(interaction) {
   }
 
   const embed = new EmbedBuilder()
-    .setTitle('𝖅 • 𝐃𝐀𝐈𝐋𝐘 𝐐𝐔𝐄𝐒𝐓𝐒 & 𝐎𝐑𝐁𝐒')
+    .setTitle('🎁 𝐃𝐀𝐈𝐋𝐘 𝐐𝐔𝐄𝐒𝐓𝐒')
     .setDescription(
-      '✨ **ระบบเควสต์ประจำวันและสะสมแต้มพิเศษ**\n\n' +
-      '> 🎁 **รางวัล:** รับฟรีทันที **50 Discord Orbs** ทุกๆ 24 ชั่วโมง!\n' +
-      '> 🔮 **วิธีทำภารกิจ:** เพียงกดปุ่มด้านล่างเพื่อเช็คชื่อและรับ Orbs เข้ากระเป๋าของคุณทันที\n\n' +
+      '> 🎁 **รางวัล:** รับรางวัล **50 Discord Orbs**\n\n' +
       '_แต้มที่คุณสะสมสามารถนำไปใช้แลกของรางวัลพิเศษภายในเซิร์ฟเวอร์ได้ในอนาคต!_'
     )
     .setColor('#66FFFF')
-    .setFooter({ text: '𝙕𝙀𝙉 𝘽𝙊𝙏 • ระบบเควสต์อัตโนมัติ' })
-    .setTimestamp();
+    .setFooter({ text: '𝙕𝙀𝙉 𝘽𝙊𝙏 • ระบบเควสต์อัตโนมัติ' });
+    // เอา .setTimestamp() ออก เพื่อไม่ให้แสดงเวลาครับ
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -62,12 +60,10 @@ async function handleQuestButton(interaction, serverConfigs, saveConfigs) {
   userStat.lastDaily = now;
   await saveConfigs(serverConfigs);
 
-  // แจ้งเตือนส่วนตัวแบบ Embed สวยงามเมื่อกดรับสำเร็จ
   const successEmbed = new EmbedBuilder()
     .setTitle('🎉 รับรางวัลประจำวันสำเร็จ!')
     .setDescription(`คุณได้รับ **+${rewardOrbs} Discord Orbs** เข้ากระเป๋าเรียบร้อยแล้ว!\n🔮 **ยอดสะสมปัจจุบัน:** \`${userStat.orbs} Orbs\``)
-    .setColor('#66FFFF')
-    .setTimestamp();
+    .setColor('#66FFFF');
 
   await interaction.reply({ embeds: [successEmbed], ephemeral: true });
   return true;
