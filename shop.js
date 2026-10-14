@@ -1,6 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
 
-// 🛒 รายการสินค้าทั้งหมดใน Zen Shop
 const SHOP_ITEMS = [
   { 
     id: 'gacha_box', 
@@ -11,11 +10,11 @@ const SHOP_ITEMS = [
   },
   { 
     id: 'xp_boost', 
-    name: '⚡ น้ำยาคูณ XP (1 ชั่วโมง + ยศ Boost)', 
+    name: '⚡ น้ำยาคูณ XP (1 ชั่วโมง + ยศ Booster)', 
     price: 100, 
     type: 'buff',
-    boostRoleId: 'ใส่_ID_ยศ_XP_Boost_ในเซิร์ฟเวอร์_ตรงนี้', // <-- เอา ID ยศมาใส่ตรงนี้
-    description: 'เพิ่มเรต XP คูณ 2 พร้อมรับยศสถานะพิเศษโชว์หล่อ 1 ชั่วโมงเต็ม!' 
+    roleId: 'ใส่_ID_ยศ_Boost_ตรงนี้', // <-- ใส่ ID ยศที่จะให้ชั่วคราวตรงนี้
+    description: 'คูณ XP 2 เท่า พร้อมรับยศพิเศษ XP Booster นาน 1 ชั่วโมง!' 
   },
   { 
     id: 'role_cafe', 
@@ -35,15 +34,37 @@ const SHOP_ITEMS = [
   }
 ];
 
-// 🛍️ คำสั่งเปิดร้านค้า
 const shopCommand = new SlashCommandBuilder()
   .setName('shop')
   .setDescription('เปิดร้านค้าเซิร์ฟเวอร์ ใช้ Zen Coins ซื้อไอเทม กาชา บัฟ และธีมการ์ด');
 
-// ⏱️ คำสั่งเช็กสถานะบัฟ XP
+// ⏱️ คำสั่งใหม่: เช็กสถานะบัฟ XP Boost ของตัวเอง
 const boostStatusCommand = new SlashCommandBuilder()
   .setName('boost-status')
-  .setDescription('เช็กเวลาคงเหลือของสถานะคูณ XP และยศ Boost ของคุณ');
+  .setDescription('เช็กสถานะและเวลาคงเหลือของน้ำยาคูณ XP (XP Booster)');
+
+async function handleBoostStatusCommand(interaction, serverConfigs) {
+  const guildId = interaction.guildId;
+  const userId = interaction.user.id;
+
+  const config = serverConfigs[guildId] || {};
+  const userStat = config.levels?.[userId];
+  const now = Date.now();
+
+  if (!userStat || !userStat.boostUntil || userStat.boostUntil <= now) {
+    return await interaction.reply({ content: '❌ คุณยังไม่ได้เปิดใช้งานน้ำยาคูณ XP หรือบัฟหมดอายุไปแล้วครับ!', ephemeral: true });
+  }
+
+  const remainingMs = userStat.boostUntil - now;
+  const remainingMins = Math.ceil(remainingMs / (1000 * 60));
+
+  const embed = new EmbedBuilder()
+    .setTitle('⚡ XP BOOSTER STATUS')
+    .setDescription(`สถานะบัฟคูณ XP 2 เท่าของคุณ:\n⏳ คงเหลือเวลาอีกประมาณ **${remainingMins} นาที**\n\n*(ยศ Booster จะถูกถอดออกโดยอัตโนมัติเมื่อหมดเวลา)*`)
+    .setColor('#00FF00');
+
+  await interaction.reply({ embeds: [embed], ephemeral: true });
+}
 
 async function handleShopCommand(interaction, serverConfigs) {
   const guildId = interaction.guildId;
@@ -83,24 +104,6 @@ async function handleShopCommand(interaction, serverConfigs) {
   await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
 }
 
-async function handleBoostStatusCommand(interaction, serverConfigs) {
-  const guildId = interaction.guildId;
-  const userId = interaction.user.id;
-
-  const userStat = serverConfigs[guildId]?.levels?.[userId];
-  const now = Date.now();
-
-  if (!userStat || !userStat.boostUntil || userStat.boostUntil <= now) {
-    return await interaction.reply({ content: '❌ ตอนนี้คุณยังไม่ได้เปิดใช้งานน้ำยาคูณ XP (สถานะบัฟหมดอายุหรือยังไม่เคยซื้อ)', ephemeral: true });
-  }
-
-  const remainingMs = userStat.boostUntil - now;
-  const remainingMinutes = Math.ceil(remainingMs / (1000 * 60));
-
-  await interaction.reply({ content: `⚡ **สถานะ XP Boost ของคุณ:**\nกำลังใช้งานอยู่ เหลือเวลาอีกประมาณ **${remainingMinutes} นาที** ครับ!`, ephemeral: true });
-}
-
-// 🛒 ระบบกดปุ่มซื้อสินค้า
 async function handleShopButton(interaction, serverConfigs, saveConfigs) {
   if (!interaction.customId.startsWith('buy_item_')) return false;
 
@@ -147,7 +150,6 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
   } 
   
   else if (item.type === 'buff') {
-    // บัฟ XP 1 ชั่วโมง + ให้ยศ Boost ทันที
     const now = Date.now();
     const oneHour = 60 * 60 * 1000;
     const currentBoost = userStat.boostUntil && userStat.boostUntil > now ? userStat.boostUntil : now;
@@ -155,19 +157,19 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
     
     await saveConfigs(serverConfigs);
 
-    // มอบยศ Boost ให้ทันที
+    // ให้ยศ Booster ทันที
     try {
       const member = await interaction.guild.members.fetch(userId);
-      const role = await interaction.guild.roles.fetch(item.boostRoleId);
-      if (role && !member.roles.cache.has(item.boostRoleId)) {
+      const role = await interaction.guild.roles.fetch(item.roleId);
+      if (role) {
         await member.roles.add(role);
       }
     } catch (err) {
-      console.error('Error giving boost role:', err);
+      console.error('Error adding boost role:', err);
     }
 
     return await interaction.reply({ 
-      content: `⚡ เปิดใช้งานน้ำยาคูณ XP สำเร็จ! คุณได้รับสิทธิ์คูณ XP 2 เท่า และได้รับ **ยศ Boost** เป็นเวลา 1 ชั่วโมงเต็ม! (ใช้คำสั่ง \`/boost-status\` เพื่อเช็กเวลาได้)`, 
+      content: `⚡ เปิดใช้งานน้ำยาคูณ XP สำเร็จ! คุณได้รับสิทธิ์คูณ XP 2 เท่า และรับยศ Booster เป็นเวลา 1 ชั่วโมงเต็ม!`, 
       ephemeral: true 
     });
   } 
@@ -204,8 +206,8 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
 module.exports = {
   shopCommand,
   boostStatusCommand,
-  handleShopCommand,
   handleBoostStatusCommand,
+  handleShopCommand,
   handleShopButton,
-  SHOP_ITEMS
+  SHOP_ITEMS // ส่งออกรายการสินค้าเพื่อให้ level.js ดึง ID ยศมาถอดออกได้
 };
