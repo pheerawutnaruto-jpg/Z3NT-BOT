@@ -308,25 +308,31 @@ client.on('interactionCreate', async interaction => {
 
   if (interaction.isButton()) {
     const id = interaction.customId;
+    
+    // 🛡️ ป้องกัน Timeout 3 วินาทีของ Discord ทันทีที่กดปุ่ม
+    if (!['test_welcome'].includes(id)) {
+      await interaction.deferUpdate().catch(() => {});
+    }
+
     if (id === 'toggle_welcome') {
       config.welcomeEnabled = !config.welcomeEnabled;
       await saveConfigs(serverConfigs);
-      return await updateDashboard(interaction);
+      return await interaction.editReply(getDashboardContent(config));
     }
     if (id === 'toggle_autorole') {
       config.autoroleEnabled = !config.autoroleEnabled;
       await saveConfigs(serverConfigs);
-      return await updateAutoroleDashboard(interaction);
+      return await interaction.editReply(getAutoroleDashboardContent(config));
     }
     if (id === 'toggle_level') {
       config.levelConfig.enabled = !config.levelConfig.enabled;
       await saveConfigs(serverConfigs);
-      return await interaction.update(getLevelDashboardContent(config));
+      return await interaction.editReply(getLevelDashboardContent(config));
     }
     if (id === 'toggle_voice_xp') {
       config.levelConfig.voiceXpEnabled = !config.levelConfig.voiceXpEnabled;
       await saveConfigs(serverConfigs);
-      return await interaction.update(getLevelDashboardContent(config));
+      return await interaction.editReply(getLevelDashboardContent(config));
     }
     if (id === 'edit_voice_amount') {
       const modal = new ModalBuilder().setCustomId('voiceAmountModal').setTitle('ตั้งค่า XP ห้องเสียง');
@@ -393,19 +399,18 @@ client.on('interactionCreate', async interaction => {
     }
 
     await saveConfigs(serverConfigs);
-    if (id === 'toggle_welcome') return await updateDashboard(interaction);
-    if (id === 'toggle_autorole') return await updateAutoroleDashboard(interaction);
-    if (id.startsWith('sec_')) return await interaction.update(getSecurityDashboardContent(config));
+    if (id.startsWith('sec_')) return await interaction.editReply(getSecurityDashboardContent(config));
   }
 
   if (interaction.isStringSelectMenu()) {
+    await interaction.deferUpdate().catch(() => {});
     if (interaction.customId === 'act_invite_select') {
       const vals = interaction.values;
       config.security.actions.invite.timeout = vals.includes('timeout');
       config.security.actions.invite.kick = vals.includes('kick');
       config.security.actions.invite.ban = vals.includes('ban');
       await saveConfigs(serverConfigs);
-      return await interaction.update(getSecurityDashboardContent(config));
+      return await interaction.editReply(getSecurityDashboardContent(config));
     }
     if (interaction.customId === 'act_spam_select') {
       const vals = interaction.values;
@@ -413,25 +418,23 @@ client.on('interactionCreate', async interaction => {
       config.security.actions.spam.kick = vals.includes('kick');
       config.security.actions.spam.ban = vals.includes('ban');
       await saveConfigs(serverConfigs);
-      return await interaction.update(getSecurityDashboardContent(config));
+      return await interaction.editReply(getSecurityDashboardContent(config));
     }
   }
 
   if (interaction.isChannelSelectMenu()) {
+    await interaction.deferUpdate().catch(() => {});
     if (interaction.customId === 'select_channel') {
-      await interaction.deferUpdate();
       config.channelId = interaction.values[0];
       await saveConfigs(serverConfigs);
-      return await updateDashboardAfterDefer(interaction);
+      return await interaction.editReply(getDashboardContent(config));
     }
     if (interaction.customId === 'select_level_channel') {
-      await interaction.deferUpdate();
       config.levelConfig.channelId = interaction.values[0];
       await saveConfigs(serverConfigs);
       return await interaction.editReply(getLevelDashboardContent(config));
     }
     if (interaction.customId === 'sec_select_ignored') {
-      await interaction.deferUpdate();
       config.security.ignoredChannels = interaction.values;
       await saveConfigs(serverConfigs);
       return await interaction.editReply(getSecurityDashboardContent(config));
@@ -439,11 +442,11 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.isRoleSelectMenu()) {
+    await interaction.deferUpdate().catch(() => {});
     if (interaction.customId === 'select_autorole') {
-      await interaction.deferUpdate();
       config.autoroleId = interaction.values[0];
       await saveConfigs(serverConfigs);
-      return await updateAutoroleDashboardAfterDefer(interaction);
+      return await interaction.editReply(getAutoroleDashboardContent(config));
     }
     if (interaction.customId.startsWith('select_reward_role_')) {
       const levelNum = interaction.customId.replace('select_reward_role_', '');
@@ -463,7 +466,7 @@ client.on('interactionCreate', async interaction => {
       await saveConfigs(serverConfigs);
       pendingRoleRewardImages.delete(`${interaction.user.id}_${levelNum}`);
 
-      return await interaction.update({
+      return await interaction.editReply({
         content: `✅ ตั้งค่ายศรางวัลสำเร็จ! ยศ <@&${selectedRoleId}> ถูกย้ายมาอยู่ที่ Level ${levelNum} เรียบร้อยแล้ว`,
         ...getLevelDashboardContent(config)
       });
@@ -570,7 +573,7 @@ function getAutoroleDashboardContent(config) {
     .addFields({ name: '📥 Status', value: statusText, inline: true }, { name: '👑 ยศที่จะได้รับ', value: roleName, inline: true });
   const row1 = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('toggle_autorole').setLabel(config.autoroleEnabled ? 'ปิด' : 'เปิด').setStyle(config.autoroleEnabled ? ButtonStyle.Danger : ButtonStyle.Success));
   const roleRow = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('select_autorole').setPlaceholder('👑 เลือกยศแจกใหม่'));
-  return { embeds: [embed], components: [row1, roleRow] };
+  return { embeds: [embed], components: [roleRow] };
 }
 
 async function sendDashboard(interaction) {
