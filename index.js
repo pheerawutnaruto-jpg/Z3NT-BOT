@@ -10,8 +10,6 @@ const {
   handleLevelCommand, 
   leaderboardCommand, 
   handleLeaderboardCommand, 
-  resetLevelsCommand,
-  handleResetLevelsCommand,
   setLevelCommand, 
   handleSetLevelCommand, 
   getLevelDashboardContent, 
@@ -82,7 +80,6 @@ client.once('ready', async () => {
     new SlashCommandBuilder().setName('set-security').setDescription('เปิดแผงควบคุมระบบป้องกันความปลอดภัยขั้นสูง'),
     levelCommand,
     leaderboardCommand,
-    resetLevelsCommand,
     setupQuestCommand,
     shopCommand,
     boostStatusCommand,
@@ -152,6 +149,8 @@ client.on('messageCreate', async message => {
 });
 
 client.on('guildMemberAdd', async member => {
+  if (member.user.bot) return;
+
   const guildId = member.guild.id;
   const config = serverConfigs[guildId];
 
@@ -266,9 +265,6 @@ client.on('interactionCreate', async interaction => {
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'leaderboard') {
     return await handleLeaderboardCommand(interaction, serverConfigs);
-  }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'reset-levels') {
-    return await handleResetLevelsCommand(interaction, serverConfigs, saveConfigs);
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'setup-quest') {
     return await handleSetupQuestCommand(interaction);
