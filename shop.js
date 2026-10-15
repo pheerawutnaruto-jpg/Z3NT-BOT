@@ -1,5 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
 
+const userCooldowns = new Map();
+
 const IN_GAME_ITEMS = [
   { 
     id: 'gacha_box', 
@@ -7,7 +9,7 @@ const IN_GAME_ITEMS = [
     price: 5, 
     type: 'gacha',
     buttonLabel: 'ซื้อ กล่องสุ่ม (5c)',
-    description: 'เสี่ยงโชคสุ่มรับ Zen Coins ก้อนโตหรือเกลือ! (ลุ้นรับสูงสุด 150 Coins)' 
+    description: 'เสี่ยงโชคสุ่มรับ Zen Coins ก้อนโตหรือเกลือ! (ลุ้นรับสูงสุด 50 Coins)' 
   },
   { 
     id: 'xp_boost', 
@@ -59,7 +61,7 @@ async function handleSetupShopCommand(interaction) {
   IN_GAME_ITEMS.forEach(item => {
     row.addComponents(
       new ButtonBuilder()
-        .setCustomId(`buy_ ingame_${item.id}`)
+        .setCustomId(`buy_ingame_${item.id}`)
         .setLabel(item.buttonLabel)
         .setStyle(ButtonStyle.Primary)
     );
@@ -92,11 +94,22 @@ async function handleBoostStatusCommand(interaction, serverConfigs) {
 }
 
 async function handleShopButton(interaction, serverConfigs, saveConfigs) {
-  if (!interaction.customId.startsWith('buy_ ingame_')) return false;
+  if (!interaction.customId.startsWith('buy_ingame_')) return false;
+
+  const userId = interaction.user.id;
+  const now = Date.now();
+
+  // 🛡️ ป้องกันการกดปุ่มรัวๆ (Cooldown 2 วินาที)
+  if (userCooldowns.has(userId)) {
+    const expirationTime = userCooldowns.get(userId) + 2000;
+    if (now < expirationTime) {
+      return await interaction.reply({ content: '⏳ ใจเย็นๆ ครับ! กรุณารอสักครู่ก่อนกดทำรายการถัดไป...', ephemeral: true });
+    }
+  }
+  userCooldowns.set(userId, now);
 
   const guildId = interaction.guildId;
-  const userId = interaction.user.id;
-  const itemId = interaction.customId.replace('buy_ ingame_', '');
+  const itemId = interaction.customId.replace('buy_ingame_', '');
 
   const item = IN_GAME_ITEMS.find(i => i.id === itemId);
   if (!item) return true;
@@ -110,19 +123,23 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
   const userStat = serverConfigs[guildId].levels[userId];
   const userCoins = userStat.orbs || 0;
 
+  if (item.type === 'role_temp' && userStat.artistUntil && userStat.artistUntil > now) {
+    const remainingDays = Math.ceil((userStat.artistUntil - now) / (1000 * 60 * 60 * 24));
+    return await interaction.reply({ content: `⚠️ คุณยังมีสิทธิ์ Artist ใช้งานอยู่ (เหลือเวลาอีกประมาณ ${remainingDays} วัน) ไม่สามารถซื้อซ้ำซ้อนได้ครับ!`, ephemeral: true });
+  }
+
   if (userCoins < item.price) {
-    await interaction.reply({ content: `❌ Zen Coins ของคุณไม่พอ! (คุณมี ${userCoins} Coins แต่สินค้าราคา ${item.price} Coins)`, ephemeral: true });
-    return true;
+    return await interaction.reply({ content: `❌ Zen Coins ของคุณไม่พอ! (คุณมี ${userCoins} Coins แต่สินค้าราคา ${item.price} Coins)`, ephemeral: true });
   }
 
   userStat.orbs -= item.price;
 
   if (item.type === 'gacha') {
+    // ปรับเรตกาชาสำหรับราคา 5 Coins ให้สมดุล ไม่ให้เอาไปปั๊มเงินง่ายเกินไป
     const outcomes = [
       { reward: 0, text: 'เกลือ! รอบนี้ไม่ได้อะไรเลย เสียใจด้วยนะ 😢' },
       { reward: 5, text: 'ได้ทุนคืน! รับไป 5 Zen Coins 🪙' },
-      { reward: 20, text: 'โชคดี! ได้กำไรรับไป 20 Zen Coins 🎉' },
-      { reward: 50, text: 'แจ็คพอตแตก! สุดยอดดด รับไปเลย 50 Zen Coins 🏆' }
+      { reward: 15, text: 'โชคดี! ได้กำไรรับไป 15 Zen Coins 🎉' }
     ];
     const roll = outcomes[Math.floor(Math.random() * outcomes.length)];
     userStat.orbs += roll.reward;
@@ -132,7 +149,6 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
   } 
   
   else if (item.type === 'buff') {
-    const now = Date.now();
     const oneHour = 60 * 60 * 1000;
     userStat.boostUntil = (userStat.boostUntil && userStat.boostUntil > now ? userStat.boostUntil : now) + oneHour;
     await saveConfigs(serverConfigs);
@@ -147,7 +163,6 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
   } 
   
   else if (item.type === 'role_temp') {
-    const now = Date.now();
     const threeDays = 3 * 24 * 60 * 60 * 1000;
     userStat.artistUntil = (userStat.artistUntil && userStat.artistUntil > now ? userStat.artistUntil : now) + threeDays;
     await saveConfigs(serverConfigs);
