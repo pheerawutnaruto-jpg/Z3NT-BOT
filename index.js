@@ -20,6 +20,7 @@ const {
 } = require('./level');
 const { setupQuestCommand, handleSetupQuestCommand, handleQuestButton } = require('./quest');
 const { shopCommand, boostStatusCommand, handleBoostStatusCommand, handleShopCommand, handleShopButton } = require('./shop');
+const { setupArtistCommand, handleSetupArtistCommand, handleArtistButton, handleArtistModalSubmit } = require('./artist_card');
 
 // เชื่อมต่อ Upstash Redis จาก Environment Variables
 const redis = new Redis({
@@ -85,6 +86,7 @@ client.once('ready', async () => {
     setupQuestCommand,
     shopCommand,
     boostStatusCommand,
+    setupArtistCommand,
     setLevelCommand,
     new SlashCommandBuilder().setName('clear').setDescription('ลบข้อความในแชทจำนวน 1-100 ข้อความ')
       .addIntegerOption(option => option.setName('amount').setDescription('จำนวนข้อความที่ต้องการลบ (1-100)').setRequired(true)),
@@ -277,6 +279,9 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isChatInputCommand() && interaction.commandName === 'boost-status') {
     return await handleBoostStatusCommand(interaction, serverConfigs);
   }
+  if (interaction.isChatInputCommand() && interaction.commandName === 'setup-artist-card') {
+    return await handleSetupArtistCommand(interaction);
+  }
   if (interaction.isChatInputCommand() && interaction.commandName === 'set-level') {
     return await handleSetLevelCommand(interaction, serverConfigs);
   }
@@ -328,11 +333,15 @@ client.on('interactionCreate', async interaction => {
 
     const handledShop = await handleShopButton(interaction, serverConfigs, saveConfigs);
     if (handledShop) return;
+
+    const handledArtistBtn = await handleArtistButton(interaction, serverConfigs);
+    if (handledArtistBtn) return;
     
     const modalButtons = [
       'edit_voice_amount', 'edit_level_rate', 'edit_level_card', 
       'edit_level_messages', 'set_role_reward', 'delete_role_reward', 
-      'sec_config_time', 'edit_embed', 'edit_footer', 'test_welcome'
+      'sec_config_time', 'edit_embed', 'edit_footer', 'test_welcome',
+      'open_artist_card_modal'
     ];
 
     if (!modalButtons.includes(id)) {
@@ -544,6 +553,9 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.isModalSubmit()) {
+    const handledArtistModal = await handleArtistModalSubmit(interaction, serverConfigs, saveConfigs);
+    if (handledArtistModal) return;
+
     if (interaction.customId === 'editEmbedModal') {
       config.embed.title = interaction.fields.getTextInputValue('embedTitle');
       config.embed.description = interaction.fields.getTextInputValue('embedDesc');
