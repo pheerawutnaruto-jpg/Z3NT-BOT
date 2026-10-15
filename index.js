@@ -148,7 +148,6 @@ client.on('messageCreate', async message => {
   const guildId = message.guild?.id;
   const config = serverConfigs[guildId];
 
-  // 🛡️ ตรวจสอบระบบ Media Guard ก่อน (บังคับส่งเฉพาะรูปภาพ/มีเดีย)
   const isMediaBlocked = handleMediaGuardMessage(message, serverConfigs);
   if (isMediaBlocked) return;
 
@@ -692,7 +691,6 @@ async function sendAutoroleDashboard(interaction) {
 async function updateAutoroleDashboard(interaction) {
   await interaction.update({ ...getAutoroleDashboardContent(serverConfigs[interaction.guildId]) });
 }
-async function updateAutoroleDashboardAfterDeleg+arpUpdateAsync = async ...
 async function updateAutoroleDashboardAfterDefer(interaction) {
   await interaction.editReply({ ...getAutoroleDashboardContent(serverConfigs[interaction.guildId]) });
 }
