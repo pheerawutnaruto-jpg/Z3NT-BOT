@@ -162,16 +162,14 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
   const item = PREMIUM_ITEMS.find(i => i.id === itemId);
   if (!item) return true;
 
-  // 📌 เลือกระหว่าง QR Code PromptPay (สำหรับซื้อยศ) กับ TrueMoney Wallet (สำหรับเติมเงิน)
-  const promptPayQr = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560193259953717279/ReceiveMoney_QR_2026-10-15_14.14.01.png';
-  const trueMoneyQr = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560193260293595176/ReceiveMoney_QR_2026-10-15_14.13.55.png';
-  const selectedQr = item.type === 'topup' ? trueMoneyQr : promptPayQr;
+  // 📌 ใช้ QR Code อันเดียวและลิงก์ทรูมันนี่อันเดียวสำหรับทุกสินค้า
+  const sharedQrCode = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560193260293595176/ReceiveMoney_QR_2026-10-15_14.13.55.png?ex=6ad1d2b4&is=6ad08134&hm=5a0bd5bb320c20c2d556733b69d623e13ba1295172c49f6767787504594123f3&';
   const truemoneyLink = 'https://tmn.app.link/57MAEZTBf7b';
 
   const embed = new EmbedBuilder()
     .setTitle(`💳 ชำระเงินพรีเมียม / เติมเงิน`)
     .setDescription(`คุณกำลังสั่งซื้อ: **${item.name}**\n💰 ยอดที่ต้องชำระ: **${item.price} บาท**\n\n──────────────────────\n📌 **สแกน QR Code ด้านล่างเพื่อโอนเงิน:**\n🔗 หรือคลิกลิงก์จ่ายผ่านทรูมันนี่: [กดที่นี่เพื่อเปิดแอป TrueMoney](${truemoneyLink})`)
-    .setImage(selectedQr)
+    .setImage(sharedQrCode)
     .setColor('#00FF00')
     .setFooter({ text: 'เมื่อโอนเงินแล้ว ส่งสลิปให้แอดมินเพื่อเติมเหรียญ / กดรับยศถาวรได้เลยครับ!' });
 
