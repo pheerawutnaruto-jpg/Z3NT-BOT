@@ -19,12 +19,12 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
   const multiplier = config.levelConfig.xpMultiplier || 100;
   const now = Date.now();
 
-  // ⚡ ตรวจสอบสถานะบัฟ XP Booster และแจ้งเตือน
   let finalAmount = amount;
   let isBoosted = false;
 
+  // ตรวจสอบสถานะบัฟ XP Booster
   if (userStat.boostUntil && now < userStat.boostUntil) {
-    finalAmount *= 2; // คูณ 2 เท่า
+    finalAmount *= 2; 
     isBoosted = true;
   } else if (userStat.boostUntil && now >= userStat.boostUntil) {
     userStat.boostUntil = 0;
@@ -42,7 +42,7 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
     }
   }
 
-  // 🎨 ตรวจสอบและจัดการหมดอายุสิทธิ์ Artist 3 วัน
+  // ตรวจสอบและจัดการหมดอายุสิทธิ์ Artist 3 วัน
   const artistRoleId = '1560136361015513108';
   if (userStat.artistUntil && now >= userStat.artistUntil) {
     userStat.artistUntil = 0;
@@ -67,7 +67,6 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
     userStat.xp -= requiredXp;
     userStat.level += 1;
 
-    // เพิ่มข้อความแสดงสถานะ Boost ตอนเลเวลอัปด้วย
     let boostText = isBoosted ? ' *(⚡ กำลังใช้งาน XP Booster x2)*' : '';
     const customMsg = (config.levelConfig.levelUpMessage || 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว!')
       .replace('{user}', `<@${userId}>`)
@@ -154,35 +153,84 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
 
   await saveConfigs(serverConfigs);
 
-  // 💡 ถ้ากำลังเปิดใช้งาน XP Booster อยู่ และพิมพ์แชท (ไม่ใช่ห้องเสียง) ส่งข้อความแจ้งเตือนส่วนตัวบอกสั้นๆ
   if (isBoosted && !isVoice && clientOrMessage.channel) {
     try {
       clientOrMessage.channel.send({ content: `⚡ <@${userId}> ได้รับ XP +${finalAmount} [XP Boost x2]` }).then(msg => {
-        setTimeout(() => msg.delete().catch(() => {}), 4000); // ลบข้อความแจ้งเตือนอัตโนมัติหลัง 4 วินาทีเพื่อไม่ให้แชทรก
+        setTimeout(() => msg.delete().catch(() => {}), 4000);
       });
     } catch (err) {}
   }
 }
 
+// ⏰ Background Cron Job: คอยเช็กถอดรหัสยศ XP Booster และ Artist ทุกๆ 1 นาทีแบบอัตโนมัติ
 function startVoiceXpCron(client, serverConfigs, saveConfigs) {
-  cron.schedule('* * * * *', () => {
+  cron.schedule('* * * * *', async () => {
+    const now = Date.now();
+    const boostItem = SHOP_ITEMS.find(i => i.type === 'buff');
+    const boostRoleId = boostItem ? boostItem.roleId : null;
+    const artistRoleId = '1560136361015513108';
+
     for (const guildId in serverConfigs) {
       const config = serverConfigs[guildId];
-      if (!config || !config.levelConfig || !config.levelConfig.enabled || !config.levelConfig.voiceXpEnabled) continue;
+      if (!config || !config.levels) continue;
 
       const guild = client.guilds.cache.get(guildId);
       if (!guild) continue;
 
-      const xpPerMin = config.levelConfig.voiceXpAmount || 10;
+      let updated = false;
 
-      guild.channels.cache.forEach(channel => {
-        if (channel.type === ChannelType.GuildVoice) {
-          channel.members.forEach(member => {
-            if (member.user.bot) return;
-            giveXpToUser(guildId, member.user.id, xpPerMin, guild, serverConfigs, saveConfigs, true);
-          });
+      // 1. เช็ก XP ห้องเสียง (ถ้าเปิดใช้งาน)
+      if (config.levelConfig && config.levelConfig.enabled && config.levelConfig.voiceXpEnabled) {
+        const xpPerMin = config.levelConfig.voiceXpAmount || 10;
+        guild.channels.cache.forEach(channel => {
+          if (channel.type === ChannelType.GuildVoice) {
+            channel.members.forEach(member => {
+              if (member.user.bot) return;
+              giveXpToUser(guildId, member.user.id, xpPerMin, guild, serverConfigs, saveConfigs, true);
+            });
+          }
+        });
+      }
+
+      // 2. เช็กเวลาหมดอายุของ Booster และ Artist สำหรับทุกคนในเซิร์ฟเวอร์
+      for (const userId in config.levels) {
+        const userStat = config.levels[userId];
+
+        // เช็กหมดอายุ XP Booster
+        if (userStat.boostUntil && now >= userStat.boostUntil) {
+          userStat.boostUntil = 0;
+          if (boostRoleId) {
+            try {
+              const member = await guild.members.fetch(userId).catch(() => null);
+              if (member && member.roles.cache.has(boostRoleId)) {
+                await member.roles.remove(boostRoleId);
+              }
+            } catch (err) {
+              console.error('Error cron removing expired boost role:', err);
+            }
+          }
+          updated = true;
         }
-      });
+
+        // เช็กหมดอายุสิทธิ์ Artist 3 วัน
+        if (userStat.artistUntil && now >= userStat.artistUntil) {
+          userStat.artistUntil = 0;
+          userStat.customTheme = '';
+          try {
+            const member = await guild.members.fetch(userId).catch(() => null);
+            if (member && member.roles.cache.has(artistRoleId)) {
+              await member.roles.remove(artistRoleId);
+            }
+          } catch (err) {
+            console.error('Error cron removing expired artist role:', err);
+          }
+          updated = true;
+        }
+      }
+
+      if (updated) {
+        await saveConfigs(serverConfigs);
+      }
     }
   }, { timezone: "Asia/Bangkok" });
 }
