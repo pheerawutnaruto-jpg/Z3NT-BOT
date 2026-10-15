@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, RoleSelectMenuBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
 const cron = require('node-cron');
 const { generateProfileCard } = require('./canvas_card');
+const { isServerPremium } = require('./license');
 
 const pendingRoleRewardImages = new Map();
 
@@ -175,7 +176,9 @@ function startVoiceXpCron(client, serverConfigs, saveConfigs) {
 
       let updated = false;
 
-      if (config.levelConfig && config.levelConfig.enabled && config.levelConfig.voiceXpEnabled) {
+      // เซิร์ฟเวอร์เสียงเปิดใช้งาน XP ห้องเสียงเฉพาะพรีเมียม
+      const hasPremium = await isServerPremium(guildId, serverConfigs);
+      if (hasPremium && config.levelConfig && config.levelConfig.enabled && config.levelConfig.voiceXpEnabled) {
         const xpPerMin = config.levelConfig.voiceXpAmount || 10;
         guild.channels.cache.forEach(channel => {
           if (channel.type === ChannelType.GuildVoice) {
@@ -268,7 +271,7 @@ function handleCommandLeveling(interaction, serverConfigs, saveConfigs) {
 
 const levelCommand = new SlashCommandBuilder()
   .setName('level')
-  .setDescription('เช็กเลเวลและค่าประสบการณ์ (XP) เป็นรูปภาพการ์ดโปรไฟล์')
+  .setDescription('เช็กเลเวลและค่าประสบการณ์ (XP)')
   .addUserOption(option =>
     option.setName('user')
       .setDescription('เลือกสมาชิกที่ต้องการดูเลเวล')
@@ -276,21 +279,48 @@ const levelCommand = new SlashCommandBuilder()
   );
 
 async function handleLevelCommand(interaction, serverConfigs) {
-  await interaction.deferReply();
-
   const guildId = interaction.guildId;
   const targetUser = interaction.options.getUser('user') || interaction.user;
   const userId = targetUser.id;
 
   const config = serverConfigs[guildId] || {};
   const levels = config.levels || {};
-  const lConfig = config.levelConfig || { xpMultiplier: 100, embedColor: '#66FFFF', statsCardImageUrl: '' };
+  const lConfig = config.levelConfig || { xpMultiplier: 100, cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD', cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**', embedColor: '#66FFFF', statsCardImageUrl: '' };
 
   const userStat = levels[userId] || { xp: 0, level: 1, customTheme: '' };
+  const hasPremium = await isServerPremium(guildId, serverConfigs);
 
-  const attachment = await generateProfileCard(targetUser, userStat, lConfig);
+  // 💎 หากเป็นเซิร์ฟเวอร์พรีเมียม ➔ ส่งเป็นการ์ด Canvas สุดอลังการ
+  if (hasPremium) {
+    await interaction.deferReply();
+    const attachment = await generateProfileCard(targetUser, userStat, lConfig);
+    return await interaction.editReply({ files: [attachment] });
+  } 
+  
+  // 🟢 หากเป็นเซิร์ฟเวอร์ทั่วไป ➔ ส่งเป็นการ์ด Embed ธรรมดา
+  const requiredXp = userStat.level * (lConfig.xpMultiplier || 100);
+  const percentage = Math.min(Math.round((userStat.xp / requiredXp) * 10), 10);
+  const progressBar = '█'.repeat(percentage) + '░'.repeat(10 - percentage);
 
-  await interaction.editReply({ files: [attachment] });
+  const finalTitle = (lConfig.cardTitle || '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD').replace('{user}', `<@${userId}>`);
+  const finalDesc = (lConfig.cardDescription || 'การ์ดข้อมูลเลเวลของ **{user}**').replace('{user}', `<@${userId}>`);
+
+  const embed = new EmbedBuilder()
+    .setTitle(finalTitle)
+    .setDescription(finalDesc)
+    .setColor(lConfig.embedColor || '#66FFFF')
+    .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
+    .addFields(
+      { name: 'เลเวล (Level)', value: `\` Level ${userStat.level} \``, inline: true },
+      { name: 'ค่าประสบการณ์ (XP)', value: `\` ${userStat.xp} / ${requiredXp} XP \``, inline: true },
+      { name: 'ความคืบหน้า', value: `\`[${progressBar}]\` (${Math.floor((userStat.xp / requiredXp) * 100)}%)`, inline: false }
+    );
+
+  if (lConfig.statsCardImageUrl && lConfig.statsCardImageUrl.trim() !== '') {
+    embed.setImage(lConfig.statsCardImageUrl.trim());
+  }
+
+  await interaction.reply({ embeds: [embed] });
 }
 
 const leaderboardCommand = new SlashCommandBuilder()
