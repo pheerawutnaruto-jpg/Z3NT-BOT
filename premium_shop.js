@@ -61,6 +61,7 @@ async function handleSetupPremiumShopCommand(interaction) {
   const embed = new EmbedBuilder()
     .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM STORE & TOPUP')
     .setDescription('ร้านค้าพรีเมียมสำหรับเติม Zen Coins และซื้อยศถาวรตลอดชีพ!\nกดปุ่มคำสั่ง `/shop` หรือกดปุ่มด้านล่างเพื่อเปิดร้านค้าพรีเมียมได้เลย:')
+    .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1560424207702040647/1792104497426.jpg') // แบนเนอร์ใหม่สำหรับ Premium Shop
     .setColor('#FFD700');
 
   const row = new ActionRowBuilder().addComponents(
@@ -139,7 +140,7 @@ async function handlePremiumShopCommand(interaction, serverConfigs) {
       new ButtonBuilder()
         .setCustomId(`create_order_${item.id}`)
         .setLabel(item.name)
-        .setEmoji('1560416845322920067') // ใส่อิโมจิแต่งที่ปุ่มเลือกสินค้า
+        .setEmoji('1560416845322920067')
         .setStyle(ButtonStyle.Primary)
     );
   });
