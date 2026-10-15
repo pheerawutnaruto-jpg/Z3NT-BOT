@@ -21,6 +21,7 @@ const { setupShopCommand, handleSetupShopCommand, boostStatusCommand, handleBoos
 const { setupPremiumShopCommand, coinsCommand, addCoinsCommand, handleSetupPremiumShopCommand, handleCoinsCommand, handleAddCoinsCommand, handleOpenPremiumShop, handlePremiumShopButton } = require('./premium_shop');
 const { setupArtistCommand, handleSetupArtistCommand, handleArtistButton, handleArtistModalSubmit } = require('./artist_card');
 const { setupMediaGuardCommand, handleSetupMediaGuardCommand, handleMediaGuardMessage } = require('./media_guard');
+const { setupOrderTicketCommand, handleSetupOrderTicketCommand, handleOrderTicketSelect, handleCloseTicketButton } = require('./order_ticket');
 const { isServerPremium, grantPremiumCommand, handleGrantPremiumCommand } = require('./license');
 
 const redis = new Redis({
@@ -85,6 +86,7 @@ client.once('ready', async () => {
     setupQuestCommand,
     setupShopCommand,
     setupPremiumShopCommand,
+    setupOrderTicketCommand,
     coinsCommand,
     addCoinsCommand,
     grantPremiumCommand,
@@ -125,7 +127,7 @@ function setupCronJob(guildId, timeStr, channelId) {
   const [hour, minute] = timeStr.split(':');
   if (!hour || !minute) return;
 
-  const cronExpression = `${minute} ${hour} * * *`;
+  const cronExpression = `${minute}${hour} * * *`;
 
   activeCronJobs[guildId] = cron.schedule(cronExpression, async () => {
     try {
@@ -198,7 +200,7 @@ client.on('guildMemberAdd', async member => {
     };
 
     const finalTitle = embedConfig.title ? embedConfig.title.replace('{user}', member.user.username).replace('{server}', member.guild.name) : null;
-    const finalDesc = embedConfig.description.replace('{user}', `${member}`).replace('{server}', member.guild.name);
+    const finalDesc = embedConfig.description.replace('{user}', `${member}`).replace('{server}`, member.guild.name);
 
     let embedColor = '#66FFFF';
     try { embedColor = embedConfig.color; } catch (e) {}
@@ -267,7 +269,7 @@ client.on('interactionCreate', async interaction => {
   }
   if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
 
-  const premiumCommands = ['setup-quest', 'setup-in-game-shop', 'coins', 'setup-premium-shop', 'add-coins', 'setup-media-guard', 'set-autoclear', 'setup-artist-card', 'boost-status'];
+  const premiumCommands = ['setup-quest', 'setup-in-game-shop', 'coins', 'setup-premium-shop', 'setup-order-ticket', 'add-coins', 'setup-media-guard', 'set-autoclear', 'setup-artist-card', 'boost-status'];
   if (interaction.isChatInputCommand() && premiumCommands.includes(interaction.commandName)) {
     const hasPremium = await isServerPremium(guildId, serverConfigs);
     if (!hasPremium) {
@@ -307,6 +309,9 @@ client.on('interactionCreate', async interaction => {
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'setup-premium-shop') {
     return await handleSetupPremiumShopCommand(interaction);
+  }
+  if (interaction.isChatInputCommand() && interaction.commandName === 'setup-order-ticket') {
+    return await handleSetupOrderTicketCommand(interaction);
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'coins') {
     return await handleCoinsCommand(interaction, serverConfigs);
@@ -369,6 +374,12 @@ client.on('interactionCreate', async interaction => {
     return await sendAutoroleDashboard(interaction);
   }
 
+  // ดักจับ Select Menu สำหรับระบบ Order Ticket
+  if (interaction.isStringSelectMenu()) {
+    const handledOrder = await handleOrderTicketSelect(interaction, serverConfigs);
+    if (handledOrder) return;
+  }
+
   if (interaction.isButton()) {
     const id = interaction.customId;
 
@@ -377,6 +388,9 @@ client.on('interactionCreate', async interaction => {
     if (premiumButtons.includes(id) && !hasPremiumBtn) {
       return await interaction.reply({ content: '❌ คำสั่งนี้ใช้ได้เฉพาะเซิร์ฟเวอร์พรีเมียมเท่านั้น', ephemeral: true });
     }
+
+    const handledCloseTicket = await handleCloseTicketButton(interaction);
+    if (handledCloseTicket) return;
 
     const handledQuest = await handleQuestButton(interaction, serverConfigs, saveConfigs);
     if (handledQuest) return;
@@ -535,6 +549,9 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.isStringSelectMenu()) {
+    const handledOrder = await handleOrderTicketSelect(interaction, serverConfigs);
+    if (handledOrder) return;
+
     await interaction.deferUpdate().catch(() => {});
     if (interaction.customId === 'act_invite_select') {
       const vals = interaction.values;
