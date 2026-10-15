@@ -160,7 +160,6 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
     const user = interaction.user;
     const loadingGif = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560404073604317225/IMG_7558.gif';
 
-    // ส่ง Embed โหลดดิ้งชั่วคราวพร้อมภาพ GIF ให้ลูกค้าเห็นความเคลื่อนไหว
     const loadingEmbed = new EmbedBuilder()
       .setTitle('⏳ กำลังประมวลผลออร์เดอร์ของคุณ...')
       .setDescription('กรุณารอสักครู่ ระบบกำลังสร้างห้องออร์เดอร์ส่วนตัวให้คุณครับ')
@@ -195,15 +194,18 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
         .setColor('#FFD700')
         .setTimestamp();
 
+      // ใส่อิโมจิ TrueMoney และ PromptPay ที่ปุ่มชำระเงิน
       const payRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId(`pay_promptpay_${item.id}`)
-          .setLabel('PromptPay')
-          .setStyle(ButtonStyle.Success),
         new ButtonBuilder()
           .setCustomId(`pay_truemoney_${item.id}`)
           .setLabel('TrueMoney')
+          .setEmoji('1560403718153965618')
           .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+          .setCustomId(`pay_promptpay_${item.id}`)
+          .setLabel('PromptPay')
+          .setEmoji('1560403647882334208')
+          .setStyle(ButtonStyle.Success),
         new ButtonBuilder()
           .setCustomId('close_order_ticket')
           .setLabel('🔒 ปิดออร์เดอร์')
