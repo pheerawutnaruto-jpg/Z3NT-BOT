@@ -176,7 +176,6 @@ function startVoiceXpCron(client, serverConfigs, saveConfigs) {
 
       let updated = false;
 
-      // เซิร์ฟเวอร์เสียงเปิดใช้งาน XP ห้องเสียงเฉพาะพรีเมียม
       const hasPremium = await isServerPremium(guildId, serverConfigs);
       if (hasPremium && config.levelConfig && config.levelConfig.enabled && config.levelConfig.voiceXpEnabled) {
         const xpPerMin = config.levelConfig.voiceXpAmount || 10;
@@ -290,14 +289,12 @@ async function handleLevelCommand(interaction, serverConfigs) {
   const userStat = levels[userId] || { xp: 0, level: 1, customTheme: '' };
   const hasPremium = await isServerPremium(guildId, serverConfigs);
 
-  // 💎 หากเป็นเซิร์ฟเวอร์พรีเมียม ➔ ส่งเป็นการ์ด Canvas สุดอลังการ
   if (hasPremium) {
     await interaction.deferReply();
     const attachment = await generateProfileCard(targetUser, userStat, lConfig);
     return await interaction.editReply({ files: [attachment] });
   } 
   
-  // 🟢 หากเป็นเซิร์ฟเวอร์ทั่วไป ➔ ส่งเป็นการ์ด Embed ธรรมดา
   const requiredXp = userStat.level * (lConfig.xpMultiplier || 100);
   const percentage = Math.min(Math.round((userStat.xp / requiredXp) * 10), 10);
   const progressBar = '█'.repeat(percentage) + '░'.repeat(10 - percentage);
