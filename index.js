@@ -21,8 +21,8 @@ const { setupShopCommand, handleSetupShopCommand, boostStatusCommand, handleBoos
 const { setupPremiumShopCommand, coinsCommand, addCoinsCommand, handleSetupPremiumShopCommand, handleCoinsCommand, handleAddCoinsCommand, handleOpenPremiumShop, handlePremiumShopButton } = require('./premium_shop');
 const { setupArtistCommand, handleSetupArtistCommand, handleArtistButton, handleArtistModalSubmit } = require('./artist_card');
 const { setupMediaGuardCommand, handleSetupMediaGuardCommand, handleMediaGuardMessage } = require('./media_guard');
+const { isServerPremium, grantPremiumCommand, handleGrantPremiumCommand } = require('./license');
 
-// เชื่อมต่อ Upstash Redis จาก Environment Variables
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
@@ -87,6 +87,7 @@ client.once('ready', async () => {
     setupPremiumShopCommand,
     coinsCommand,
     addCoinsCommand,
+    grantPremiumCommand,
     boostStatusCommand,
     setupArtistCommand,
     setupMediaGuardCommand,
@@ -148,8 +149,12 @@ client.on('messageCreate', async message => {
   const guildId = message.guild?.id;
   const config = serverConfigs[guildId];
 
-  const isMediaBlocked = handleMediaGuardMessage(message, serverConfigs);
-  if (isMediaBlocked) return;
+  // ตรวจสอบ Media Guard เฉพาะเซิร์ฟเวอร์พรีเมียม
+  const hasPremium = await isServerPremium(guildId, serverConfigs);
+  if (hasPremium) {
+    const isMediaBlocked = handleMediaGuardMessage(message, serverConfigs);
+    if (isMediaBlocked) return;
+  }
 
   const isBlocked = handleSecurityMessage(message, config, spamTracker);
   if (isBlocked) return;
@@ -263,6 +268,18 @@ client.on('interactionCreate', async interaction => {
   }
   if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
 
+  // 💎 🛡️ ตรวจสอบสิทธิ์พรีเมียมสำหรับคำสั่งเฉพาะกลุ่ม
+  const premiumCommands = ['setup-premium-shop', 'add-coins', 'setup-media-guard', 'set-autoclear', 'setup-artist-card'];
+  if (interaction.isChatInputCommand() && premiumCommands.includes(interaction.commandName)) {
+    const hasPremium = await isServerPremium(guildId, serverConfigs);
+    if (!hasPremium) {
+      return await interaction.reply({
+        content: `💎 **[PREMIUM FEATURE LOCKED]**\nคำสั่งนี้เปิดให้บริการเฉพาะ **เซิร์ฟเวอร์ที่สมัครสมาชิกพรีเมียมรายเดือน** เท่านั้น!\nติดต่อผู้พัฒนาบอทเพื่อปลดล็อกระบบร้านค้าพรีเมียมและการ์ด Canvas สุดอลังการได้เลยครับ!`,
+        ephemeral: true
+      });
+    }
+  }
+
   if (interaction.isChatInputCommand()) {
     handleCommandLeveling(interaction, serverConfigs, saveConfigs);
   }
@@ -287,6 +304,9 @@ client.on('interactionCreate', async interaction => {
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'coins') {
     return await handleCoinsCommand(interaction, serverConfigs);
+  }
+  if (interaction.isChatInputCommand() && interaction.commandName === 'grant-premium') {
+    return await handleGrantPremiumCommand(interaction, serverConfigs, saveConfigs);
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'add-coins') {
     return await handleAddCoinsCommand(interaction, serverConfigs, saveConfigs);
@@ -345,6 +365,14 @@ client.on('interactionCreate', async interaction => {
 
   if (interaction.isButton()) {
     const id = interaction.customId;
+
+    const hasPremiumBtn = await isServerPremium(guildId, serverConfigs);
+
+    // 💎 ตรวจสอบปุ่มฝั่งพรีเมียม (เช่น ร้านค้าพรีเมียม, แต่งการ์ด Artist)
+    const premiumButtons = ['open_premium_shop_panel', 'open_artist_card_modal'];
+    if (premiumButtons.includes(id) && !hasPremiumBtn) {
+      return await interaction.reply({ content: '💎 ฟังก์ชันนี้เปิดให้บริการเฉพาะเซิร์ฟเวอร์พรีเมียมเท่านั้น!', ephemeral: true });
+    }
 
     const handledQuest = await handleQuestButton(interaction, serverConfigs, saveConfigs);
     if (handledQuest) return;
