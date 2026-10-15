@@ -1,6 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, RoleSelectMenuBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
 const cron = require('node-cron');
-const { SHOP_ITEMS } = require('./shop');
 const { generateProfileCard } = require('./canvas_card');
 
 const pendingRoleRewardImages = new Map();
@@ -32,9 +31,9 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
     if (guild) {
       try {
         const member = await guild.members.fetch(userId).catch(() => null);
-        const boostItem = SHOP_ITEMS.find(i => i.type === 'buff');
-        if (member && boostItem && boostItem.roleId && member.roles.cache.has(boostItem.roleId)) {
-          await member.roles.remove(boostItem.roleId);
+        const boostRoleId = '1559992075095773184';
+        if (member && member.roles.cache.has(boostRoleId)) {
+          await member.roles.remove(boostRoleId);
         }
       } catch (err) {
         console.error('Error removing expired boost role:', err);
@@ -164,8 +163,7 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
 function startVoiceXpCron(client, serverConfigs, saveConfigs) {
   cron.schedule('* * * * *', async () => {
     const now = Date.now();
-    const boostItem = SHOP_ITEMS.find(i => i.type === 'buff');
-    const boostRoleId = boostItem ? boostItem.roleId : null;
+    const boostRoleId = '1559992075095773184';
     const artistRoleId = '1560136361015513108';
 
     for (const guildId in serverConfigs) {
@@ -194,15 +192,13 @@ function startVoiceXpCron(client, serverConfigs, saveConfigs) {
 
         if (userStat.boostUntil && now >= userStat.boostUntil) {
           userStat.boostUntil = 0;
-          if (boostRoleId) {
-            try {
-              const member = await guild.members.fetch(userId).catch(() => null);
-              if (member && member.roles.cache.has(boostRoleId)) {
-                await member.roles.remove(boostRoleId);
-              }
-            } catch (err) {
-              console.error('Error cron removing expired boost role:', err);
+          try {
+            const member = await guild.members.fetch(userId).catch(() => null);
+            if (member && member.roles.cache.has(boostRoleId)) {
+              await member.roles.remove(boostRoleId);
             }
+          } catch (err) {
+            console.error('Error cron removing expired boost role:', err);
           }
           updated = true;
         }
@@ -280,7 +276,7 @@ const levelCommand = new SlashCommandBuilder()
   );
 
 async function handleLevelCommand(interaction, serverConfigs) {
-  await interaction.deferReply(); // ใช้ deferReply เนื่องจากต้องใช้เวลาเรนเดอร์รูปภาพ Canvas
+  await interaction.deferReply();
 
   const guildId = interaction.guildId;
   const targetUser = interaction.options.getUser('user') || interaction.user;
@@ -292,7 +288,6 @@ async function handleLevelCommand(interaction, serverConfigs) {
 
   const userStat = levels[userId] || { xp: 0, level: 1, customTheme: '' };
 
-  // สร้างไฟล์รูปภาพ Canvas Profile Card
   const attachment = await generateProfileCard(targetUser, userStat, lConfig);
 
   await interaction.editReply({ files: [attachment] });
