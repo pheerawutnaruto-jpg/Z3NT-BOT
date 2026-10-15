@@ -1,9 +1,8 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, PermissionFlagsBits } = require('discord.js');
 
-// 🛠️ คำสั่งสำหรับแอดมินส่งปุ่มตั้งค่าการ์ดไปไว้ในห้องเฉพาะของ Artist
 const setupArtistCommand = new SlashCommandBuilder()
   .setName('setup-artist-card')
-  .setDescription('ส่งแผงปุ่มตั้งค่ารูปการ์ดส่วนตัวสำหรับคนมียศ Artist (สำหรับ Admin)');
+  .setDescription('💎 [PREMIUM] ส่งแผงปุ่มตั้งค่ารูปการ์ดส่วนตัวสำหรับคนมียศ Artist (สำหรับ Admin)');
 
 async function handleSetupArtistCommand(interaction) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
@@ -11,49 +10,50 @@ async function handleSetupArtistCommand(interaction) {
   }
 
   const embed = new EmbedBuilder()
-    .setTitle('🎨 ARTIST CARD CUSTOMIZER')
-    .setDescription('สำหรับสมาชิกที่มี **ยศ Artist** เท่านั้น!\nกดปุ่มด้านล่างเพื่อใส่ลิงก์รูปภาพ (Image URL) สำหรับเปลี่ยนพื้นหลังการ์ด `/level` ส่วนตัวของคุณตามใจชอบได้เลยครับ')
-    .setColor('#FF007F');
+    .setTitle('🎨 𝙕𝙀𝙉 𝘽𝙊𝙏 • ARTIST CARD CUSTOMIZER')
+    .setDescription('สำหรับสมาชิกที่มียศ **Artist** กดปุ่มด้านล่างเพื่อกรอกลิงก์รูปภาพสำหรับเปลี่ยนพื้นหลังการ์ด `/level` ส่วนตัวของคุณได้ทันที!\n──────────────────────')
+    .setColor('#FF69B4');
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('open_artist_card_modal')
-      .setLabel('🖼️ ตั้งค่ารูปการ์ดส่วนตัวของคุณ')
-      .setStyle(ButtonStyle.Success)
+      .setLabel('🎨 เปลี่ยนรูปการ์ดส่วนตัว')
+      .setStyle(ButtonStyle.Primary)
   );
 
   await interaction.channel.send({ embeds: [embed], components: [row] });
-  await interaction.reply({ content: '✅ ส่งแผงปุ่มตั้งค่าการ์ดไปยังห้องนี้สำเร็จแล้ว!', ephemeral: true });
+  await interaction.reply({ content: '✅ ส่งแผงปุ่มตั้งค่าการ์ด Artist ไปยังห้องนี้สำเร็จแล้ว!', ephemeral: true });
 }
 
-// 🖼️ ดักจับการกดปุ่มเพื่อเปิด Modal
 async function handleArtistButton(interaction, serverConfigs) {
   if (interaction.customId !== 'open_artist_card_modal') return false;
 
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
-  const artistRoleId = '1560136361015513108'; // รหัสยศ Artist ของคุณ
+  const artistRoleId = '1560136361015513108';
 
-  // เช็กว่าผู้ใช้มียศ Artist จริงไหม
-  try {
-    const member = await interaction.guild.members.fetch(userId);
-    if (!member.roles.cache.has(artistRoleId)) {
-      return await interaction.reply({ content: '❌ เฉพาะผู้ที่มี **ยศ Artist** เท่านั้นถึงจะใช้งานปุ่มนี้ได้! (สามารถซื้อบัตรได้ที่ `/shop`)', ephemeral: true });
-    }
-  } catch (err) {
-    console.error('Error fetching member role for artist card:', err);
+  const member = interaction.member;
+  const config = serverConfigs[guildId] || {};
+  const userStat = config.levels?.[userId] || {};
+  const now = Date.now();
+
+  const hasRole = member.roles.cache.has(artistRoleId);
+  const hasTempAccess = userStat.artistUntil && userStat.artistUntil > now;
+
+  if (!hasRole && !hasTempAccess) {
+    return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์ใช้งาน! เฉพาะผู้ที่มี **ยศ Artist** (หรือซื้อบัตรเช่า 3 วัน) เท่านั้นที่จะเปลี่ยนพื้นหลังการ์ดได้', ephemeral: true });
   }
 
-  // สร้าง Modal ให้กรอกลิงก์รูป
   const modal = new ModalBuilder()
-    .setCustomId('artistCardModal')
-    .setTitle('🎨 ตั้งค่ารูปการ์ดส่วนตัว');
+    .setCustomId('artistCardModalSubmit')
+    .setTitle('🎨 ปรับแต่งรูปการ์ด /level ส่วนตัว');
 
   const imageUrlInput = new TextInputBuilder()
-    .setCustomId('cardImageUrl')
-    .setLabel('วางลิงก์รูปภาพ (Image URL) ของคุณที่นี่')
+    .setCustomId('customImageUrl')
+    .setLabel('ลิงก์รูปภาพพื้นหลังการ์ด (Image URL ขนาด 1:1 หรือ 16:9)')
     .setStyle(TextInputStyle.Short)
-    .setPlaceholder('https://example.com/my-image.png')
+    .setPlaceholder('https://i.imgur.com/xxxxx.png')
+    .setValue(userStat.customTheme || '')
     .setRequired(true);
 
   modal.addComponents(new ActionRowBuilder().addComponents(imageUrlInput));
@@ -61,34 +61,23 @@ async function handleArtistButton(interaction, serverConfigs) {
   return true;
 }
 
-// 📥 บันทึกข้อมูลลิงก์รูปจาก Modal ลงฐานข้อมูลของผู้ใช้
 async function handleArtistModalSubmit(interaction, serverConfigs, saveConfigs) {
-  if (interaction.customId !== 'artistCardModal') return false;
+  if (interaction.customId !== 'artistCardModalSubmit') return false;
 
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
-  const imageUrl = interaction.fields.getTextInputValue('cardImageUrl').trim();
-
-  // ตรวจสอบเบื้องต้นว่าเป็นลิงก์รูปภาพไหม
-  if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
-    return await interaction.reply({ content: '❌ ลิงก์ไม่ถูกต้อง! กรุณาระบุลิงก์รูปภาพที่ขึ้นต้นด้วย http:// หรือ https://', ephemeral: true });
-  }
+  const imageUrl = interaction.fields.getTextInputValue('customImageUrl').trim();
 
   if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
   if (!serverConfigs[guildId].levels) serverConfigs[guildId].levels = {};
   if (!serverConfigs[guildId].levels[userId]) {
-    serverConfigs[guildId].levels[userId] = { xp: 0, level: 1, orbs: 0, lastDaily: 0, boostUntil: 0, customTheme: '' };
+    serverConfigs[guildId].levels[userId] = { xp: 0, level: 1, orbs: 0, lastDaily: 0, boostUntil: 0, artistUntil: 0, customTheme: '' };
   }
 
-  // บันทึกลิงก์ลง customTheme ของผู้ใช้
   serverConfigs[guildId].levels[userId].customTheme = imageUrl;
   await saveConfigs(serverConfigs);
 
-  await interaction.reply({ 
-    content: `🎨 บันทึกรูปการ์ดส่วนตัวสำเร็จ! ตอนนี้ลองพิมพ์คำสั่ง \`/level\` เพื่อดูความเท่ของการ์ดคุณได้เลยครับ`, 
-    ephemeral: true 
-  });
-
+  await interaction.reply({ content: `✅ บันทึกรูปภาพพื้นหลังการ์ดส่วนตัวสำเร็จ! ลองพิมพ์ \`/level\` ดูการเปลี่ยนแปลงได้เลย`, ephemeral: true });
   return true;
 }
 
