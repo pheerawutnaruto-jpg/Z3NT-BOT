@@ -159,7 +159,6 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
     const guild = interaction.guild;
     const user = interaction.user;
     const loadingGif = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560407479412588686/IMG_7559.gif';
-    const orderGif = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560414454427025479/IMG_7565.gif';
 
     const loadingEmbed = new EmbedBuilder()
       .setTitle('⏳ กำลังประมวลผลออร์เดอร์ของคุณ...')
@@ -189,13 +188,15 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
         ],
       });
 
-      // นำรูป GIF ใหม่ (IMG_7565.gif) มาแปะไว้ใน Embed ของห้องออร์เดอร์ตอนเริ่มต้น
+      // ใช้รูป GIF ตัวใหม่ตามที่คุณกำหนด และใส่คำว่า "ช่องทางชำระ" ไว้ที่ Footer
+      const newOrderGif = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560415906281300059/image0.gif';
+
       const embed = new EmbedBuilder()
         .setTitle(`🎫 ออร์เดอร์สินค้า: ${item.name}`)
-        .setDescription(`สวัสดีคุณ <@${user.id}>!\nคุณได้เลือกสั่งซื้อสินค้า: **${item.name}**\n💰 **ยอดชำระ:** \`${item.price} บาท\`\n\n${item.description}\n\n👇 **กรุณากดปุ่มด้านล่างเพื่อเลือกช่องทางชำระเงิน:**`)
-        .setImage(orderGif)
+        .setDescription(`สวัสดีคุณ <@${user.id}>!\nคุณได้เลือกสั่งซื้อสินค้า: **${item.name}**\n💰 **ยอดชำระ:** \`${item.price} บาท\`\n\n${item.description}`)
+        .setImage(newOrderGif)
         .setColor('#FFD700')
-        .setTimestamp();
+        .setFooter({ text: 'ช่องทางชำระ' });
 
       const payRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -240,7 +241,8 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
       .setTitle('💳 ชำระเงินพรีเมียม / เติมเหรียญ')
       .setDescription(`คุณกำลังสั่งซื้อ: **${item.name}**\n💰 ยอดที่ต้องชำระ: **${item.price} บาท**\n\n──────────────────────\n📌 **${isTrueMoney ? 'สแกน QR Code ทรูมันนี่ หรือเติมผ่านลิงก์ซองของขวัญ:' : 'สแกน QR Code PromptPay ด้านล่างเพื่อโอนเงิน:'}**\n${isTrueMoney ? `🔗 [กดที่นี่เพื่อเปิดแอป TrueMoney Wallet](${truemoneyLink})` : ''}\n\nเมื่อโอนเงินแล้ว ส่งสลิปหลักฐานในห้องนี้เพื่อให้แอดมินตรวจสอบและเติมเหรียญ / มอบยศให้ได้เลยครับ!`)
       .setImage(selectedQr)
-      .setColor('#00FF00');
+      .setColor('#00FF00')
+      .setFooter({ text: 'ช่องทางชำระ' });
 
     const closeRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
