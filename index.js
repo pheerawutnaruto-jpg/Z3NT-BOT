@@ -21,7 +21,7 @@ const { setupShopCommand, handleSetupShopCommand, boostStatusCommand, handleBoos
 const { premiumShopCommand, setupPremiumShopCommand, coinsCommand, addCoinsCommand, handleSetupPremiumShopCommand, handleCoinsCommand, handleAddCoinsCommand, handlePremiumShopCommand, handlePremiumShopButton } = require('./premium_shop');
 const { setupArtistCommand, handleSetupArtistCommand, handleArtistButton, handleArtistModalSubmit } = require('./artist_card');
 const { setupMediaGuardCommand, handleSetupMediaGuardCommand, handleMediaGuardMessage } = require('./media_guard');
-const { setupOrderTicketCommand, handleSetupOrderTicketCommand, handleOrderTicketSelect, handleCloseTicketButton } = require('./order_ticket');
+const { setupOrderTicketCommand, handleSetupOrderTicketCommand, handleOrderTicketSelect, handleOrderPaymentButton, handleCloseTicketButton } = require('./order_ticket');
 const { isServerPremium, grantPremiumCommand, handleGrantPremiumCommand } = require('./license');
 
 const redis = new Redis({
@@ -409,6 +409,9 @@ client.on('interactionCreate', async interaction => {
     if (premiumButtons.includes(id) && !hasPremiumBtn) {
       return await interaction.reply({ content: '❌ คำสั่งนี้ใช้ได้เฉพาะเซิร์ฟเวอร์พรีเมียมเท่านั้น', ephemeral: true });
     }
+
+    const handledPayment = await handleOrderPaymentButton(interaction);
+    if (handledPayment) return;
 
     const handledCloseTicket = await handleCloseTicketButton(interaction);
     if (handledCloseTicket) return;
