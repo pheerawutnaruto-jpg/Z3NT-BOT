@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits } = require('discord.js');
 
-// 💎 [PREMIUM] คำสั่งสำหรับแอดมินส่งแผงเลือกสินค้าพร้อมแบนเนอร์ใหม่
+// 💎 [PREMIUM] คำสั่งสำหรับแอดมินส่งแผงเลือกสินค้า
 const setupOrderTicketCommand = new SlashCommandBuilder()
   .setName('setup-order-ticket')
   .setDescription('💎 [PREMIUM] ส่งแผงร้านค้าแบบมีเมนูกดเลือกสินค้าและสร้างห้องออร์เดอร์ (สำหรับ Admin)');
@@ -12,9 +12,10 @@ async function handleSetupOrderTicketCommand(interaction) {
 
   const embed = new EmbedBuilder()
     .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM STORE')
-    .setDescription('🎉 **ของดีต้อง Zen Bot เท่านั้น!**\n💎 จำหน่ายสินค้า Bot Premium, ยศถาวร และแพ็กเกจเสริมสุดคุ้ม\n\n👇 **คลิกเลือกสินค้าที่ต้องการสั่งซื้อจากเมนูด้านล่างได้เลยครับ**')
+    .setDescription('🎉 **ของดีต้อง Zen Bot เท่านั้น!**\n💎 จำหน่ายสินค้า Bot Premium, ยศถาวร และแพ็กเกจเสริมสุดคุ้ม')
+    .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1560424207702040647/1792104497426.jpg')
     .setColor('#00FF00')
-    .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1560424207702040647/1792104497426.jpg'); // แบนเนอร์ใหม่ของคุณ
+    .setFooter({ text: '👇 คลิกเลือกสินค้าที่ต้องการสั่งซื้อจากเมนูด้านล่างได้เลยครับ' }); // ย้ายมาไว้ที่ Footer ตรงนี้แทนครับ
 
   // สร้างเมนูกดเลือกสินค้าพร้อมตัวเลือก "ล้างตัวเลือก"
   const selectMenu = new StringSelectMenuBuilder()
