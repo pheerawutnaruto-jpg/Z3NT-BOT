@@ -18,7 +18,7 @@ const {
 } = require('./level');
 const { setupQuestCommand, handleSetupQuestCommand, handleQuestButton } = require('./quest');
 const { setupShopCommand, handleSetupShopCommand, boostStatusCommand, handleBoostStatusCommand, handleShopButton } = require('./shop');
-const { premiumShopCommand, setupPremiumShopCommand, coinsCommand, handleSetupPremiumShopCommand, handleCoinsCommand, handlePremiumShopCommand, handlePremiumShopButton } = require('./premium_shop');
+const { setupPremiumShopCommand, coinsCommand, addCoinsCommand, handleSetupPremiumShopCommand, handleCoinsCommand, handleAddCoinsCommand, handleOpenPremiumShop, handlePremiumShopButton } = require('./premium_shop');
 const { setupArtistCommand, handleSetupArtistCommand, handleArtistButton, handleArtistModalSubmit } = require('./artist_card');
 
 // เชื่อมต่อ Upstash Redis จาก Environment Variables
@@ -84,8 +84,8 @@ client.once('ready', async () => {
     setupQuestCommand,
     setupShopCommand,
     setupPremiumShopCommand,
-    premiumShopCommand,
     coinsCommand,
+    addCoinsCommand,
     boostStatusCommand,
     setupArtistCommand,
     setLevelCommand,
@@ -279,11 +279,11 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isChatInputCommand() && interaction.commandName === 'setup-premium-shop') {
     return await handleSetupPremiumShopCommand(interaction);
   }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'shop') {
-    return await handlePremiumShopCommand(interaction, serverConfigs);
-  }
   if (interaction.isChatInputCommand() && interaction.commandName === 'coins') {
     return await handleCoinsCommand(interaction, serverConfigs);
+  }
+  if (interaction.isChatInputCommand() && interaction.commandName === 'add-coins') {
+    return await handleAddCoinsCommand(interaction, serverConfigs, saveConfigs);
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'boost-status') {
     return await handleBoostStatusCommand(interaction, serverConfigs);
