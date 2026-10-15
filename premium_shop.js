@@ -59,7 +59,7 @@ async function handleSetupPremiumShopCommand(interaction) {
   }
 
   const embed = new EmbedBuilder()
-    .setTitle('💳 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM STORE & TOPUP')
+    .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM STORE & TOPUP')
     .setDescription('ร้านค้าพรีเมียมสำหรับเติม Zen Coins และซื้อยศถาวรตลอดชีพ!\nกดปุ่มคำสั่ง `/shop` หรือกดปุ่มด้านล่างเพื่อเปิดร้านค้าพรีเมียมได้เลย:')
     .setColor('#FFD700');
 
@@ -121,8 +121,8 @@ async function handlePremiumShopCommand(interaction, serverConfigs) {
   const userCoins = userStat ? (userStat.orbs || 0) : 0;
 
   const embed = new EmbedBuilder()
-    .setTitle('💳 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM STORE & TOPUP')
-    .setDescription(`ร้านค้าพรีเมียมและระบบเติมเหรียญสะสม\n💰 เหรียญของคุณตอนนี้: **${userCoins} Coins**\n\nกดปุ่มสินค้าด้านล่างเพื่อเลือกซื้อและสร้างห้องออร์เดอร์ส่วนตัว:`)
+    .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM STORE & TOPUP')
+    .setDescription(`ร้านค้าพรีเมียมและระบบเติมเหรียญสะสม\n<a:emoji_100:1560416789211516938> เหรียญของคุณตอนนี้: **${userCoins} Coins**\n\nกดปุ่มสินค้าด้านล่างเพื่อเลือกซื้อและสร้างห้องออร์เดอร์ส่วนตัว:`)
     .setColor('#FFD700');
 
   PREMIUM_ITEMS.forEach(item => {
@@ -139,6 +139,7 @@ async function handlePremiumShopCommand(interaction, serverConfigs) {
       new ButtonBuilder()
         .setCustomId(`create_order_${item.id}`)
         .setLabel(item.name)
+        .setEmoji('1560416845322920067') // ใส่อิโมจิแต่งที่ปุ่มเลือกสินค้า
         .setStyle(ButtonStyle.Primary)
     );
   });
@@ -188,11 +189,10 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
         ],
       });
 
-      // ใช้รูป GIF ตัวใหม่ตามที่คุณกำหนด และใส่คำว่า "ช่องทางชำระ" ไว้ที่ Footer
       const newOrderGif = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560415906281300059/image0.gif';
 
       const embed = new EmbedBuilder()
-        .setTitle(`🎫 ออร์เดอร์สินค้า: ${item.name}`)
+        .setTitle(`<a:emoji_103:1560417845903491112> ออร์เดอร์สินค้า: ${item.name}`)
         .setDescription(`สวัสดีคุณ <@${user.id}>!\nคุณได้เลือกสั่งซื้อสินค้า: **${item.name}**\n💰 **ยอดชำระ:** \`${item.price} บาท\`\n\n${item.description}`)
         .setImage(newOrderGif)
         .setColor('#FFD700')
