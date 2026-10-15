@@ -158,8 +158,16 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
 
     const guild = interaction.guild;
     const user = interaction.user;
+    const loadingGif = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560404073604317225/IMG_7558.gif';
 
-    await interaction.deferReply({ ephemeral: true });
+    // ส่ง Embed โหลดดิ้งชั่วคราวพร้อมภาพ GIF ให้ลูกค้าเห็นความเคลื่อนไหว
+    const loadingEmbed = new EmbedBuilder()
+      .setTitle('⏳ กำลังประมวลผลออร์เดอร์ของคุณ...')
+      .setDescription('กรุณารอสักครู่ ระบบกำลังสร้างห้องออร์เดอร์ส่วนตัวให้คุณครับ')
+      .setImage(loadingGif)
+      .setColor('#00FFFF');
+
+    await interaction.reply({ embeds: [loadingEmbed], ephemeral: true });
 
     try {
       const ticketChannel = await guild.channels.create({
@@ -187,15 +195,14 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
         .setColor('#FFD700')
         .setTimestamp();
 
-      // ตกแต่งปุ่มด้วยอิโมจิ PromptPay และ TrueMoney ตามที่คุณส่งลิงก์รูปภาพมา
       const payRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId(`pay_promptpay_${item.id}`)
-          .setLabel('📱 PromptPay')
+          .setLabel('PromptPay')
           .setStyle(ButtonStyle.Success),
         new ButtonBuilder()
           .setCustomId(`pay_truemoney_${item.id}`)
-          .setLabel('💳 TrueMoney')
+          .setLabel('TrueMoney')
           .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
           .setCustomId('close_order_ticket')
@@ -204,10 +211,10 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
       );
 
       await ticketChannel.send({ content: `🔔 ออร์เดอร์ใหม่จาก <@${user.id}>`, embeds: [embed], components: [payRow] });
-      await interaction.editReply({ content: `✅ สร้างห้องออร์เดอร์ส่วนตัวให้คุณแล้วครับ: <#${ticketChannel.id}>` });
+      await interaction.editReply({ content: `✅ สร้างห้องออร์เดอร์ส่วนตัวให้คุณสำเร็จแล้ว: <#${ticketChannel.id}>`, embeds: [] });
     } catch (err) {
       console.error('Error creating order ticket channel:', err);
-      await interaction.editReply({ content: '❌ เกิดข้อผิดพลาดในการสร้างห้องออร์เดอร์ กรุณาติดต่อแอดมินครับ' });
+      await interaction.editReply({ content: '❌ เกิดข้อผิดพลาดในการสร้างห้องออร์เดอร์ กรุณาติดต่อแอดมินครับ', embeds: [] });
     }
 
     return true;
@@ -219,7 +226,6 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
     const item = PREMIUM_ITEMS.find(i => i.id === itemId);
     if (!item) return true;
 
-    // ใส่ลิงก์รูปภาพอิโมจิและ QR Code ที่คุณกำหนดไว้
     const promptPayQr = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560193260293595176/ReceiveMoney_QR_2026-10-15_14.13.55.png';
     const trueMoneyQr = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560193259953717279/ReceiveMoney_QR_2026-10-15_14.14.01.png';
     const truemoneyLink = 'https://tmn.app.link/57MAEZTBf7b';
@@ -228,7 +234,7 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
 
     const embed = new EmbedBuilder()
       .setTitle('💳 ชำระเงินพรีเมียม / เติมเหรียญ')
-      .setDescription(`คุณกำลังสั่งซื้อ: **${item.name}**\n💰 ยอดที่ต้องชำระ: **${item.price} บาท**\n\n──────────────────────\n📌 **${isTrueMoney ? '📱 สแกน QR Code ทรูมันนี่ หรือเติมผ่านลิงก์ซองของขวัญ:' : '📱 สแกน QR Code PromptPay ด้านล่างเพื่อโอนเงิน:'}**\n${isTrueMoney ? `🔗 [กดที่นี่เพื่อเปิดแอป TrueMoney Wallet](${truemoneyLink})` : ''}\n\nเมื่อโอนเงินแล้ว ส่งสลิปหลักฐานในห้องนี้เพื่อให้แอดมินตรวจสอบและเติมเหรียญ / มอบยศให้ได้เลยครับ!`)
+      .setDescription(`คุณกำลังสั่งซื้อ: **${item.name}**\n💰 ยอดที่ต้องชำระ: **${item.price} บาท**\n\n──────────────────────\n📌 **${isTrueMoney ? 'สแกน QR Code ทรูมันนี่ หรือเติมผ่านลิงก์ซองของขวัญ:' : 'สแกน QR Code PromptPay ด้านล่างเพื่อโอนเงิน:'}**\n${isTrueMoney ? `🔗 [กดที่นี่เพื่อเปิดแอป TrueMoney Wallet](${truemoneyLink})` : ''}\n\nเมื่อโอนเงินแล้ว ส่งสลิปหลักฐานในห้องนี้เพื่อให้แอดมินตรวจสอบและเติมเหรียญ / มอบยศให้ได้เลยครับ!`)
       .setImage(selectedQr)
       .setColor('#00FF00');
 
