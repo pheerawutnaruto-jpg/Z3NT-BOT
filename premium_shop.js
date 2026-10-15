@@ -59,7 +59,7 @@ async function handleSetupPremiumShopCommand(interaction) {
   }
 
   const embed = new EmbedBuilder()
-    .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM STORE & TOPUP')
+    .setTitle('💳 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM STORE & TOPUP')
     .setDescription('ร้านค้าพรีเมียมสำหรับเติม Zen Coins และซื้อยศถาวรตลอดชีพ!\nกดปุ่มคำสั่ง `/shop` หรือกดปุ่มด้านล่างเพื่อเปิดร้านค้าพรีเมียมได้เลย:')
     .setColor('#FFD700');
 
@@ -121,8 +121,8 @@ async function handlePremiumShopCommand(interaction, serverConfigs) {
   const userCoins = userStat ? (userStat.orbs || 0) : 0;
 
   const embed = new EmbedBuilder()
-    .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM STORE & TOPUP')
-    .setDescription(`<a:emoji_97:1560403964866994346> ร้านค้าพรีเมียมและระบบเติมเหรียญสะสม\n💰 เหรียญของคุณตอนนี้: **${userCoins} Coins**\n\nกดปุ่มสินค้าด้านล่างเพื่อเลือกซื้อและสร้างห้องออร์เดอร์ส่วนตัว:`)
+    .setTitle('💳 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM STORE & TOPUP')
+    .setDescription(`ร้านค้าพรีเมียมและระบบเติมเหรียญสะสม\n💰 เหรียญของคุณตอนนี้: **${userCoins} Coins**\n\nกดปุ่มสินค้าด้านล่างเพื่อเลือกซื้อและสร้างห้องออร์เดอร์ส่วนตัว:`)
     .setColor('#FFD700');
 
   PREMIUM_ITEMS.forEach(item => {
@@ -139,7 +139,6 @@ async function handlePremiumShopCommand(interaction, serverConfigs) {
       new ButtonBuilder()
         .setCustomId(`create_order_${item.id}`)
         .setLabel(item.name)
-        .setEmoji('1560403933854306486') // ใส่อิโมจิที่ปุ่มเลือกสินค้า
         .setStyle(ButtonStyle.Primary)
     );
   });
@@ -160,6 +159,7 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
     const guild = interaction.guild;
     const user = interaction.user;
     const loadingGif = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560407479412588686/IMG_7559.gif';
+    const orderGif = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560414454427025479/IMG_7565.gif';
 
     const loadingEmbed = new EmbedBuilder()
       .setTitle('⏳ กำลังประมวลผลออร์เดอร์ของคุณ...')
@@ -189,10 +189,11 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
         ],
       });
 
+      // นำรูป GIF ใหม่ (IMG_7565.gif) มาแปะไว้ใน Embed ของห้องออร์เดอร์ตอนเริ่มต้น
       const embed = new EmbedBuilder()
-        .setTitle(`<a:emoji_93:1560403772025344101> ออร์เดอร์สินค้า: ${item.name}`)
-        .setDescription(`<a:emoji_96:1560403933854306486> สวัสดีคุณ <@${user.id}>!\nคุณได้เลือกสั่งซื้อสินค้า: **${item.name}**\n💰 **ยอดชำระ:** \`${item.price} บาท\`\n\n${item.description}\n\n👇 **กรุณากดปุ่มด้านล่างเพื่อเลือกช่องทางชำระเงิน:**`)
-        .setImage(loadingGif)
+        .setTitle(`🎫 ออร์เดอร์สินค้า: ${item.name}`)
+        .setDescription(`สวัสดีคุณ <@${user.id}>!\nคุณได้เลือกสั่งซื้อสินค้า: **${item.name}**\n💰 **ยอดชำระ:** \`${item.price} บาท\`\n\n${item.description}\n\n👇 **กรุณากดปุ่มด้านล่างเพื่อเลือกช่องทางชำระเงิน:**`)
+        .setImage(orderGif)
         .setColor('#FFD700')
         .setTimestamp();
 
@@ -236,7 +237,7 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
     const selectedQr = isTrueMoney ? trueMoneyQr : promptPayQr;
 
     const embed = new EmbedBuilder()
-      .setTitle('<a:emoji_97:1560403964866994346> ชำระเงินพรีเมียม / เติมเหรียญ')
+      .setTitle('💳 ชำระเงินพรีเมียม / เติมเหรียญ')
       .setDescription(`คุณกำลังสั่งซื้อ: **${item.name}**\n💰 ยอดที่ต้องชำระ: **${item.price} บาท**\n\n──────────────────────\n📌 **${isTrueMoney ? 'สแกน QR Code ทรูมันนี่ หรือเติมผ่านลิงก์ซองของขวัญ:' : 'สแกน QR Code PromptPay ด้านล่างเพื่อโอนเงิน:'}**\n${isTrueMoney ? `🔗 [กดที่นี่เพื่อเปิดแอป TrueMoney Wallet](${truemoneyLink})` : ''}\n\nเมื่อโอนเงินแล้ว ส่งสลิปหลักฐานในห้องนี้เพื่อให้แอดมินตรวจสอบและเติมเหรียญ / มอบยศให้ได้เลยครับ!`)
       .setImage(selectedQr)
       .setColor('#00FF00');
