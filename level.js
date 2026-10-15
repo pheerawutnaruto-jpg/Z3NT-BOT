@@ -12,16 +12,17 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
 
   if (!config.levels) config.levels = {};
   if (!config.levels[userId]) {
-    config.levels[userId] = { xp: 0, level: 1, orbs: 0, lastDaily: 0, boostUntil: 0, customTheme: '' };
+    config.levels[userId] = { xp: 0, level: 1, orbs: 0, lastDaily: 0, boostUntil: 0, artistUntil: 0, customTheme: '' };
   }
 
   const userStat = config.levels[userId];
   const multiplier = config.levelConfig.xpMultiplier || 100;
   const now = Date.now();
 
+  // ⚡ ตรวจสอบและจัดการหมดอายุบัฟ XP Booster
   let finalAmount = amount;
   if (userStat.boostUntil && now < userStat.boostUntil) {
-    finalAmount *= 2; // คูณ 2 เท่า
+    finalAmount *= 2; 
   } else if (userStat.boostUntil && now >= userStat.boostUntil) {
     userStat.boostUntil = 0;
     const guild = isVoice ? clientOrMessage : clientOrMessage.guild;
@@ -34,6 +35,24 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
         }
       } catch (err) {
         console.error('Error removing expired boost role:', err);
+      }
+    }
+  }
+
+  // 🎨 ตรวจสอบและจัดการหมดอายุสิทธิ์ Artist 3 วัน
+  const artistRoleId = '1560136361015513108';
+  if (userStat.artistUntil && now >= userStat.artistUntil) {
+    userStat.artistUntil = 0;
+    userStat.customTheme = ''; // รีเซ็ตภาพการ์ดกลับเป็นค่าเริ่มต้น
+    const guild = isVoice ? clientOrMessage : clientOrMessage.guild;
+    if (guild) {
+      try {
+        const member = await guild.members.fetch(userId).catch(() => null);
+        if (member && member.roles.cache.has(artistRoleId)) {
+          await member.roles.remove(artistRoleId);
+        }
+      } catch (err) {
+        console.error('Error removing expired artist role:', err);
       }
     }
   }
@@ -239,7 +258,8 @@ async function handleLevelCommand(interaction, serverConfigs) {
     embed.setImage(lConfig.statsCardImageUrl.trim());
   }
 
-  await interaction.reply({ embeds: [embed], ephemeral: true });
+  // 🌍 ส่งแบบสาธารณะเพื่อให้ทุกคนในห้องเห็นการ์ดสุดเท่ร่วมกันได้
+  await interaction.reply({ embeds: [embed] });
 }
 
 const leaderboardCommand = new SlashCommandBuilder()
@@ -281,7 +301,7 @@ async function handleLeaderboardCommand(interaction, serverConfigs) {
     .setColor(config.levelConfig?.embedColor || '#66FFFF')
     .setTimestamp();
 
-  await interaction.reply({ embeds: [embed], ephemeral: true });
+  await interaction.reply({ embeds: [embed] });
 }
 
 const setLevelCommand = new SlashCommandBuilder()
