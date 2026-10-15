@@ -103,7 +103,7 @@ client.once('ready', async () => {
 
   try {
     await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
-    console.log('ลงทะเบียนคำสั่งสำเร็จเรียบร้อย!');
+    console.log('ลงทะเบียนคำสั่งทั้งหมดสำเร็จเรียบร้อย!');
   } catch (error) {
     console.error(error);
   }
@@ -267,8 +267,7 @@ client.on('interactionCreate', async interaction => {
   }
   if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
 
-  // 💎 🛡️ ตรวจสอบสิทธิ์พรีเมียม (แจ้งเตือนแบบกระชับ พร้อมปุ่มลิงก์ติดต่อ)
-  const premiumCommands = ['setup-premium-shop', 'add-coins', 'setup-media-guard', 'set-autoclear', 'setup-artist-card', 'boost-status'];
+  const premiumCommands = ['setup-quest', 'setup-in-game-shop', 'coins', 'setup-premium-shop', 'add-coins', 'setup-media-guard', 'set-autoclear', 'setup-artist-card', 'boost-status'];
   if (interaction.isChatInputCommand() && premiumCommands.includes(interaction.commandName)) {
     const hasPremium = await isServerPremium(guildId, serverConfigs);
     if (!hasPremium) {
@@ -276,7 +275,7 @@ client.on('interactionCreate', async interaction => {
         new ButtonBuilder()
           .setLabel('💎 สนใจติดต่อซื้อระบบพรีเมียม')
           .setStyle(ButtonStyle.Link)
-          .setURL('https://discord.gg/your-invite-link') // ใส่ลิงก์ห้องติดต่อของคุณที่นี่
+          .setURL('https://discord.gg/your-invite-link')
       );
 
       return await interaction.reply({
@@ -691,7 +690,7 @@ function getDashboardContent(config) {
     .addFields({ name: '📥 Status', value: statusText, inline: true }, { name: '📢 ห้องต้อนรับ', value: channelName, inline: true });
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('toggle_welcome').setLabel(config.welcomeEnabled ? 'ปิด' : 'เปิด').setStyle(config.welcomeEnabled ? ButtonStyle.Danger : ButtonStyle.Success),
-    newButtonBuilder().setCustomId('edit_embed').setLabel('ตั้งค่า Embed').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('edit_embed').setLabel('ตั้งค่า Embed').setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId('edit_footer').setLabel('ตั้งค่า Footer').setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId('test_welcome').setLabel('ทดสอบ').setStyle(ButtonStyle.Secondary)
   );
