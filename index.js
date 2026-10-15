@@ -94,7 +94,7 @@ client.once('ready', async () => {
     setLevelCommand,
     new SlashCommandBuilder().setName('clear').setDescription('ลบข้อความในแชทจำนวน 1-100 ข้อความ')
       .addIntegerOption(option => option.setName('amount').setDescription('จำนวนข้อความที่ต้องการลบ (1-100)').setRequired(true)),
-    new SlashCommandBuilder().setName('set-autoclear').setDescription('ตั้งเวลาระบบลบข้อความอัตโนมัติ')
+    new SlashCommandBuilder().setName('set-autoclear').setDescription('💎 [PREMIUM] ตั้งเวลาระบบลบข้อความอัตโนมัติ')
       .addStringOption(option => option.setName('time').setDescription('ระบุเวลาในรูปแบบ HH:MM เช่น 06:00').setRequired(true))
       .addChannelOption(option => option.setName('channel').setDescription('เลือกห้องที่ต้องการให้ลบข้อความอัตโนมัติ').addChannelTypes(ChannelType.GuildText).setRequired(true)),
   ].map(command => command.toJSON());
@@ -267,17 +267,23 @@ client.on('interactionCreate', async interaction => {
   }
   if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
 
-  // 💎 🛡️ ตรวจสอบสิทธิ์พรีเมียม (แจ้งเตือนด้วย Embed กระชับและดูโปร)
+  // 💎 🛡️ ตรวจสอบสิทธิ์พรีเมียม (แจ้งเตือนแบบกระชับ พร้อมปุ่มลิงก์ติดต่อ)
   const premiumCommands = ['setup-premium-shop', 'add-coins', 'setup-media-guard', 'set-autoclear', 'setup-artist-card', 'boost-status'];
   if (interaction.isChatInputCommand() && premiumCommands.includes(interaction.commandName)) {
     const hasPremium = await isServerPremium(guildId, serverConfigs);
     if (!hasPremium) {
-      const lockEmbed = new EmbedBuilder()
-        .setTitle('💎 ZEN BOT • PREMIUM FEATURE LOCKED')
-        .setDescription('คำสั่งนี้ใช้งานได้เฉพาะเซิร์ฟเวอร์ที่เปิดใช้งาน **ระบบพรีเมียม** เท่านั้น\n\nสนใจติดต่อผู้พัฒนาบอทเพื่อเปิดใช้งานระบบพรีเมียมครับ')
-        .setColor('#FFD700');
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setLabel('💎 สนใจติดต่อซื้อระบบพรีเมียม')
+          .setStyle(ButtonStyle.Link)
+          .setURL('https://discord.gg/your-invite-link') // ใส่ลิงก์ห้องติดต่อของคุณที่นี่
+      );
 
-      return await interaction.reply({ embeds: [lockEmbed], ephemeral: true });
+      return await interaction.reply({
+        content: '❌ คำสั่งนี้ใช้ได้เฉพาะเซิร์ฟเวอร์พรีเมียมเท่านั้น',
+        components: [row],
+        ephemeral: true
+      });
     }
   }
 
@@ -370,11 +376,7 @@ client.on('interactionCreate', async interaction => {
     const hasPremiumBtn = await isServerPremium(guildId, serverConfigs);
     const premiumButtons = ['open_premium_shop_panel', 'open_artist_card_modal'];
     if (premiumButtons.includes(id) && !hasPremiumBtn) {
-      const btnLockEmbed = new EmbedBuilder()
-        .setTitle('💎 ZEN BOT • PREMIUM FEATURE LOCKED')
-        .setDescription('ปุ่มนี้ใช้งานได้เฉพาะเซิร์ฟเวอร์ที่เปิดใช้งาน **ระบบพรีเมียม** เท่านั้น')
-        .setColor('#FFD700');
-      return await interaction.reply({ embeds: [btnLockEmbed], ephemeral: true });
+      return await interaction.reply({ content: '❌ คำสั่งนี้ใช้ได้เฉพาะเซิร์ฟเวอร์พรีเมียมเท่านั้น', ephemeral: true });
     }
 
     const handledQuest = await handleQuestButton(interaction, serverConfigs, saveConfigs);
@@ -689,7 +691,7 @@ function getDashboardContent(config) {
     .addFields({ name: '📥 Status', value: statusText, inline: true }, { name: '📢 ห้องต้อนรับ', value: channelName, inline: true });
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('toggle_welcome').setLabel(config.welcomeEnabled ? 'ปิด' : 'เปิด').setStyle(config.welcomeEnabled ? ButtonStyle.Danger : ButtonStyle.Success),
-    new ButtonBuilder().setCustomId('edit_embed').setLabel('ตั้งค่า Embed').setStyle(ButtonStyle.Primary),
+    newButtonBuilder().setCustomId('edit_embed').setLabel('ตั้งค่า Embed').setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId('edit_footer').setLabel('ตั้งค่า Footer').setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId('test_welcome').setLabel('ทดสอบ').setStyle(ButtonStyle.Secondary)
   );
