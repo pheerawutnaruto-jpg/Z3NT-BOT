@@ -23,7 +23,7 @@ async function handleSetupPremiumShopCommand(interaction) {
     .setTitle('💎 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM SHOP (PERMANENT)')
     .setDescription('สั่งซื้อยศถาวรและไอเทมพิเศษด้วยเงินจริง (โอนผ่าน QR Code พร้อมเพย์ หรือซองของขวัญทรูมันนี่):\n──────────────────────\n🎨 **ยศ Artist ถาวร** (ราคา: 60 บาท)\n👉 *สิทธิ์ Artist ถาวร + แต่งการ์ด /level ส่วนตัวตลอดชีพ!*\n──────────────────────\n📱 **ช่องทางชำระเงิน:** สแกน QR Code ด้านล่าง หรือคลิกปุ่มเพื่อดูรายละเอียด')
     .setColor('#00FF00')
-    .setImage('https://placehold.co/600x300/101010/FFFFFF/png?text=QR+Code+PromptPay+60+Baht');
+    .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1560193259953717279/ReceiveMoney_QR_2026-10-15_14.14.01.png'); // QR Code ของคุณ
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -74,7 +74,7 @@ async function handleOpenPremiumShop(interaction) {
 
   const embed = new EmbedBuilder()
     .setTitle('💳 ข้อมูลการชำระเงินพรีเมียม')
-    .setDescription('โอนเงินผ่านพร้อมเพย์เบอร์: `08x-xxx-xxxx` (ชื่อบัญชี: xxxxxxx)\nหรือซองของขวัญ Truemoney Wallet\n\n*ส่งสลิปหลักฐานให้แอดมินเพื่อตรวจสอบและรับยศถาวร*')
+    .setDescription('โอนเงินผ่านพร้อมเพย์ หรือเติมผ่านซองของขวัญทรูมันนี่ได้ที่ลิงก์ด้านล่าง:\n\n🔗 **ลิงก์ซองของขวัญ TrueMoney Wallet:**\nhttps://tmn.app.link/57MAEZTBf7b\n\n*ส่งสลิปหลักฐานหรือยืนยันการเติมเงินให้แอดมินเพื่อตรวจสอบและรับยศถาวร*')
     .setColor('#FFD700');
 
   await interaction.reply({ embeds: [embed], ephemeral: true });
