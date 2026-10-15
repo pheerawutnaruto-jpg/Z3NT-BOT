@@ -20,6 +20,7 @@ const { setupQuestCommand, handleSetupQuestCommand, handleQuestButton } = requir
 const { setupShopCommand, handleSetupShopCommand, boostStatusCommand, handleBoostStatusCommand, handleShopButton } = require('./shop');
 const { setupPremiumShopCommand, coinsCommand, addCoinsCommand, handleSetupPremiumShopCommand, handleCoinsCommand, handleAddCoinsCommand, handleOpenPremiumShop, handlePremiumShopButton } = require('./premium_shop');
 const { setupArtistCommand, handleSetupArtistCommand, handleArtistButton, handleArtistModalSubmit } = require('./artist_card');
+const { setupMediaGuardCommand, handleSetupMediaGuardCommand, handleMediaGuardMessage } = require('./media_guard');
 
 // เชื่อมต่อ Upstash Redis จาก Environment Variables
 const redis = new Redis({
@@ -88,6 +89,7 @@ client.once('ready', async () => {
     addCoinsCommand,
     boostStatusCommand,
     setupArtistCommand,
+    setupMediaGuardCommand,
     setLevelCommand,
     new SlashCommandBuilder().setName('clear').setDescription('ลบข้อความในแชทจำนวน 1-100 ข้อความ')
       .addIntegerOption(option => option.setName('amount').setDescription('จำนวนข้อความที่ต้องการลบ (1-100)').setRequired(true)),
@@ -145,6 +147,10 @@ function setupCronJob(guildId, timeStr, channelId) {
 client.on('messageCreate', async message => {
   const guildId = message.guild?.id;
   const config = serverConfigs[guildId];
+
+  // 🛡️ ตรวจสอบระบบ Media Guard ก่อน (บังคับส่งเฉพาะรูปภาพ/มีเดีย)
+  const isMediaBlocked = handleMediaGuardMessage(message, serverConfigs);
+  if (isMediaBlocked) return;
 
   const isBlocked = handleSecurityMessage(message, config, spamTracker);
   if (isBlocked) return;
@@ -241,7 +247,8 @@ client.on('interactionCreate', async interaction => {
         voiceXpEnabled: false, voiceXpAmount: 10, roleRewards: {}
       },
       embed: { title: '', description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!', color: '#66FFFF', image: '', footerText: '', footerIcon: '', timestamp: 'no' },
-      autoClear: { enabled: false, time: '06:00', channelId: null }
+      autoClear: { enabled: false, time: '06:00', channelId: null },
+      mediaGuardChannels: []
     };
   }
   const config = serverConfigs[guildId];
@@ -290,6 +297,9 @@ client.on('interactionCreate', async interaction => {
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'setup-artist-card') {
     return await handleSetupArtistCommand(interaction);
+  }
+  if (interaction.isChatInputCommand() && interaction.commandName === 'setup-media-guard') {
+    return await handleSetupMediaGuardCommand(interaction, serverConfigs, saveConfigs);
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'set-level') {
     return await handleSetLevelCommand(interaction, serverConfigs);
@@ -682,6 +692,7 @@ async function sendAutoroleDashboard(interaction) {
 async function updateAutoroleDashboard(interaction) {
   await interaction.update({ ...getAutoroleDashboardContent(serverConfigs[interaction.guildId]) });
 }
+async function updateAutoroleDashboardAfterDeleg+arpUpdateAsync = async ...
 async function updateAutoroleDashboardAfterDefer(interaction) {
   await interaction.editReply({ ...getAutoroleDashboardContent(serverConfigs[interaction.guildId]) });
 }
