@@ -188,9 +188,11 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
         ],
       });
 
+      // นำรูป GIF โหลดดิ้งมาแปะไว้ใน Embed ของห้องออร์เดอร์ตอนเริ่มต้น
       const embed = new EmbedBuilder()
         .setTitle(`🎫 ออร์เดอร์สินค้า: ${item.name}`)
         .setDescription(`สวัสดีคุณ <@${user.id}>!\nคุณได้เลือกสั่งซื้อสินค้า: **${item.name}**\n💰 **ยอดชำระ:** \`${item.price} บาท\`\n\n${item.description}\n\n👇 **กรุณากดปุ่มด้านล่างเพื่อเลือกช่องทางชำระเงิน:**`)
+        .setImage(loadingGif)
         .setColor('#FFD700')
         .setTimestamp();
 
@@ -212,7 +214,7 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
       );
 
       await ticketChannel.send({ content: `🔔 ออร์เดอร์ใหม่จาก <@${user.id}>`, embeds: [embed], components: [payRow] });
-      await interaction.editReply({ content: `✅ สร้างห้องออร์เดอร์ส่วนตัวให้คุณสำเร็จแล้วห้อง: <#${ticketChannel.id}>`, embeds: [] });
+      await interaction.editReply({ content: `✅ สร้างห้องออร์เดอร์ส่วนตัวให้คุณสำเร็จแล้ว: <#${ticketChannel.id}>`, embeds: [] });
     } catch (err) {
       console.error('Error creating order ticket channel:', err);
       await interaction.editReply({ content: '❌ เกิดข้อผิดพลาดในการสร้างห้องออร์เดอร์ กรุณาติดต่อแอดมินครับ', embeds: [] });
