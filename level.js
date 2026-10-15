@@ -284,26 +284,6 @@ async function handleLeaderboardCommand(interaction, serverConfigs) {
   await interaction.reply({ embeds: [embed], ephemeral: true });
 }
 
-const resetLevelsCommand = new SlashCommandBuilder()
-  .setName('reset-levels')
-  .setDescription('รีเซ็ตข้อมูลเลเวลและ XP ของสมาชิกทุกคนในเซิร์ฟเวอร์นี้ (เฉพาะ Admin)');
-
-async function handleResetLevelsCommand(interaction, serverConfigs, saveConfigs) {
-  if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-    return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้นที่จะใช้งานคำสั่งนี้ได้ครับ!', ephemeral: true });
-  }
-
-  const guildId = interaction.guildId;
-  if (!serverConfigs[guildId]) {
-    serverConfigs[guildId] = {};
-  }
-
-  serverConfigs[guildId].levels = {};
-  await saveConfigs(serverConfigs);
-
-  await interaction.reply({ content: '🔄 รีเซ็ตข้อมูลเลเวลและ XP ของสมาชิกทุกคนในเซิร์ฟเวอร์นี้เรียบร้อยแล้ว!', ephemeral: true });
-}
-
 const setLevelCommand = new SlashCommandBuilder()
   .setName('set-level')
   .setDescription('เปิดแผงควบคุมตั้งค่าระบบเลเวลและห้องเสียง');
@@ -389,8 +369,6 @@ module.exports = {
   handleLevelCommand, 
   leaderboardCommand,
   handleLeaderboardCommand,
-  resetLevelsCommand,
-  handleResetLevelsCommand,
   setLevelCommand, 
   handleSetLevelCommand, 
   getLevelDashboardContent, 
