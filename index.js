@@ -18,7 +18,7 @@ const {
 } = require('./level');
 const { setupQuestCommand, handleSetupQuestCommand, handleQuestButton } = require('./quest');
 const { setupShopCommand, handleSetupShopCommand, boostStatusCommand, handleBoostStatusCommand, handleShopButton } = require('./shop');
-const { premiumShopCommand, handlePremiumShopCommand, handlePremiumShopButton } = require('./premium_shop');
+const { premiumShopCommand, setupPremiumShopCommand, coinsCommand, handleSetupPremiumShopCommand, handleCoinsCommand, handlePremiumShopCommand, handlePremiumShopButton } = require('./premium_shop');
 const { setupArtistCommand, handleSetupArtistCommand, handleArtistButton, handleArtistModalSubmit } = require('./artist_card');
 
 // เชื่อมต่อ Upstash Redis จาก Environment Variables
@@ -83,7 +83,9 @@ client.once('ready', async () => {
     leaderboardCommand,
     setupQuestCommand,
     setupShopCommand,
+    setupPremiumShopCommand,
     premiumShopCommand,
+    coinsCommand,
     boostStatusCommand,
     setupArtistCommand,
     setLevelCommand,
@@ -274,8 +276,14 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isChatInputCommand() && interaction.commandName === 'setup-in-game-shop') {
     return await handleSetupShopCommand(interaction);
   }
+  if (interaction.isChatInputCommand() && interaction.commandName === 'setup-premium-shop') {
+    return await handleSetupPremiumShopCommand(interaction);
+  }
   if (interaction.isChatInputCommand() && interaction.commandName === 'shop') {
-    return await handlePremiumShopCommand(interaction);
+    return await handlePremiumShopCommand(interaction, serverConfigs);
+  }
+  if (interaction.isChatInputCommand() && interaction.commandName === 'coins') {
+    return await handleCoinsCommand(interaction, serverConfigs);
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'boost-status') {
     return await handleBoostStatusCommand(interaction, serverConfigs);
@@ -335,7 +343,7 @@ client.on('interactionCreate', async interaction => {
     const handledShop = await handleShopButton(interaction, serverConfigs, saveConfigs);
     if (handledShop) return;
 
-    const handledPremShop = await handlePremiumShopButton(interaction);
+    const handledPremShop = await handlePremiumShopButton(interaction, serverConfigs);
     if (handledPremShop) return;
 
     const handledArtistBtn = await handleArtistButton(interaction, serverConfigs);
@@ -345,7 +353,7 @@ client.on('interactionCreate', async interaction => {
       'edit_voice_amount', 'edit_level_rate', 'edit_level_card', 
       'edit_level_messages', 'set_role_reward', 'delete_role_reward', 
       'sec_config_time', 'edit_embed', 'edit_footer', 'test_welcome',
-      'open_artist_card_modal'
+      'open_artist_card_modal', 'open_premium_shop_panel'
     ];
 
     if (!modalButtons.includes(id)) {
