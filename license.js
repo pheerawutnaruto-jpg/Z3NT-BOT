@@ -12,7 +12,7 @@ async function isServerPremium(guildId, serverConfigs) {
 
 const grantPremiumCommand = new SlashCommandBuilder()
   .setName('grant-premium')
-  .setDescription('เปิดสิทธิ์พรีเมียมรายเซิร์ฟเวอร์ (สำหรับ Developer)')
+  .setDescription('💎 [PREMIUM] เปิดสิทธิ์พรีเมียมรายเซิร์ฟเวอร์ (สำหรับ Developer)')
   .addStringOption(option =>
     option.setName('guild_id')
       .setDescription('ระบุ Guild ID ของเซิร์ฟเวอร์ที่ต้องการเปิดสิทธิ์')
