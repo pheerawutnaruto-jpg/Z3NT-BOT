@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, RoleSelectMenuBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
 const cron = require('node-cron');
-const { SHOP_ITEMS } = require('./shop'); // นำเข้า SHOP_ITEMS เพื่อเช็ก ID ยศ Booster
+const { SHOP_ITEMS } = require('./shop');
 
 const pendingRoleRewardImages = new Map();
 
@@ -19,14 +19,10 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
   const multiplier = config.levelConfig.xpMultiplier || 100;
   const now = Date.now();
 
-  // ⚡ ตรวจสอบระบบบัฟ XP
   let finalAmount = amount;
-  let isBoosted = false;
   if (userStat.boostUntil && now < userStat.boostUntil) {
     finalAmount *= 2; // คูณ 2 เท่า
-    isBoosted = true;
   } else if (userStat.boostUntil && now >= userStat.boostUntil) {
-    // 🧹 ถ้าหมดเวลาบัฟแล้ว ทำการถอดรหัสยศ Booster ออกจากตัวผู้ใช้โดยอัตโนมัติ
     userStat.boostUntil = 0;
     const guild = isVoice ? clientOrMessage : clientOrMessage.guild;
     if (guild) {
@@ -44,17 +40,6 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
 
   userStat.xp += finalAmount;
   const requiredXp = userStat.level * multiplier;
-
-  // ส่งข้อความแจ้งเตือน XP เล็กน้อยเวลาพิมพ์ (ถ้าอยู่ในแชทปกติ)เพื่อให้เห็นว่าได้กี่แต้ม
-  if (!isVoice && clientOrMessage.channel) {
-    const channel = clientOrMessage.channel;
-    const textMsg = isBoosted 
-      .toString() === 'true' // เช็กสถานะบัฟ
-      ? `⚡ [XP Booster x2] คุณได้รับ +${finalAmount} XP ((${amount} x 2))` 
-      : null;
-    
-    // ถ้าอยากให้แสดงผลแบบเงียบๆ ทุกครั้งที่พิมพ์ สามารถเปิดใช้งานได้ (แต่ถ้ากลัวรกห้องแชท ปล่อยให้มันคำนวณเบื้องหลังเงียบๆ ก็ได้ครับ)
-  }
 
   if (userStat.xp >= requiredXp) {
     userStat.xp -= requiredXp;
