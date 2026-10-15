@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits } = require('discord.js');
 
 const PREMIUM_ITEMS = [
   { 
@@ -122,7 +122,7 @@ async function handlePremiumShopCommand(interaction, serverConfigs) {
 
   const embed = new EmbedBuilder()
     .setTitle('💳 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM STORE & TOPUP')
-    .setDescription(`ร้านค้าพรีเมียมและเติมเงิน (1 Coin = 1 บาท)\n💰 เหรียญของคุณตอนนี้: **${userCoins} Coins**\n\nกดปุ่มสินค้าด้านล่างเพื่อเลือกซื้อ:`)
+    .setDescription(`ร้านค้าพรีเมียมและเติมเงิน (1 Coin = 1 บาท)\n💰 เหรียญของคุณตอนนี้: **${userCoins} Coins**\n\nกดปุ่มสินค้าด้านล่างเพื่อเลือกซื้อและสร้างห้องออร์เดอร์ส่วนตัว:`)
     .setColor('#FFD700');
 
   PREMIUM_ITEMS.forEach(item => {
@@ -137,7 +137,7 @@ async function handlePremiumShopCommand(interaction, serverConfigs) {
   PREMIUM_ITEMS.forEach(item => {
     row.addComponents(
       new ButtonBuilder()
-        .setCustomId(`view_item_${item.id}`)
+        .setCustomId(`create_order_${item.id}`)
         .setLabel(item.name)
         .setStyle(ButtonStyle.Primary)
     );
@@ -151,33 +151,69 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
     return await handlePremiumShopCommand(interaction, serverConfigs);
   }
 
-  // 1. กดเลือกสินค้า ➔ แสดงรายละเอียด พร้อมปุ่มเลือก PromptPay / TrueMoney
-  if (interaction.customId.startsWith('view_item_')) {
-    const itemId = interaction.customId.replace('view_item_', '');
+  // 1. เมื่อกดปุ่มซื้อสินค้า ➔ สร้างห้องออร์เดอร์ส่วนตัว (Order Ticket Channel) ทันที
+  if (interaction.customId.startsWith('create_order_')) {
+    const itemId = interaction.customId.replace('create_order_', '');
     const item = PREMIUM_ITEMS.find(i => i.id === itemId);
     if (!item) return true;
 
-    const embed = new EmbedBuilder()
-      .setTitle('💳 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM STORE & TOPUP')
-      .setDescription(`คุณกำลังเลือกซื้อ: **${item.name}**\n💰 ยอดที่ต้องชำระ: **${item.price} บาท**\n\n${item.description}\n\n👇 **กรุณากดปุ่มด้านล่างเพื่อเลือกช่องทางชำระเงิน:**`)
-      .setColor('#FFD700');
+    const guild = interaction.guild;
+    const user = interaction.user;
 
-    const payRow = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`pay_promptpay_${item.id}`)
-        .setLabel('PromptPay')
-        .setStyle(ButtonStyle.Success),
-      new ButtonBuilder()
-        .setCustomId(`pay_truemoney_${item.id}`)
-        .setLabel('TrueMoney')
-        .setStyle(ButtonStyle.Primary)
-    );
+    await interaction.deferReply({ ephemeral: true });
 
-    await interaction.update({ embeds: [embed], components: [payRow] });
+    try {
+      const ticketChannel = await guild.channels.create({
+        name: `🛒-order-${user.username}`,
+        type: ChannelType.GuildText,
+        permissionOverwrites: [
+          {
+            id: guild.id,
+            deny: [PermissionFlagsBits.ViewChannel],
+          },
+          {
+            id: user.id,
+            allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory],
+          },
+          {
+            id: interaction.client.user.id,
+            allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels],
+          }
+        ],
+      });
+
+      const embed = new EmbedBuilder()
+        .setTitle(`🎫 ออร์เดอร์สินค้า: ${item.name}`)
+        .setDescription(`สวัสดีคุณ <@${user.id}>!\nคุณได้เลือกสั่งซื้อสินค้า: **${item.name}**\n💰 **ยอดชำระ:** \`${item.price} บาท\`\n\n${item.description}\n\n👇 **กรุณากดปุ่มด้านล่างเพื่อเลือกช่องทางชำระเงิน:**`)
+        .setColor('#FFD700')
+        .setTimestamp();
+
+      const payRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`pay_promptpay_${item.id}`)
+          .setLabel('PromptPay')
+          .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+          .setCustomId(`pay_truemoney_${item.id}`)
+          .setLabel('TrueMoney')
+          .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+          .setCustomId('close_order_ticket')
+          .setLabel('🔒 ปิดออร์เดอร์')
+          .setStyle(ButtonStyle.Danger)
+      );
+
+      await ticketChannel.send({ content: `🔔 ออร์เดอร์ใหม่จาก <@${user.id}>`, embeds: [embed], components: [payRow] });
+      await interaction.editReply({ content: `✅ สร้างห้องออร์เดอร์ส่วนตัวให้คุณแล้วครับ: <#${ticketChannel.id}>` });
+    } catch (err) {
+      console.error('Error creating order ticket channel:', err);
+      await interaction.editReply({ content: '❌ เกิดข้อผิดพลาดในการสร้างห้องออร์เดอร์ กรุณาติดต่อแอดมินครับ' });
+    }
+
     return true;
   }
 
-  // 2. กดเลือกช่องทางชำระเงิน (PromptPay หรือ TrueMoney) ➔ แสดง QR Code หรือลิงก์ที่ถูกต้อง
+  // 2. เมื่อกดเลือกช่องทางชำระเงินในห้องออร์เดอร์ (PromptPay หรือ TrueMoney) ➔ แสดง QR Code หรือลิงก์ตามที่เลือก
   if (interaction.customId.startsWith('pay_promptpay_') || interaction.customId.startsWith('pay_truemoney_')) {
     const isTrueMoney = interaction.customId.startsWith('pay_truemoney_');
     const itemId = interaction.customId.replace(isTrueMoney ? 'pay_truemoney_' : 'pay_promptpay_', '');
@@ -192,11 +228,27 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
 
     const embed = new EmbedBuilder()
       .setTitle('💳 ชำระเงินพรีเมียม / เติมเงิน')
-      .setDescription(`คุณกำลังสั่งซื้อ: **${item.name}**\n💰 ยอดที่ต้องชำระ: **${item.price} บาท**\n\n──────────────────────\n📌 **${isTrueMoney ? 'สแกน QR Code ทรูมันนี่ หรือเติมผ่านลิงก์ซองของขวัญ:' : 'สแกน QR Code PromptPay ด้านล่างเพื่อโอนเงิน:'}**\n${isTrueMoney ? `🔗 [กดที่นี่เพื่อเปิดแอป TrueMoney Wallet](${truemoneyLink})` : ''}\n\nเมื่อโอนเงินแล้ว ส่งสลิปให้แอดมินเพื่อตรวจสอบและรับสินค้าได้เลยครับ!`)
+      .setDescription(`คุณกำลังสั่งซื้อ: **${item.name}**\n💰 ยอดที่ต้องชำระ: **${item.price} บาท**\n\n──────────────────────\n📌 **${isTrueMoney ? 'สแกน QR Code ทรูมันนี่ หรือเติมผ่านลิงก์ซองของขวัญ:' : 'สแกน QR Code PromptPay ด้านล่างเพื่อโอนเงิน:'}**\n${isTrueMoney ? `🔗 [กดที่นี่เพื่อเปิดแอป TrueMoney Wallet](${truemoneyLink})` : ''}\n\nเมื่อโอนเงินแล้ว ส่งสลิปหลักฐานในห้องนี้เพื่อให้แอดมินตรวจสอบได้เลยครับ!`)
       .setImage(selectedQr)
       .setColor('#00FF00');
 
-    await interaction.update({ embeds: [embed], components: [] });
+    const closeRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('close_order_ticket')
+        .setLabel('🔒 ปิดออร์เดอร์ / ลบห้อง')
+        .setStyle(ButtonStyle.Danger)
+    );
+
+    await interaction.update({ embeds: [embed], components: [closeRow] });
+    return true;
+  }
+
+  // 3. ปิดห้องออร์เดอร์
+  if (interaction.customId === 'close_order_ticket') {
+    await interaction.reply({ content: '🔒 กำลังปิดห้องออร์เดอร์ใน 5 วินาที...' });
+    setTimeout(() => {
+      interaction.channel.delete().catch(() => {});
+    }, 5000);
     return true;
   }
 
