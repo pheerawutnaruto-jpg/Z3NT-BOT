@@ -1,6 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits } = require('discord.js');
 
-// 💎 [PREMIUM] คำสั่งสำหรับแอดมินส่งแผงเลือกสินค้า
 const setupOrderTicketCommand = new SlashCommandBuilder()
   .setName('setup-order-ticket')
   .setDescription('💎 [PREMIUM] ส่งแผงร้านค้าแบบมีเมนูกดเลือกสินค้าและสร้างห้องออร์เดอร์ (สำหรับ Admin)');
@@ -11,12 +10,11 @@ async function handleSetupOrderTicketCommand(interaction) {
   }
 
   const embed = new EmbedBuilder()
-    .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM STORE')
-    .setDescription('🎉 **ของดีต้อง Zen Bot เท่านั้น!**\n💎 จำหน่ายสินค้า Bot Premium, ยศถาวร และแพ็กเกจเสริมสุดคุ้ม')
+    .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • SELECT STORE')
+    .setDescription('ศูนย์รวมการสั่งซื้อสินค้าผ่านเมนูดรอปดาวน์อัตโนมัติ สะดวก รวดเร็ว และเป็นส่วนตัว\n\n📌 **วิธีใช้งาน:** เลือกรายการสินค้าที่ต้องการจากกล่องตัวเลือกด้านล่างได้ทันที')
     .setColor('#00FF00')
-    .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg'); // แบนเนอร์ใหม่ล่าสุด
+    .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg');
 
-  // สร้างเมนูกดเลือกสินค้า พร้อมปุ่มล้างตัวเลือกไอคอนสีแดงและเคลียร์ค่าได้จริง
   const selectMenu = new StringSelectMenuBuilder()
     .setCustomId('select_product_order')
     .setPlaceholder('🛒 เลือกสินค้าที่ต้องการสั่งซื้อ')
@@ -47,17 +45,15 @@ async function handleSetupOrderTicketCommand(interaction) {
   await interaction.reply({ content: '✅ ส่งแผงร้านค้าแบบเลือกสินค้าไปยังห้องนี้สำเร็จแล้ว!', ephemeral: true });
 }
 
-// 🎫 ฟังก์ชันสร้างห้องออร์เดอร์ส่วนตัว (Order Ticket Channel) เมื่อลูกค้าเลือกสินค้า
 async function handleOrderTicketSelect(interaction, serverConfigs) {
   if (interaction.customId !== 'select_product_order') return false;
 
   const selectedValue = interaction.values[0];
 
-  // ถ้าผู้ใช้กดเลือก "ล้างตัวเลือก" ให้รีเซ็ตแผงเมนูดรอปดาวน์ให้กลับมาเป็นปกติเหมือนยังไม่ได้เลือก
   if (selectedValue === 'clear_selection') {
     const embed = new EmbedBuilder()
-      .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM STORE')
-      .setDescription('🎉 **ของดีต้อง Zen Bot เท่านั้น!**\n💎 จำหน่ายสินค้า Bot Premium, ยศถาวร และแพ็กเกจเสริมสุดคุ้ม')
+      .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • SELECT STORE')
+      .setDescription('ศูนย์รวมการสั่งซื้อสินค้าผ่านเมนูดรอปดาวน์อัตโนมัติ สะดวก รวดเร็ว และเป็นส่วนตัว\n\n📌 **วิธีใช้งาน:** เลือกรายการสินค้าที่ต้องการจากกล่องตัวเลือกด้านล่างได้ทันที')
       .setColor('#00FF00')
       .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg');
 
@@ -106,8 +102,8 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
   }
 
   const loadingEmbed = new EmbedBuilder()
-    .setTitle('⏳ กำลังประมวลผลออร์เดอร์ของคุณ...')
-    .setDescription('กรุณารอสักครู่ ระบบกำลังสร้างห้องออร์เดอร์ส่วนตัวให้คุณครับ')
+    .setTitle('⏳ กำลังเตรียมช่องทางส่วนตัวของคุณ...')
+    .setDescription('ระบบกำลังสร้างห้องออร์เดอร์เฉพาะกิจ กรุณารอสักครู่ครับ')
     .setImage(loadingGif)
     .setColor('#00FFFF');
 
@@ -136,8 +132,8 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
     const newOrderGif = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560415906281300059/image0.gif';
 
     const ticketEmbed = new EmbedBuilder()
-      .setTitle(`<a:emoji_103:1560417845903491112> ออร์เดอร์สินค้า: ${productName}`)
-      .setDescription(`สวัสดีคุณ <@${user.id}>!\nคุณได้เลือกสั่งซื้อสินค้า: **${productName}**\n💰 **ยอดชำระ:** \`${productPrice}\``)
+      .setTitle(`<a:emoji_103:1560417845903491112> รายละเอียดออร์เดอร์: ${productName}`)
+      .setDescription(`• **ผู้สั่งซื้อ:** <@${user.id}>\n• **สินค้า:** ${productName}\n• **ยอดที่ต้องชำระ:** \`${productPrice}\``)
       .setImage(newOrderGif)
       .setColor('#FFD700')
       .setFooter({ text: 'ช่องทางชำระ' });
@@ -169,7 +165,6 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
   return true;
 }
 
-// 💳 ฟังก์ชันกดเลือกช่องทางชำระเงิน
 async function handleOrderPaymentButton(interaction) {
   if (!interaction.customId.startsWith('pay_promptpay_') && !interaction.customId.startsWith('pay_truemoney_')) return false;
 
@@ -186,8 +181,8 @@ async function handleOrderPaymentButton(interaction) {
   const selectedQr = isTrueMoney ? trueMoneyQr : promptPayQr;
 
   const embed = new EmbedBuilder()
-    .setTitle('💳 ชำระเงินออร์เดอร์สินค้า')
-    .setDescription(`คุณกำลังสั่งซื้อ: **${productName}**\n💰 ยอดที่ต้องชำระ: \`${productPrice}\`\n\n──────────────────────\n📌 **${isTrueMoney ? 'สแกน QR Code ทรูมันนี่ หรือเติมผ่านลิงก์ซองของขวัญ:' : 'สแกน QR Code PromptPay ด้านล่างเพื่อโอนเงิน:'}**\n${isTrueMoney ? `🔗 [กดที่นี่เพื่อเปิดแอป TrueMoney Wallet](${truemoneyLink})` : ''}\n\nเมื่อโอนเงินแล้ว ส่งสลิปหลักฐานในห้องนี้เพื่อให้แอดมินตรวจสอบและกดยืนยันคำสั่งซื้อครับ!`)
+    .setTitle('💳 ยืนยันช่องทางชำระเงิน')
+    .setDescription(`• **สินค้า:** ${productName}\n• **ยอดชำระ:** \`${productPrice}\`\n\n──────────────────────\n📌 **${isTrueMoney ? 'สแกน QR Code ทรูมันนี่ หรือกดลิงก์ซองของขวัญ:' : 'สแกน QR Code PromptPay ด้านล่างเพื่อโอนเงิน:'}**\n${isTrueMoney ? `🔗 [เปิดแอป TrueMoney Wallet](${truemoneyLink})` : ''}\n\n*เมื่อทำรายการเรียบร้อยแล้ว ส่งสลิปหลักฐานในห้องนี้เพื่อให้แอดมินตรวจสอบและมอบสินค้าให้ได้เลยครับ!*`)
     .setImage(selectedQr)
     .setColor('#00FF00')
     .setFooter({ text: 'ช่องทางชำระ' });
@@ -203,11 +198,10 @@ async function handleOrderPaymentButton(interaction) {
   return true;
 }
 
-// 🔒 ฟังก์ชันปิดห้องออร์เดอร์
 async function handleCloseTicketButton(interaction) {
   if (interaction.customId !== 'close_order_ticket') return false;
 
-  await interaction.reply({ content: '🔒 กำลังปิดห้องออร์เดอร์ใน 5 วินาทีละครึ่ง...' });
+  await interaction.reply({ content: '🔒 กำลังปิดห้องออร์เดอร์ใน 5 วินาที...' });
   setTimeout(() => {
     interaction.channel.delete().catch(() => {});
   }, 5000);
