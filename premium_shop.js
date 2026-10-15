@@ -7,7 +7,7 @@ const PREMIUM_ITEMS = [
     price: 10, 
     coins: 10, 
     type: 'topup',
-    description: 'เติมเหรียญสะสม 10 บาท รับทันที 10 Zen Coins เข้ากระเป๋าสำหรับซื้อไอเทมและปลดล็อกฟีเจอร์พิเศษในเซิร์ฟเวอร์!' 
+    description: 'เติมแพ็กเกจ 10 บาท รับทันที 10 Zen Coins เข้ากระเป๋าสำหรับซื้อไอเทมและปลดล็อกฟีเจอร์พิเศษในเซิร์ฟเวอร์!' 
   },
   { 
     id: 'perm_artist', 
@@ -122,7 +122,7 @@ async function handlePremiumShopCommand(interaction, serverConfigs) {
 
   const embed = new EmbedBuilder()
     .setTitle('💳 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM STORE & TOPUP')
-    .setDescription(`ร้านค้าพรีเมียมและระบบเติมเหรียญ (อัตราแลกเปลี่ยน: 1 บาท = 1 Zen Coin)\n💰 เหรียญของคุณตอนนี้: **${userCoins} Coins**\n\nกดปุ่มสินค้าด้านล่างเพื่อเลือกซื้อและสร้างห้องออร์เดอร์ส่วนตัว:`)
+    .setDescription(`ร้านค้าพรีเมียมและระบบเติมเหรียญสะสม\n💰 เหรียญของคุณตอนนี้: **${userCoins} Coins**\n\nกดปุ่มสินค้าด้านล่างเพื่อเลือกซื้อและสร้างห้องออร์เดอร์ส่วนตัว:`)
     .setColor('#FFD700');
 
   PREMIUM_ITEMS.forEach(item => {
