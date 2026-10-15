@@ -267,16 +267,15 @@ client.on('interactionCreate', async interaction => {
   }
   if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
 
-  // 💎 🛡️ ตรวจสอบสิทธิ์พรีเมียม (แจ้งเตือนด้วย Embed สีทองสุดหรู)
+  // 💎 🛡️ ตรวจสอบสิทธิ์พรีเมียม (แจ้งเตือนด้วย Embed กระชับและดูโปร)
   const premiumCommands = ['setup-premium-shop', 'add-coins', 'setup-media-guard', 'set-autoclear', 'setup-artist-card', 'boost-status'];
   if (interaction.isChatInputCommand() && premiumCommands.includes(interaction.commandName)) {
     const hasPremium = await isServerPremium(guildId, serverConfigs);
     if (!hasPremium) {
       const lockEmbed = new EmbedBuilder()
-        .setTitle('💎 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM FEATURE LOCKED')
-        .setDescription('ฟังก์ชันหรือคำสั่งนี้ เปิดให้บริการเฉพาะ **เซิร์ฟเวอร์ที่สมัครสมาชิกพรีเมียมรายเดือน** เท่านั้น!\n\n✨ สนใจปลดล็อกระบบร้านค้าพรีเมียม การ์ด Canvas สุดอลังการ และฟังก์ชันระดับโปร ติดต่อผู้พัฒนาบอทได้เลยครับ!')
-        .setColor('#FFD700')
-        .setTimestamp();
+        .setTitle('💎 ZEN BOT • PREMIUM FEATURE LOCKED')
+        .setDescription('คำสั่งนี้ใช้งานได้เฉพาะเซิร์ฟเวอร์ที่เปิดใช้งาน **ระบบพรีเมียม** เท่านั้น\n\nสนใจติดต่อผู้พัฒนาบอทเพื่อเปิดใช้งานระบบพรีเมียมครับ')
+        .setColor('#FFD700');
 
       return await interaction.reply({ embeds: [lockEmbed], ephemeral: true });
     }
@@ -372,8 +371,8 @@ client.on('interactionCreate', async interaction => {
     const premiumButtons = ['open_premium_shop_panel', 'open_artist_card_modal'];
     if (premiumButtons.includes(id) && !hasPremiumBtn) {
       const btnLockEmbed = new EmbedBuilder()
-        .setTitle('💎 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM FEATURE LOCKED')
-        .setDescription('ปุ่มนี้เปิดให้บริการเฉพาะเซิร์ฟเวอร์พรีเมียมเท่านั้น!')
+        .setTitle('💎 ZEN BOT • PREMIUM FEATURE LOCKED')
+        .setDescription('ปุ่มนี้ใช้งานได้เฉพาะเซิร์ฟเวอร์ที่เปิดใช้งาน **ระบบพรีเมียม** เท่านั้น')
         .setColor('#FFD700');
       return await interaction.reply({ embeds: [btnLockEmbed], ephemeral: true });
     }
