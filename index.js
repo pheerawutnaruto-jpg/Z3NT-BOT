@@ -22,7 +22,6 @@ const { setupPremiumShopCommand, coinsCommand, addCoinsCommand, handleSetupPremi
 const { setupArtistCommand, handleSetupArtistCommand, handleArtistButton, handleArtistModalSubmit } = require('./artist_card');
 const { setupMediaGuardCommand, handleSetupMediaGuardCommand, handleMediaGuardMessage } = require('./media_guard');
 
-// เชื่อมต่อ Upstash Redis จาก Environment Variables
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
@@ -241,7 +240,7 @@ client.on('interactionCreate', async interaction => {
         enabled: true, minXp: 15, maxXp: 25, cmdXp: 20, xpMultiplier: 100, channelId: null,
         levelUpMessage: 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว!',
         roleRewardMessage: '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!',
-        cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD', cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**',
+        cardTitle: '📊 𝙕𝙀𝙉 𝘽O𝙏 • STATS CARD', cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**',
         embedColor: '#66FFFF', statsCardImageUrl: '',
         voiceXpEnabled: false, voiceXpAmount: 10, roleRewards: {}
       },
@@ -633,7 +632,7 @@ client.on('interactionCreate', async interaction => {
     if (interaction.customId === 'roleRewardModal') {
       const targetLevel = interaction.fields.getTextInputValue('targetLevel');
       const rewardImage = interaction.fields.getTextInputValue('rewardImage') || '';
-      if (isNaN(targetLevel)) return await interaction.reply({ content: '❌ กรุณากรอกเป็นตัวเลขเลเวลที่ถูกต้อง!', ephemeral: true });
+      if (isNaN(targetLevel)) return await interaction.reply({ content: '❌ กรุณากรอกเป็นตัวเลขเลเวลที่ถูกต้องพิมพ์!', ephemeral: true });
       pendingRoleRewardImages.set(`${interaction.user.id}_${targetLevel}`, rewardImage);
       const roleSelectMenu = new RoleSelectMenuBuilder().setCustomId(`select_reward_role_${targetLevel}`).setPlaceholder(`👑 เลือกยศ Level ${targetLevel}`);
       const row = new ActionRowBuilder().addComponents(roleSelectMenu);
