@@ -151,8 +151,6 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
     return await handlePremiumShopCommand(interaction, serverConfigs);
   }
 
-  const loadingGif = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560407479412588686/IMG_7559.gif';
-
   if (interaction.customId.startsWith('create_order_')) {
     const itemId = interaction.customId.replace('create_order_', '');
     const item = PREMIUM_ITEMS.find(i => i.id === itemId);
@@ -160,6 +158,7 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
 
     const guild = interaction.guild;
     const user = interaction.user;
+    const loadingGif = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560407479412588686/IMG_7559.gif';
 
     const loadingEmbed = new EmbedBuilder()
       .setTitle('⏳ กำลังประมวลผลออร์เดอร์ของคุณ...')
@@ -213,7 +212,7 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
       );
 
       await ticketChannel.send({ content: `🔔 ออร์เดอร์ใหม่จาก <@${user.id}>`, embeds: [embed], components: [payRow] });
-      await interaction.editReply({ content: `✅ สร้างห้องออร์เดอร์ส่วนตัวให้คุณสำเร็จแล้ว: <#${ticketChannel.id}>`, embeds: [] });
+      await interaction.editReply({ content: `✅ สร้างห้องออร์เดอร์ส่วนตัวให้คุณสำเร็จแล้วห้อง: <#${ticketChannel.id}>`, embeds: [] });
     } catch (err) {
       console.error('Error creating order ticket channel:', err);
       await interaction.editReply({ content: '❌ เกิดข้อผิดพลาดในการสร้างห้องออร์เดอร์ กรุณาติดต่อแอดมินครับ', embeds: [] });
@@ -228,43 +227,30 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
     const item = PREMIUM_ITEMS.find(i => i.id === itemId);
     if (!item) return true;
 
-    // แสดงหน้าจอ loading ชั่วคราวก่อนแสดง QR Code เพื่อความสมูท
-    const loadingEmbed = new EmbedBuilder()
-      .setTitle('⏳ กำลังโหลดช่องทางชำระเงิน...')
-      .setDescription('กรุณารอสักครู่ ระบบกำลังเตรียม QR Code ให้คุณครับ')
-      .setImage(loadingGif)
-      .setColor('#00FFFF');
+    const promptPayQr = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560193260293595176/ReceiveMoney_QR_2026-10-15_14.13.55.png';
+    const trueMoneyQr = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560193259953717279/ReceiveMoney_QR_2026-10-15_14.14.01.png';
+    const truemoneyLink = 'https://tmn.app.link/57MAEZTBf7b';
 
-    await interaction.update({ embeds: [loadingEmbed], components: [] });
+    const selectedQr = isTrueMoney ? trueMoneyQr : promptPayQr;
 
-    // หน่วงเวลาเล็กน้อย 1 วินาทีเพื่อให้เห็นภาพ GIF โหลดดิ้งสวยๆ แล้วค่อยสลับเป็น QR Code
-    setTimeout(async () => {
-      const promptPayQr = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560193260293595176/ReceiveMoney_QR_2026-10-15_14.13.55.png';
-      const trueMoneyQr = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560193259953717279/ReceiveMoney_QR_2026-10-15_14.14.01.png';
-      const truemoneyLink = 'https://tmn.app.link/57MAEZTBf7b';
+    const embed = new EmbedBuilder()
+      .setTitle('💳 ชำระเงินพรีเมียม / เติมเหรียญ')
+      .setDescription(`คุณกำลังสั่งซื้อ: **${item.name}**\n💰 ยอดที่ต้องชำระ: **${item.price} บาท**\n\n──────────────────────\n📌 **${isTrueMoney ? 'สแกน QR Code ทรูมันนี่ หรือเติมผ่านลิงก์ซองของขวัญ:' : 'สแกน QR Code PromptPay ด้านล่างเพื่อโอนเงิน:'}**\n${isTrueMoney ? `🔗 [กดที่นี่เพื่อเปิดแอป TrueMoney Wallet](${truemoneyLink})` : ''}\n\nเมื่อโอนเงินแล้ว ส่งสลิปหลักฐานในห้องนี้เพื่อให้แอดมินตรวจสอบและเติมเหรียญ / มอบยศให้ได้เลยครับ!`)
+      .setImage(selectedQr)
+      .setColor('#00FF00');
 
-      const selectedQr = isTrueMoney ? trueMoneyQr : promptPayQr;
+    const closeRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('close_order_ticket')
+        .setLabel('🔒 ปิดออร์เดอร์ / ลบห้อง')
+        .setStyle(ButtonStyle.Danger)
+    );
 
-      const embed = new EmbedBuilder()
-        .setTitle('💳 ชำระเงินพรีเมียม / เติมเหรียญ')
-        .setDescription(`คุณกำลังสั่งซื้อ: **${item.name}**\n💰 ยอดที่ต้องชำระ: **${item.price} บาท**\n\n──────────────────────\n📌 **${isTrueMoney ? 'สแกน QR Code ทรูมันนี่ หรือเติมผ่านลิงก์ซองของขวัญ:' : 'สแกน QR Code PromptPay ด้านล่างเพื่อโอนเงิน:'}**\n${isTrueMoney ? `🔗 [กดที่นี่เพื่อเปิดแอป TrueMoney Wallet](${truemoneyLink})` : ''}\n\nเมื่อโอนเงินแล้ว ส่งสลิปหลักฐานในห้องนี้เพื่อให้แอดมินตรวจสอบและเติมเหรียญ / มอบยศให้ได้เลยครับ!`)
-        .setImage(selectedQr)
-        .setColor('#00FF00');
-
-      const closeRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId('close_order_ticket')
-          .setLabel('🔒 ปิดออร์เดอร์ / ลบห้อง')
-          .setStyle(ButtonStyle.Danger)
-      );
-
-      await interaction.editReply({ embeds: [embed], components: [closeRow] }).catch(() => {});
-    }, 1000);
-
+    await interaction.update({ embeds: [embed], components: [closeRow] });
     return true;
   }
 
-  if (interaction.customId. === 'close_order_ticket' || interaction.customId === 'close_order_ticket') {
+  if (interaction.customId === 'close_order_ticket') {
     await interaction.reply({ content: '🔒 กำลังปิดห้องออร์เดอร์ใน 5 วินาที...' });
     setTimeout(() => {
       interaction.channel.delete().catch(() => {});
