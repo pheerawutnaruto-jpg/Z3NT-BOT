@@ -18,7 +18,7 @@ const {
 } = require('./level');
 const { setupQuestCommand, handleSetupQuestCommand, handleQuestButton } = require('./quest');
 const { setupShopCommand, handleSetupShopCommand, boostStatusCommand, handleBoostStatusCommand, handleShopButton } = require('./shop');
-const { setupPremiumShopCommand, coinsCommand, addCoinsCommand, handleSetupPremiumShopCommand, handleCoinsCommand, handleAddCoinsCommand, handleOpenPremiumShop, handlePremiumShopButton } = require('./premium_shop');
+const { premiumShopCommand, setupPremiumShopCommand, coinsCommand, addCoinsCommand, handleSetupPremiumShopCommand, handleCoinsCommand, handleAddCoinsCommand, handlePremiumShopCommand, handlePremiumShopButton } = require('./premium_shop');
 const { setupArtistCommand, handleSetupArtistCommand, handleArtistButton, handleArtistModalSubmit } = require('./artist_card');
 const { setupMediaGuardCommand, handleSetupMediaGuardCommand, handleMediaGuardMessage } = require('./media_guard');
 const { setupOrderTicketCommand, handleSetupOrderTicketCommand, handleOrderTicketSelect, handleCloseTicketButton } = require('./order_ticket');
@@ -87,6 +87,7 @@ client.once('ready', async () => {
     setupShopCommand,
     setupPremiumShopCommand,
     setupOrderTicketCommand,
+    premiumShopCommand,
     coinsCommand,
     addCoinsCommand,
     grantPremiumCommand,
@@ -269,7 +270,7 @@ client.on('interactionCreate', async interaction => {
   }
   if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
 
-  const premiumCommands = ['setup-quest', 'setup-in-game-shop', 'coins', 'setup-premium-shop', 'setup-order-ticket', 'add-coins', 'setup-media-guard', 'set-autoclear', 'setup-artist-card', 'boost-status'];
+  const premiumCommands = ['shop', 'setup-quest', 'setup-in-game-shop', 'coins', 'setup-premium-shop', 'setup-order-ticket', 'add-coins', 'setup-media-guard', 'set-autoclear', 'setup-artist-card', 'boost-status'];
   if (interaction.isChatInputCommand() && premiumCommands.includes(interaction.commandName)) {
     const hasPremium = await isServerPremium(guildId, serverConfigs);
     if (!hasPremium) {
@@ -312,6 +313,9 @@ client.on('interactionCreate', async interaction => {
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'setup-order-ticket') {
     return await handleSetupOrderTicketCommand(interaction);
+  }
+  if (interaction.isChatInputCommand() && interaction.commandName === 'shop') {
+    return await handlePremiumShopCommand(interaction, serverConfigs);
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'coins') {
     return await handleCoinsCommand(interaction, serverConfigs);
