@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits } = require('discord.js');
 
-// 💎 [PREMIUM] คำสั่งสำหรับแอดมินส่งแผงเลือกสินค้า
+// 💎 [PREMIUM] คำสั่งสำหรับแอดมินส่งแผงเลือกสินค้าพร้อมแบนเนอร์ใหม่
 const setupOrderTicketCommand = new SlashCommandBuilder()
   .setName('setup-order-ticket')
   .setDescription('💎 [PREMIUM] ส่งแผงร้านค้าแบบมีเมนูกดเลือกสินค้าและสร้างห้องออร์เดอร์ (สำหรับ Admin)');
@@ -14,9 +14,9 @@ async function handleSetupOrderTicketCommand(interaction) {
     .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM STORE')
     .setDescription('🎉 **ของดีต้อง Zen Bot เท่านั้น!**\n💎 จำหน่ายสินค้า Bot Premium, ยศถาวร และแพ็กเกจเสริมสุดคุ้ม\n\n👇 **คลิกเลือกสินค้าที่ต้องการสั่งซื้อจากเมนูด้านล่างได้เลยครับ**')
     .setColor('#00FF00')
-    .setImage('https://placehold.co/600x300/101010/FFFFFF/png?text=ZEN+BOT+PREMIUM+STORE');
+    .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1560424207702040647/1792104497426.jpg'); // แบนเนอร์ใหม่ของคุณ
 
-  // สร้างเมนูกดเลือกสินค้า (Select Menu) พร้อมเพิ่มตัวเลือก "ล้างตัวเลือก" แบบในรูปตัวอย่าง
+  // สร้างเมนูกดเลือกสินค้าพร้อมตัวเลือก "ล้างตัวเลือก"
   const selectMenu = new StringSelectMenuBuilder()
     .setCustomId('select_product_order')
     .setPlaceholder('🛒 เลือกสินค้าที่ต้องการสั่งซื้อ')
@@ -47,13 +47,12 @@ async function handleSetupOrderTicketCommand(interaction) {
   await interaction.reply({ content: '✅ ส่งแผงร้านค้าแบบเลือกสินค้าไปยังห้องนี้สำเร็จแล้ว!', ephemeral: true });
 }
 
-// 🎫 ฟังก์ชันจัดการเมื่อเลือกสินค้า หรือกดล้างตัวเลือก
+// 🎫 ฟังก์ชันสร้างห้องออร์เดอร์ส่วนตัว (Order Ticket Channel) เมื่อลูกค้าเลือกสินค้า
 async function handleOrderTicketSelect(interaction, serverConfigs) {
   if (interaction.customId !== 'select_product_order') return false;
 
   const selectedValue = interaction.values[0];
 
-  // ถ้าผู้ใช้กดเลือก "ล้างตัวเลือก"
   if (selectedValue === 'clear_selection') {
     return await interaction.reply({ content: '🧹 ล้างตัวเลือกสินค้าเรียบร้อยแล้วครับ', ephemeral: true });
   }
@@ -72,7 +71,6 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
     productPrice = '฿60.00';
   }
 
-  // ส่ง Embed โหลดดิ้งชั่วคราวพร้อมภาพ GIF เคลื่อนไหว
   const loadingEmbed = new EmbedBuilder()
     .setTitle('⏳ กำลังประมวลผลออร์เดอร์ของคุณ...')
     .setDescription('กรุณารอสักครู่ ระบบกำลังสร้างห้องออร์เดอร์ส่วนตัวให้คุณครับ')
@@ -82,21 +80,20 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
   await interaction.reply({ embeds: [loadingEmbed], ephemeral: true });
 
   try {
-    // สร้างห้องแชทลับส่วนตัวสำหรับออร์เดอร์นี้
     const ticketChannel = await guild.channels.create({
       name: `🛒-order-${user.username}`,
       type: ChannelType.GuildText,
       permissionOverwrites: [
         {
-          id: guild.id, // ซ่อนไม่ให้คนอื่นเห็น
+          id: guild.id,
           deny: [PermissionFlagsBits.ViewChannel],
         },
         {
-          id: user.id, // ให้ลูกค้าเห็นและพิมพ์ได้
+          id: user.id,
           allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory],
         },
         {
-          id: interaction.client.user.id, // ให้บอทจัดการได้
+          id: interaction.client.user.id,
           allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels],
         }
       ],
@@ -111,7 +108,6 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
       .setColor('#FFD700')
       .setFooter({ text: 'ช่องทางชำระ' });
 
-    // ปุ่มเลือกช่องทางชำระเงิน พร้อมอิโมจิอนิเมชัน TrueMoney และ PromptPay
     const payRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`pay_truemoney_${selectedValue}`)
@@ -130,7 +126,6 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
     );
 
     await ticketChannel.send({ content: `🔔 ออร์เดอร์ใหม่จาก <@${user.id}>`, embeds: [ticketEmbed], components: [payRow] });
-
     await interaction.editReply({ content: `✅ สร้างห้องออร์เดอร์ส่วนตัวให้คุณสำเร็จแล้ว: <#${ticketChannel.id}>`, embeds: [] });
   } catch (err) {
     console.error('Error creating order ticket channel:', err);
