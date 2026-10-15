@@ -71,7 +71,7 @@ async function handleBoostStatusCommand(interaction, serverConfigs) {
   const now = Date.now();
 
   if (!userStat || !userStat.boostUntil || userStat.boostUntil <= now) {
-    return await interaction.reply({ content: '❌ คุณยังไม่ได้เปิดใช้งานน้ำยาคูณ XP หรือบัฟหมดอายุไปแล้วครับ!', ephemeral: true });
+    return await interaction.reply({ content: '❌ คุณยังไม่ได้เปิดใช้งานน้ำยาคูณ XP หรือบัฟหมดอายุไปแล้วครับ!', flags: 64 });
   }
 
   const remainingMs = userStat.boostUntil - now;
@@ -82,7 +82,7 @@ async function handleBoostStatusCommand(interaction, serverConfigs) {
     .setDescription(`สถานะบัฟคูณ XP 2 เท่าของคุณ:\n⏳ คงเหลือเวลาอีกประมาณ **${remainingMins} นาที**\n\n*(ยศ Booster จะถูกถอดออกโดยอัตโนมัติเมื่อหมดเวลา)*`)
     .setColor('#00FF00');
 
-  await interaction.reply({ embeds: [embed], ephemeral: true });
+  await interaction.reply({ embeds: [embed], flags: 64 });
 }
 
 async function handleShopCommand(interaction, serverConfigs) {
@@ -120,7 +120,7 @@ async function handleShopCommand(interaction, serverConfigs) {
     );
   });
 
-  await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
+  await interaction.reply({ embeds: [embed], components: [row], flags: 64 });
 }
 
 async function handleShopButton(interaction, serverConfigs, saveConfigs) {
@@ -132,7 +132,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
 
   const item = SHOP_ITEMS.find(i => i.id === itemId);
   if (!item) {
-    await interaction.reply({ content: '❌ ไม่พบสินค้านี้ในระบบ!', ephemeral: true });
+    await interaction.reply({ content: '❌ ไม่พบสินค้านี้ในระบบ!', flags: 64 });
     return true;
   }
 
@@ -145,22 +145,20 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
   const userStat = serverConfigs[guildId].levels[userId];
   const userCoins = userStat.orbs || 0;
 
-  // 🛡️ ป้องกันซื้อยศซ้ำ
   if (item.type === 'role') {
     try {
       const member = await interaction.guild.members.fetch(userId);
       if (member.roles.cache.has(item.roleId)) {
-        return await interaction.reply({ content: `⚠️ คุณมียศ **${item.name}** นี้อยู่แล้ว ไม่สามารถซื้อซ้ำได้ครับ!`, ephemeral: true });
+        return await interaction.reply({ content: `⚠️ คุณมียศ **${item.name}** นี้อยู่แล้ว ไม่สามารถซื้อซ้ำได้ครับ!`, flags: 64 });
       }
     } catch (err) {
       console.error('Error checking user roles:', err);
     }
   }
 
-  // ถ้าเป็นตั๋วใส่รูปการ์ดส่วนตัว ให้เด้ง Modal ให้กรอกลิงก์รูป
   if (item.type === 'custom_card_ticket') {
     if (userCoins < item.price) {
-      return await interaction.reply({ content: `❌ Zen Coins ของคุณไม่พอ! (คุณมี ${userCoins} Coins แต่สินค้าราคา ${item.price} Coins)`, ephemeral: true });
+      return await interaction.reply({ content: `❌ Zen Coins ของคุณไม่พอ! (คุณมี ${userCoins} Coins แต่สินค้าราคา ${item.price} Coins)`, flags: 64 });
     }
 
     const modal = new ModalBuilder()
@@ -179,7 +177,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
   }
 
   if (userCoins < item.price) {
-    await interaction.reply({ content: `❌ Zen Coins ของคุณไม่พอ! (คุณมี ${userCoins} Coins แต่สินค้าราคา ${item.price} Coins)`, ephemeral: true });
+    await interaction.reply({ content: `❌ Zen Coins ของคุณไม่พอ! (คุณมี ${userCoins} Coins แต่สินค้าราคา ${item.price} Coins)`, flags: 64 });
     return true;
   }
 
@@ -200,7 +198,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
 
     return await interaction.reply({ 
       content: `🎁 **ผลการสุ่มกาชาปอง:**\n${roll.text}\n(ยอด Zen Coins ปัจจุบันของคุณ: ${userStat.orbs} Coins)`, 
-      ephemeral: true 
+      flags: 64 
     });
   } 
   
@@ -224,7 +222,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
 
     return await interaction.reply({ 
       content: `⚡ เปิดใช้งานน้ำยาคูณ XP สำเร็จ! คุณได้รับสิทธิ์คูณ XP 2 เท่า และรับยศ Xp Booster เป็นเวลา 1 ชั่วโมงเต็ม!`, 
-      ephemeral: true 
+      flags: 64 
     });
   } 
   
@@ -235,12 +233,12 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
       const role = await interaction.guild.roles.fetch(item.roleId);
       if (role) {
         await member.roles.add(role);
-        return await interaction.reply({ content: `🎉 ซื้อสำเร็จ! คุณได้รับ **${item.name}** เรียบร้อยแล้ว (ยอดคงเหลือ: ${userStat.orbs} Zen Coins)`, ephemeral: true });
+        return await interaction.reply({ content: `🎉 ซื้อสำเร็จ! คุณได้รับ **${item.name}** เรียบร้อยแล้ว (ยอดคงเหลือ: ${userStat.orbs} Zen Coins)`, flags: 64 });
       } else {
-        return await interaction.reply({ content: `⚠️ ซื้อสำเร็จและหักเหรียญแล้ว แต่ยังไม่ได้ตั้งค่า ID ยศนี้ในระบบ กรุณาแจ้ง Admin ครับ!`, ephemeral: true });
+        return await interaction.reply({ content: `⚠️ ซื้อสำเร็จและหักเหรียญแล้ว แต่ยังไม่ได้ตั้งค่า ID ยศนี้ในระบบ กรุณาแจ้ง Admin ครับ!`, flags: 64 });
       }
     } catch (err) {
-      return await interaction.reply({ content: `❌ เกิดข้อผิดพลาดในการมอบยศ กรุณาแจ้ง Admin ครับ`, ephemeral: true });
+      return await interaction.reply({ content: `❌ เกิดข้อผิดพลาดในการมอบยศ กรุณาแจ้ง Admin ครับ`, flags: 64 });
     }
   } 
   
@@ -250,14 +248,13 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
 
     return await interaction.reply({ 
       content: `🔄 รีเซ็ตการ์ดเลเวลสำเร็จ! ตอนนี้การ์ด \`/level\` ของคุณกลับมาใช้ภาพค่าเริ่มต้นของเซิร์ฟเวอร์แล้ว`, 
-      ephemeral: true 
+      flags: 64 
     });
   }
 
   return true;
 }
 
-// 📝 ฟังก์ชันรองรับการกดส่ง Modal กรอกลิงก์รูปภาพส่วนตัว (หักเงินและบันทึกรูป)
 async function handleCustomCardModal(interaction, serverConfigs, saveConfigs) {
   if (interaction.customId !== 'setCustomCardImageModal') return false;
 
@@ -278,18 +275,17 @@ async function handleCustomCardModal(interaction, serverConfigs, saveConfigs) {
   const userCoins = userStat.orbs || 0;
 
   if (userCoins < price) {
-    await interaction.reply({ content: `❌ Zen Coins ของคุณไม่พอ! (คุณมี ${userCoins} Coins แต่สินค้าราคา ${price} Coins)`, ephemeral: true });
+    await interaction.reply({ content: `❌ Zen Coins ของคุณไม่พอ! (คุณมี ${userCoins} Coins แต่สินค้าราคา ${price} Coins)`, flags: 64 });
     return true;
   }
 
-  // หักเหรียญและบันทึกลิงก์รูปภาพส่วนตัว
   userStat.orbs -= price;
   userStat.customTheme = imageUrl;
   await saveConfigs(serverConfigs);
 
   await interaction.reply({ 
     content: `🎉 ซื้อตั๋วและตั้งค่ารูปการ์ดส่วนตัวสำเร็จ! ตอนนี้การ์ด \`/level\` ของคุณเปลี่ยนเป็นรูปที่คุณเลือกเรียบร้อยแล้ว ลองพิมพ์เช็กดูได้เลย!`, 
-    ephemeral: true 
+    flags: 64 
   });
 
   return true;
