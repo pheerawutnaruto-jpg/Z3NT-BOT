@@ -127,7 +127,7 @@ function setupCronJob(guildId, timeStr, channelId) {
   const [hour, minute] = timeStr.split(':');
   if (!hour || !minute) return;
 
-  const cronExpression = `${minute}${hour} * * *`;
+  const cronExpression = `${minute} ${hour} * * *`;
 
   activeCronJobs[guildId] = cron.schedule(cronExpression, async () => {
     try {
@@ -200,7 +200,7 @@ client.on('guildMemberAdd', async member => {
     };
 
     const finalTitle = embedConfig.title ? embedConfig.title.replace('{user}', member.user.username).replace('{server}', member.guild.name) : null;
-    const finalDesc = embedConfig.description.replace('{user}', `${member}`).replace('{server}`, member.guild.name);
+    const finalDesc = embedConfig.description.replace('{user}', `${member}`).replace('{server}', member.guild.name);
 
     let embedColor = '#66FFFF';
     try { embedColor = embedConfig.color; } catch (e) {}
@@ -374,10 +374,27 @@ client.on('interactionCreate', async interaction => {
     return await sendAutoroleDashboard(interaction);
   }
 
-  // ดักจับ Select Menu สำหรับระบบ Order Ticket
   if (interaction.isStringSelectMenu()) {
     const handledOrder = await handleOrderTicketSelect(interaction, serverConfigs);
     if (handledOrder) return;
+
+    await interaction.deferUpdate().catch(() => {});
+    if (interaction.customId === 'act_invite_select') {
+      const vals = interaction.values;
+      config.security.actions.invite.timeout = vals.includes('timeout');
+      config.security.actions.invite.kick = vals.includes('kick');
+      config.security.actions.invite.ban = vals.includes('ban');
+      await saveConfigs(serverConfigs);
+      return await interaction.editReply(getSecurityDashboardContent(config));
+    }
+    if (interaction.customId === 'act_spam_select') {
+      const vals = interaction.values;
+      config.security.actions.spam.timeout = vals.includes('timeout');
+      config.security.actions.spam.kick = vals.includes('kick');
+      config.security.actions.spam.ban = vals.includes('ban');
+      await saveConfigs(serverConfigs);
+      return await interaction.editReply(getSecurityDashboardContent(config));
+    }
   }
 
   if (interaction.isButton()) {
@@ -689,13 +706,13 @@ client.on('interactionCreate', async interaction => {
       return await interaction.reply({ content: `📌 กรุณาเลือกยศสำหรับ Level ${targetLevel}:`, components: [row], ephemeral: true });
     }
     if (interaction.customId === 'deleteRoleRewardModal') {
-      const targetLevel = interaction.fields.getTextInputValue('targetLevel').trim();
-      if (!config.levelConfig.roleRewards || !config.levelConfig.roleRewards[targetLevel]) {
+      const targetLevel = interaction.fields.getTextInputValue('deleteRoleRewardModal') || interaction.fields.getTextInputValue('targetLevel');
+      if (!config.levelConfig.roleRewards || !config.levelConfig.roleRewards[targetLevel.trim()]) {
         return await interaction.reply({ content: `❌ ไม่พบข้อมูลยศรางวัลสำหรับ Level ${targetLevel} ครับ!`, ephemeral: true });
       }
-      delete config.levelConfig.roleRewards[targetLevel];
+      delete config.levelConfig.roleRewards[targetLevel.trim()];
       await saveConfigs(serverConfigs);
-      return await interaction.reply({ content: `✅ ลบยศรางวัลของ **Level ${targetLevel}** เรียบร้อยแล้ว!`, ephemeral: true });
+      return await interaction.reply({ content: `✅ ลบยศรางวัลของของ **Level ${targetLevel}** เรียบร้อยแล้ว!`, ephemeral: true });
     }
   }
 });
@@ -725,23 +742,26 @@ function getAutoroleDashboardContent(config) {
   return { embeds: [embed], components: [roleRow] };
 }
 
-async function sendDashboard(interaction) {
-  await interaction.reply({ ...getDashboardContent(serverConfigs[interaction.guildId]), ephemeral: true });
+async function sendDashboard(target) {
+  const channel = target.channel || target;
+  const config = serverConfigs[target.guildId];
+  const payload = getDashboardContent(config);
+  if (target.reply) {
+    await target.reply({ ...payload, ephemeral: true });
+  } else {
+    await channel.send(payload);
+  }
 }
-async function updateDashboard(interaction) {
-  await interaction.update({ ...getDashboardContent(serverConfigs[interaction.guildId]) });
-}
-async function updateDashboardAfterDefer(interaction) {
-  await interaction.editReply({ ...getDashboardContent(serverConfigs[interaction.guildId]) });
-}
-async function sendAutoroleDashboard(interaction) {
-  await interaction.reply({ ...getAutoroleDashboardContent(serverConfigs[interaction.guildId]), ephemeral: true });
-}
-async function updateAutoroleDashboard(interaction) {
-  await interaction.update({ ...getAutoroleDashboardContent(serverConfigs[interaction.guildId]) });
-}
-async function updateAutoroleDashboardAfterDefer(interaction) {
-  await interaction.editReply({ ...getAutoroleDashboardContent(serverConfigs[interaction.guildId]) });
+
+async function sendAutoroleDashboard(target) {
+  const channel = target.channel || target;
+  const config = serverConfigs[target.guildId];
+  const payload = getAutoroleDashboardContent(config);
+  if (target.reply) {
+    await target.reply({ ...payload, ephemeral: true });
+  } else {
+    await channel.send(payload);
+  }
 }
 
 client.login(process.env.DISCORD_TOKEN);
