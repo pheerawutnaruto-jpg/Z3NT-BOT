@@ -4,10 +4,6 @@ const setupPremiumShopCommand = new SlashCommandBuilder()
   .setName('setup-shop')
   .setDescription('💎 ส่งแผงร้านค้าพรีเมียมแบบเลือกสินค้าและสร้างห้องออร์เดอร์ (สำหรับ Admin)');
 
-const premiumShopCommand = new SlashCommandBuilder()
-  .setName('shop')
-  .setDescription('💎 เปิดร้านค้าพรีเมียม เลือกซื้อ Bot Premium และยศถาวร');
-
 async function handleSetupPremiumShopCommand(interaction) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
     return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้นที่จะใช้คำสั่งนี้ได้ครับ!', ephemeral: true });
@@ -189,10 +185,6 @@ async function handlePremiumShopSelect(interaction, serverConfigs) {
   return true;
 }
 
-async function handlePremiumShopCommand(interaction, serverConfigs) {
-  await handleSetupPremiumShopCommand(interaction);
-}
-
 async function handleOrderPaymentButton(interaction) {
   if (!interaction.customId.startsWith('pay_promptpay_') && !interaction.customId.startsWith('pay_truemoney_')) return false;
 
@@ -242,7 +234,6 @@ async function handleCloseTicketButton(interaction) {
 }
 
 module.exports = {
-  premiumShopCommand,
   setupPremiumShopCommand,
   handleSetupPremiumShopCommand,
   handlePremiumShopSelect,
