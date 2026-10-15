@@ -2,7 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Butt
 
 const setupQuestCommand = new SlashCommandBuilder()
   .setName('setup-quest')
-  .setDescription('ส่งแผงปุ่มกดรับเควสต์ประจำวันถาวรไปยังห้องนี้ (สำหรับ Admin)');
+  .setDescription('💎 [PREMIUM] ส่งแผงปุ่มกดรับเควสต์ประจำวันถาวรไปยังห้องนี้ (สำหรับ Admin)');
 
 async function handleSetupQuestCommand(interaction) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
@@ -46,7 +46,6 @@ async function handleQuestButton(interaction, serverConfigs, saveConfigs) {
     return await interaction.reply({ content: `⏳ คุณรับรางวัลประจำวันไปแล้ว! กรุณารออีกประมาณ **${remainingHours} ชั่วโมง** ถึงจะกดรับใหม่ได้ครับ`, ephemeral: true });
   }
 
-  // 🎲 สุ่มจำนวน Zen Coins ระหว่าง 10 ถึง 20 Coins
   const rewardCoins = Math.floor(Math.random() * (20 - 10 + 1)) + 10;
   
   userStat.orbs = (userStat.orbs || 0) + rewardCoins;
