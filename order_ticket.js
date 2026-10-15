@@ -16,7 +16,7 @@ async function handleSetupOrderTicketCommand(interaction) {
     .setColor('#00FF00')
     .setImage('https://placehold.co/600x300/101010/FFFFFF/png?text=ZEN+BOT+PREMIUM+STORE');
 
-  // สร้างเมนูกดเลือกสินค้า (Select Menu) พร้อมอิโมจิ
+  // สร้างเมนูกดเลือกสินค้า (Select Menu) พร้อมเพิ่มตัวเลือก "ล้างตัวเลือก" แบบในรูปตัวอย่าง
   const selectMenu = new StringSelectMenuBuilder()
     .setCustomId('select_product_order')
     .setPlaceholder('🛒 เลือกสินค้าที่ต้องการสั่งซื้อ')
@@ -32,6 +32,12 @@ async function handleSetupOrderTicketCommand(interaction) {
         description: 'สต็อกไม่จำกัด • ฿60.00 / ถาวร • สิทธิ์แต่งการ์ดส่วนตัว',
         value: 'product_artist_role',
         emoji: '🎨'
+      },
+      {
+        label: 'ล้างตัวเลือก',
+        description: 'ล้างสินค้าที่เลือกไว้แล้ว',
+        value: 'clear_selection',
+        emoji: '✖️'
       }
     ]);
 
@@ -41,11 +47,17 @@ async function handleSetupOrderTicketCommand(interaction) {
   await interaction.reply({ content: '✅ ส่งแผงร้านค้าแบบเลือกสินค้าไปยังห้องนี้สำเร็จแล้ว!', ephemeral: true });
 }
 
-// 🎫 ฟังก์ชันสร้างห้องออร์เดอร์ส่วนตัว (Order Ticket Channel) เมื่อลูกค้าเลือกสินค้า
+// 🎫 ฟังก์ชันจัดการเมื่อเลือกสินค้า หรือกดล้างตัวเลือก
 async function handleOrderTicketSelect(interaction, serverConfigs) {
   if (interaction.customId !== 'select_product_order') return false;
 
   const selectedValue = interaction.values[0];
+
+  // ถ้าผู้ใช้กดเลือก "ล้างตัวเลือก"
+  if (selectedValue === 'clear_selection') {
+    return await interaction.reply({ content: '🧹 ล้างตัวเลือกสินค้าเรียบร้อยแล้วครับ', ephemeral: true });
+  }
+
   const guild = interaction.guild;
   const user = interaction.user;
   const loadingGif = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560407479412588686/IMG_7559.gif';
@@ -128,7 +140,7 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
   return true;
 }
 
-// 💳 ฟังก์ชันกดเลือกช่องทางชำระเงิน (แสดง QR Code หรือลิงก์ซองของขวัญ)
+// 💳 ฟังก์ชันกดเลือกช่องทางชำระเงิน
 async function handleOrderPaymentButton(interaction) {
   if (!interaction.customId.startsWith('pay_promptpay_') && !interaction.customId.startsWith('pay_truemoney_')) return false;
 
