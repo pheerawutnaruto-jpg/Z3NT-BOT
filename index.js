@@ -19,7 +19,7 @@ const {
   pendingRoleRewardImages 
 } = require('./level');
 const { setupQuestCommand, handleSetupQuestCommand, handleQuestButton } = require('./quest');
-const { shopCommand, boostStatusCommand, handleBoostStatusCommand, handleShopCommand, handleShopButton, handleCustomCardModal } = require('./shop');
+const { shopCommand, boostStatusCommand, handleBoostStatusCommand, handleShopCommand, handleShopButton } = require('./shop');
 
 // เชื่อมต่อ Upstash Redis จาก Environment Variables
 const redis = new Redis({
@@ -544,10 +544,6 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.isModalSubmit()) {
-    // 🎨 ดักจับ Modal กรอกลิงก์รูปการ์ดส่วนตัว
-    const handledCustomCard = await handleCustomCardModal(interaction, serverConfigs, saveConfigs);
-    if (handledCustomCard) return;
-
     if (interaction.customId === 'editEmbedModal') {
       config.embed.title = interaction.fields.getTextInputValue('embedTitle');
       config.embed.description = interaction.fields.getTextInputValue('embedDesc');
