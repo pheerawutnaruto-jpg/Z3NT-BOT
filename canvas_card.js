@@ -11,7 +11,6 @@ async function generateProfileCard(user, userStat, lConfig) {
   const requiredXp = currentLevel * multiplier;
   const progress = Math.min(Math.max(currentXp / requiredXp, 0), 1);
 
-  // พื้นหลังเริ่มต้น
   ctx.fillStyle = '#1a1a2e';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -25,7 +24,6 @@ async function generateProfileCard(user, userStat, lConfig) {
     }
   }
 
-  // เลเยอร์โปร่งแสงทับพื้นหลัง
   ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
   ctx.fillRect(20, 20, canvas.width - 40, canvas.height - 40);
 
@@ -33,7 +31,6 @@ async function generateProfileCard(user, userStat, lConfig) {
   ctx.lineWidth = 3;
   ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
 
-  // วาดรูป Avatar วงกลม
   const avatarUrl = user.displayAvatarURL({ extension: 'png', size: 256 });
   try {
     const avatar = await loadImage(avatarUrl);
@@ -54,12 +51,10 @@ async function generateProfileCard(user, userStat, lConfig) {
     console.error('Failed to load user avatar:', e);
   }
 
-  // ชื่อผู้ใช้
   ctx.fillStyle = '#FFFFFF';
   ctx.font = 'bold 32px sans-serif';
   ctx.fillText(user.username, 210, 100);
 
-  // เลเวลและ XP
   ctx.fillStyle = lConfig.embedColor || '#66FFFF';
   ctx.font = 'bold 26px sans-serif';
   ctx.textAlign = 'right';
@@ -70,7 +65,6 @@ async function generateProfileCard(user, userStat, lConfig) {
   ctx.fillText(`XP: ${currentXp} /${requiredXp}`, canvas.width - 50, 130);
   ctx.textAlign = 'left';
 
-  // หลอด Progress Bar (EXP)
   const barX = 210;
   const barY = 170;
   const barWidth = 670;
