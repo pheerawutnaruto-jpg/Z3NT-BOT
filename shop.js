@@ -33,11 +33,11 @@ const IN_GAME_ITEMS = [
 
 const setupShopCommand = new SlashCommandBuilder()
   .setName('setup-in-game-shop')
-  .setDescription('ส่งแผงร้านค้าในเกม (ใช้ Zen Coins ซื้อ) ไปยังห้องนี้ (สำหรับ Admin)');
+  .setDescription('💎 [PREMIUM] ส่งแผงร้านค้าในเกม (ใช้ Zen Coins ซื้อ) ไปยังห้องนี้ (สำหรับ Admin)');
 
 const boostStatusCommand = new SlashCommandBuilder()
   .setName('boost-status')
-  .setDescription('เช็กสถานะและเวลาคงเหลือของน้ำยาคูณ XP (XP Booster)');
+  .setDescription('💎 [PREMIUM] เช็กสถานะและเวลาคงเหลือของน้ำยาคูณ XP');
 
 async function handleSetupShopCommand(interaction) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
@@ -99,7 +99,6 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
   const userId = interaction.user.id;
   const now = Date.now();
 
-  // 🛡️ ป้องกันการกดปุ่มรัวๆ (Cooldown 2 วินาที)
   if (userCooldowns.has(userId)) {
     const expirationTime = userCooldowns.get(userId) + 2000;
     if (now < expirationTime) {
@@ -135,7 +134,6 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
   userStat.orbs -= item.price;
 
   if (item.type === 'gacha') {
-    // ปรับเรตกาชาสำหรับราคา 5 Coins ให้สมดุล ไม่ให้เอาไปปั๊มเงินง่ายเกินไป
     const outcomes = [
       { reward: 0, text: 'เกลือ! รอบนี้ไม่ได้อะไรเลย เสียใจด้วยนะ 😢' },
       { reward: 5, text: 'ได้ทุนคืน! รับไป 5 Zen Coins 🪙' },
@@ -184,5 +182,6 @@ module.exports = {
   handleSetupShopCommand,
   boostStatusCommand,
   handleBoostStatusCommand,
-  handleShopButton
+  handleShopButton,
+  SHOP_ITEMS: IN_GAME_ITEMS
 };
