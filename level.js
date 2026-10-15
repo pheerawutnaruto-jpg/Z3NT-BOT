@@ -19,10 +19,13 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
   const multiplier = config.levelConfig.xpMultiplier || 100;
   const now = Date.now();
 
-  // ⚡ ตรวจสอบและจัดการหมดอายุบัฟ XP Booster
+  // ⚡ ตรวจสอบสถานะบัฟ XP Booster และแจ้งเตือน
   let finalAmount = amount;
+  let isBoosted = false;
+
   if (userStat.boostUntil && now < userStat.boostUntil) {
-    finalAmount *= 2; 
+    finalAmount *= 2; // คูณ 2 เท่า
+    isBoosted = true;
   } else if (userStat.boostUntil && now >= userStat.boostUntil) {
     userStat.boostUntil = 0;
     const guild = isVoice ? clientOrMessage : clientOrMessage.guild;
@@ -43,7 +46,7 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
   const artistRoleId = '1560136361015513108';
   if (userStat.artistUntil && now >= userStat.artistUntil) {
     userStat.artistUntil = 0;
-    userStat.customTheme = ''; // รีเซ็ตภาพการ์ดกลับเป็นค่าเริ่มต้น
+    userStat.customTheme = ''; 
     const guild = isVoice ? clientOrMessage : clientOrMessage.guild;
     if (guild) {
       try {
@@ -64,9 +67,11 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
     userStat.xp -= requiredXp;
     userStat.level += 1;
 
+    // เพิ่มข้อความแสดงสถานะ Boost ตอนเลเวลอัปด้วย
+    let boostText = isBoosted ? ' *(⚡ กำลังใช้งาน XP Booster x2)*' : '';
     const customMsg = (config.levelConfig.levelUpMessage || 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว!')
       .replace('{user}', `<@${userId}>`)
-      .replace('{level}', userStat.level);
+      .replace('{level}', userStat.level) + boostText;
 
     let targetChannel = null;
     let guild = null;
@@ -148,6 +153,15 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
   }
 
   await saveConfigs(serverConfigs);
+
+  // 💡 ถ้ากำลังเปิดใช้งาน XP Booster อยู่ และพิมพ์แชท (ไม่ใช่ห้องเสียง) ส่งข้อความแจ้งเตือนส่วนตัวบอกสั้นๆ
+  if (isBoosted && !isVoice && clientOrMessage.channel) {
+    try {
+      clientOrMessage.channel.send({ content: `⚡ <@${userId}> ได้รับ XP +${finalAmount} [XP Boost x2]` }).then(msg => {
+        setTimeout(() => msg.delete().catch(() => {}), 4000); // ลบข้อความแจ้งเตือนอัตโนมัติหลัง 4 วินาทีเพื่อไม่ให้แชทรก
+      });
+    } catch (err) {}
+  }
 }
 
 function startVoiceXpCron(client, serverConfigs, saveConfigs) {
@@ -258,7 +272,6 @@ async function handleLevelCommand(interaction, serverConfigs) {
     embed.setImage(lConfig.statsCardImageUrl.trim());
   }
 
-  // 🌍 ส่งแบบสาธารณะเพื่อให้ทุกคนในห้องเห็นการ์ดสุดเท่ร่วมกันได้
   await interaction.reply({ embeds: [embed] });
 }
 
