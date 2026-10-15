@@ -39,17 +39,30 @@ const PREMIUM_ITEMS = [
   }
 ];
 
-const premiumShopCommand = new SlashCommandBuilder()
-  .setName('shop')
-  .setDescription('เปิดร้านค้าพรีเมียม เติมเหรียญ และซื้อยศถาวรด้วยเงินจริง');
-
+// คำสั่งส่งป้ายร้านค้าพรีเมียม
 const setupPremiumShopCommand = new SlashCommandBuilder()
   .setName('setup-premium-shop')
   .setDescription('ส่งแผงป้ายร้านค้าพรีเมียมถาวรไปยังห้องนี้ (สำหรับ Admin)');
 
+// คำสั่งเช็กเหรียญของตัวเอง
 const coinsCommand = new SlashCommandBuilder()
   .setName('coins')
   .setDescription('เช็กยอด Zen Coins และเหรียญคงเหลือในกระเป๋าของคุณ');
+
+// 🪙 คำสั่งใหม่สำหรับแอดมิน: เติมเหรียญให้สมาชิก
+const addCoinsCommand = new SlashCommandBuilder()
+  .setName('add-coins')
+  .setDescription('เติม Zen Coins ให้กับสมาชิก (เฉพาะ Administrator)')
+  .addUserOption(option => 
+    option.setName('user')
+      .setDescription('เลือกสมาชิกที่ต้องการเติมเหรียญให้')
+      .setRequired(true)
+  )
+  .addIntegerOption(option => 
+    option.setName('amount')
+      .setDescription('จำนวน Zen Coins ที่ต้องการเติม')
+      .setRequired(true)
+  );
 
 async function handleSetupPremiumShopCommand(interaction) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
@@ -58,7 +71,7 @@ async function handleSetupPremiumShopCommand(interaction) {
 
   const embed = new EmbedBuilder()
     .setTitle('💳 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM STORE & TOPUP')
-    .setDescription('ร้านค้าพรีเมียมสำหรับเติมเงิน (1 Coin = 1 บาท) และซื้อยศถาวรตลอดชีพ!\nกดปุ่มคำสั่ง `/shop` หรือกดปุ่มด้านล่างเพื่อเปิดร้านค้าพรีเมียมได้เลย:')
+    .setDescription('ร้านค้าพรีเมียมสำหรับเติมเงิน (1 Coin = 1 บาท) และซื้อยศถาวรตลอดชีพ!\nกดปุ่มด้านล่างเพื่อเปิดร้านค้าพรีเมียมได้เลย:')
     .setColor('#FFD700');
 
   const row = new ActionRowBuilder().addComponents(
@@ -89,7 +102,36 @@ async function handleCoinsCommand(interaction, serverConfigs) {
   await interaction.reply({ embeds: [embed], ephemeral: true });
 }
 
-async function handlePremiumShopCommand(interaction, serverConfigs) {
+// 🪙 ฟังก์ชันประมวลผลคำสั่งเติมเหรียญของแอดมิน
+async function handleAddCoinsCommand(interaction, serverConfigs, saveConfigs) {
+  if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+    return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้นที่จะใช้งานคำสั่งนี้ได้ครับ!', ephemeral: true });
+  }
+
+  const guildId = interaction.guildId;
+  const targetUser = interaction.options.getUser('user');
+  const amount = interaction.options.getInteger('amount');
+
+  if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
+  if (!serverConfigs[guildId].levels) serverConfigs[guildId].levels = {};
+  if (!serverConfigs[guildId].levels[targetUser.id]) {
+    serverConfigs[guildId].levels[targetUser.id] = { xp: 0, level: 1, orbs: 0, lastDaily: 0, boostUntil: 0, artistUntil: 0, customTheme: '' };
+  }
+
+  const userStat = serverConfigs[guildId].levels[targetUser.id];
+  userStat.orbs = (userStat.orbs || 0) + amount;
+  await saveConfigs(serverConfigs);
+
+  const embed = new EmbedBuilder()
+    .setTitle('🪙 ADMIN • เติม Zen Coins สำเร็จ')
+    .setDescription(`แอดมินได้ทำการเติมเหรียญให้กับ <@${targetUser.id}> เรียบร้อยแล้ว!\n➕ เพิ่มจำนวน: **+${amount} Coins**\n💰 ยอดสะสมปัจจุบัน: **${userStat.orbs} Zen Coins**`)
+    .setColor('#00FF00')
+    .setTimestamp();
+
+  await interaction.reply({ embeds: [embed], ephemeral: true });
+}
+
+async function handleOpenPremiumShop(interaction, serverConfigs) {
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
 
@@ -125,7 +167,7 @@ async function handlePremiumShopCommand(interaction, serverConfigs) {
 
 async function handlePremiumShopButton(interaction, serverConfigs) {
   if (interaction.customId === 'open_premium_shop_panel') {
-    return await handlePremiumShopCommand(interaction, serverConfigs);
+    return await handleOpenPremiumShop(interaction, serverConfigs);
   }
 
   if (!interaction.customId.startsWith('buy_perm_')) return false;
@@ -134,7 +176,6 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
   const item = PREMIUM_ITEMS.find(i => i.id === itemId);
   if (!item) return true;
 
-  // 📌 เลือกระหว่าง QR Code PromptPay (สำหรับซื้อยศ) กับ TrueMoney Wallet (สำหรับเติมเงิน)
   const promptPayQr = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560193259953717279/ReceiveMoney_QR_2026-10-15_14.14.01.png?ex=6ad1d2b4&is=6ad08134&hm=41be99857bd7b4ef1afe8785f08221e7757f473cd9cca7d87b24694355edb713&';
   const trueMoneyQr = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560193260293595176/ReceiveMoney_QR_2026-10-15_14.13.55.png?ex=6ad1d2b4&is=6ad08134&hm=5a0bd5bb320c20c2d556733b69d623e13ba1295172c49f6767787504594123f3&';
 
@@ -153,11 +194,12 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
 }
 
 module.exports = {
-  premiumShopCommand,
   setupPremiumShopCommand,
   coinsCommand,
+  addCoinsCommand,
   handleSetupPremiumShopCommand,
   handleCoinsCommand,
-  handlePremiumShopCommand,
+  handleAddCoinsCommand,
+  handleOpenPremiumShop,
   handlePremiumShopButton
 };
