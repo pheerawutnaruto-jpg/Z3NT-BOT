@@ -1,18 +1,15 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
-// 🔍 ฟังก์ชันตรวจสอบว่าเซิร์ฟเวอร์นี้เป็นพรีเมียมหรือไม่
 async function isServerPremium(guildId, serverConfigs) {
   const config = serverConfigs[guildId];
   if (!config || !config.premium) return false;
 
-  // ตรวจสอบสถานะพรีเมียม (Lifetime หรือยังไม่หมดอายุ)
   if (config.premium.isLifetime) return true;
   if (config.premium.expiresAt && Date.now() < config.premium.expiresAt) return true;
 
   return false;
 }
 
-// 👑 คำสั่งสำหรับเจ้าของบอทใช้เปิดสิทธิ์พรีเมียมให้เซิร์ฟเวอร์
 const grantPremiumCommand = new SlashCommandBuilder()
   .setName('grant-premium')
   .setDescription('เปิดสิทธิ์พรีเมียมรายเซิร์ฟเวอร์ (สำหรับ Developer)')
@@ -28,7 +25,6 @@ const grantPremiumCommand = new SlashCommandBuilder()
   );
 
 async function handleGrantPremiumCommand(interaction, serverConfigs, saveConfigs) {
-  // 🔒 ล็อกไว้เฉพาะคุณคนเดียว (Discord User ID ของคุณ)
   const DEVELOPER_ID = '795347337773580299'; 
   if (interaction.user.id !== DEVELOPER_ID) {
     return await interaction.reply({ content: '❌ เฉพาะผู้พัฒนาบอทเท่านั้นที่จะใช้คำสั่งนี้ได้ครับ!', ephemeral: true });
