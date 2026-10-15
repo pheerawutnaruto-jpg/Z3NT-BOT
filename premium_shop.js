@@ -7,7 +7,7 @@ const PREMIUM_ITEMS = [
     price: 10, 
     coins: 10, 
     type: 'topup',
-    description: 'เติมเงินสด 10 บาท รับทันที 10 Zen Coins เข้ากระเป๋าสำหรับซื้อไอเทมในเกม!' 
+    description: 'เติมเหรียญสะสม 10 บาท รับทันที 10 Zen Coins เข้ากระเป๋าสำหรับซื้อไอเทมและปลดล็อกฟีเจอร์พิเศษในเซิร์ฟเวอร์!' 
   },
   { 
     id: 'perm_artist', 
@@ -37,7 +37,7 @@ const PREMIUM_ITEMS = [
 
 const premiumShopCommand = new SlashCommandBuilder()
   .setName('shop')
-  .setDescription('💎 [PREMIUM] เปิดร้านค้าพรีเมียม เติมเหรียญ และซื้อยศถาวรด้วยเงินจริง');
+  .setDescription('💎 [PREMIUM] เปิดร้านค้าพรีเมียม เติมเหรียญ และซื้อยศถาวร');
 
 const setupPremiumShopCommand = new SlashCommandBuilder()
   .setName('setup-premium-shop')
@@ -60,13 +60,13 @@ async function handleSetupPremiumShopCommand(interaction) {
 
   const embed = new EmbedBuilder()
     .setTitle('💳 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM STORE & TOPUP')
-    .setDescription('ร้านค้าพรีเมียมสำหรับเติมเงิน (1 Coin = 1 บาท) และซื้อยศถาวรตลอดชีพ!\nกดปุ่มคำสั่ง `/shop` หรือกดปุ่มด้านล่างเพื่อเปิดร้านค้าพรีเมียมได้เลย:')
+    .setDescription('ร้านค้าพรีเมียมสำหรับเติม Zen Coins และซื้อยศถาวรตลอดชีพ!\nกดปุ่มคำสั่ง `/shop` หรือกดปุ่มด้านล่างเพื่อเปิดร้านค้าพรีเมียมได้เลย:')
     .setColor('#FFD700');
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('open_premium_shop_panel')
-      .setLabel('💳 เปิดร้านค้าพรีเมียม / เติมเงิน')
+      .setLabel('💳 เปิดร้านค้าพรีเมียม / เติมเหรียญ')
       .setStyle(ButtonStyle.Success)
   );
 
@@ -122,7 +122,7 @@ async function handlePremiumShopCommand(interaction, serverConfigs) {
 
   const embed = new EmbedBuilder()
     .setTitle('💳 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM STORE & TOPUP')
-    .setDescription(`ร้านค้าพรีเมียมและเติมเงิน (1 Coin = 1 บาท)\n💰 เหรียญของคุณตอนนี้: **${userCoins} Coins**\n\nกดปุ่มสินค้าด้านล่างเพื่อเลือกซื้อและสร้างห้องออร์เดอร์ส่วนตัว:`)
+    .setDescription(`ร้านค้าพรีเมียมและระบบเติมเหรียญ (อัตราแลกเปลี่ยน: 1 บาท = 1 Zen Coin)\n💰 เหรียญของคุณตอนนี้: **${userCoins} Coins**\n\nกดปุ่มสินค้าด้านล่างเพื่อเลือกซื้อและสร้างห้องออร์เดอร์ส่วนตัว:`)
     .setColor('#FFD700');
 
   PREMIUM_ITEMS.forEach(item => {
@@ -151,7 +151,6 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
     return await handlePremiumShopCommand(interaction, serverConfigs);
   }
 
-  // 1. เมื่อกดปุ่มซื้อสินค้า ➔ สร้างห้องออร์เดอร์ส่วนตัว (Order Ticket Channel) ทันที
   if (interaction.customId.startsWith('create_order_')) {
     const itemId = interaction.customId.replace('create_order_', '');
     const item = PREMIUM_ITEMS.find(i => i.id === itemId);
@@ -213,7 +212,6 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
     return true;
   }
 
-  // 2. เมื่อกดเลือกช่องทางชำระเงินในห้องออร์เดอร์ (PromptPay หรือ TrueMoney) ➔ แสดง QR Code หรือลิงก์ตามที่เลือก
   if (interaction.customId.startsWith('pay_promptpay_') || interaction.customId.startsWith('pay_truemoney_')) {
     const isTrueMoney = interaction.customId.startsWith('pay_truemoney_');
     const itemId = interaction.customId.replace(isTrueMoney ? 'pay_truemoney_' : 'pay_promptpay_', '');
@@ -227,8 +225,8 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
     const selectedQr = isTrueMoney ? trueMoneyQr : promptPayQr;
 
     const embed = new EmbedBuilder()
-      .setTitle('💳 ชำระเงินพรีเมียม / เติมเงิน')
-      .setDescription(`คุณกำลังสั่งซื้อ: **${item.name}**\n💰 ยอดที่ต้องชำระ: **${item.price} บาท**\n\n──────────────────────\n📌 **${isTrueMoney ? 'สแกน QR Code ทรูมันนี่ หรือเติมผ่านลิงก์ซองของขวัญ:' : 'สแกน QR Code PromptPay ด้านล่างเพื่อโอนเงิน:'}**\n${isTrueMoney ? `🔗 [กดที่นี่เพื่อเปิดแอป TrueMoney Wallet](${truemoneyLink})` : ''}\n\nเมื่อโอนเงินแล้ว ส่งสลิปหลักฐานในห้องนี้เพื่อให้แอดมินตรวจสอบได้เลยครับ!`)
+      .setTitle('💳 ชำระเงินพรีเมียม / เติมเหรียญ')
+      .setDescription(`คุณกำลังสั่งซื้อ: **${item.name}**\n💰 ยอดที่ต้องชำระ: **${item.price} บาท**\n\n──────────────────────\n📌 **${isTrueMoney ? 'สแกน QR Code ทรูมันนี่ หรือเติมผ่านลิงก์ซองของขวัญ:' : 'สแกน QR Code PromptPay ด้านล่างเพื่อโอนเงิน:'}**\n${isTrueMoney ? `🔗 [กดที่นี่เพื่อเปิดแอป TrueMoney Wallet](${truemoneyLink})` : ''}\n\nเมื่อโอนเงินแล้ว ส่งสลิปหลักฐานในห้องนี้เพื่อให้แอดมินตรวจสอบและเติมเหรียญ / มอบยศให้ได้เลยครับ!`)
       .setImage(selectedQr)
       .setColor('#00FF00');
 
@@ -243,7 +241,6 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
     return true;
   }
 
-  // 3. ปิดห้องออร์เดอร์
   if (interaction.customId === 'close_order_ticket') {
     await interaction.reply({ content: '🔒 กำลังปิดห้องออร์เดอร์ใน 5 วินาที...' });
     setTimeout(() => {
