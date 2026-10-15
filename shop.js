@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
 
 const SHOP_ITEMS = [
   { 
@@ -19,6 +19,15 @@ const SHOP_ITEMS = [
     description: 'คูณ XP 2 เท่า พร้อมรับยศพิเศษ `Xp Booster` นาน 1 ชั่วโมง!' 
   },
   { 
+    id: 'role_artist', 
+    name: '🎨 บัตรปลดล็อกยศ Artist', 
+    price: 200, 
+    type: 'role',
+    roleId: '1560136361015513108',
+    buttonLabel: 'ซื้อ บัตร Artist (200c)',
+    description: 'รับยศ Artist เพื่อปลดล็อกสิทธิ์เข้าห้องส่งลิงก์รูปภาพแต่งการ์ด /level ส่วนตัวตามใจชอบ!' 
+  },
+  { 
     id: 'role_chilling', 
     name: '☕ ยศพิเศษ สายชิลล์', 
     price: 150, 
@@ -37,12 +46,13 @@ const SHOP_ITEMS = [
     description: 'ยศตกแต่งโปรไฟล์สำหรับสายโต้รุ่ง เที่ยงคืนไม่นอน!' 
   },
   { 
-    id: 'custom_card_ticket', 
-    name: '🖼️ ตั๋วเปลี่ยนรูปการ์ดส่วนตัว (Custom Card)', 
+    id: 'card_galaxy', 
+    name: '🌌 ธีมการ์ดกาแล็กซีพรีเมียม', 
     price: 150, 
-    type: 'custom_card_ticket',
-    buttonLabel: 'ซื้อ ตั๋วใส่รูปการ์ด (150c)',
-    description: 'ซื้อสิทธิ์เพื่อวางลิงก์รูปภาพส่วนตัวมาแสดงผลในการ์ด `/level` ของคุณเอง' 
+    type: 'theme',
+    imageUrl: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=800&auto=format&fit=crop&q=60',
+    buttonLabel: 'ซื้อ ธีมการ์ด (150c)',
+    description: 'ปลดล็อกพื้นหลังการ์ด `/level` เป็นธีมจักรวาลกาแล็กซีสุดอลังการ' 
   },
   { 
     id: 'reset_theme', 
@@ -56,7 +66,7 @@ const SHOP_ITEMS = [
 
 const shopCommand = new SlashCommandBuilder()
   .setName('shop')
-  .setDescription('เปิดร้านค้าเซิร์ฟเวอร์ ใช้ Zen Coins ซื้อไอเทม กาชา บัฟ และตั๋วใส่รูปการ์ด');
+  .setDescription('เปิดร้านค้าเซิร์ฟเวอร์ ใช้ Zen Coins ซื้อไอเทม กาชา บัฟ และธีมการ์ด');
 
 const boostStatusCommand = new SlashCommandBuilder()
   .setName('boost-status')
@@ -71,7 +81,7 @@ async function handleBoostStatusCommand(interaction, serverConfigs) {
   const now = Date.now();
 
   if (!userStat || !userStat.boostUntil || userStat.boostUntil <= now) {
-    return await interaction.reply({ content: '❌ คุณยังไม่ได้เปิดใช้งานน้ำยาคูณ XP หรือบัฟหมดอายุไปแล้วครับ!', flags: 64 });
+    return await interaction.reply({ content: '❌ คุณยังไม่ได้เปิดใช้งานน้ำยาคูณ XP หรือบัฟหมดอายุไปแล้วครับ!', ephemeral: true });
   }
 
   const remainingMs = userStat.boostUntil - now;
@@ -82,7 +92,7 @@ async function handleBoostStatusCommand(interaction, serverConfigs) {
     .setDescription(`สถานะบัฟคูณ XP 2 เท่าของคุณ:\n⏳ คงเหลือเวลาอีกประมาณ **${remainingMins} นาที**\n\n*(ยศ Booster จะถูกถอดออกโดยอัตโนมัติเมื่อหมดเวลา)*`)
     .setColor('#00FF00');
 
-  await interaction.reply({ embeds: [embed], flags: 64 });
+  await interaction.reply({ embeds: [embed], ephemeral: true });
 }
 
 async function handleShopCommand(interaction, serverConfigs) {
@@ -120,7 +130,7 @@ async function handleShopCommand(interaction, serverConfigs) {
     );
   });
 
-  await interaction.reply({ embeds: [embed], components: [row], flags: 64 });
+  await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
 }
 
 async function handleShopButton(interaction, serverConfigs, saveConfigs) {
@@ -132,13 +142,11 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
 
   const item = SHOP_ITEMS.find(i => i.id === itemId);
   if (!item) {
-    await interaction.reply({ content: '❌ ไม่พบสินค้านี้ในระบบ!', flags: 64 });
+    await interaction.reply({ content: '❌ ไม่พบสินค้านี้ในระบบ!', ephemeral: true });
     return true;
   }
 
-  if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
-  if (!serverConfigs[guildId].levels) serverConfigs[guildId].levels = {};
-  if (!serverConfigs[guildId].levels[userId]) {
+  if (!serverConfigs[guildId] || !serverConfigs[guildId].levels || !serverConfigs[guildId].levels[userId]) {
     serverConfigs[guildId].levels[userId] = { xp: 0, level: 1, orbs: 0, lastDaily: 0, boostUntil: 0, customTheme: '' };
   }
 
@@ -149,35 +157,21 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
     try {
       const member = await interaction.guild.members.fetch(userId);
       if (member.roles.cache.has(item.roleId)) {
-        return await interaction.reply({ content: `⚠️ คุณมียศ **${item.name}** นี้อยู่แล้ว ไม่สามารถซื้อซ้ำได้ครับ!`, flags: 64 });
+        return await interaction.reply({ content: `⚠️ คุณมียศ **${item.name}** นี้อยู่แล้ว ไม่สามารถซื้อซ้ำได้ครับ!`, ephemeral: true });
       }
     } catch (err) {
       console.error('Error checking user roles:', err);
     }
   }
 
-  if (item.type === 'custom_card_ticket') {
-    if (userCoins < item.price) {
-      return await interaction.reply({ content: `❌ Zen Coins ของคุณไม่พอ! (คุณมี ${userCoins} Coins แต่สินค้าราคา ${item.price} Coins)`, flags: 64 });
+  if (item.type === 'theme') {
+    if (userStat.customTheme === item.imageUrl) {
+      return await interaction.reply({ content: `⚠️ คุณกำลังใช้งานธีม **${item.name}** นี้อยู่แล้วครับ!`, ephemeral: true });
     }
-
-    const modal = new ModalBuilder()
-      .setCustomId('setCustomCardImageModal')
-      .setTitle('🎨 ใส่ลิงก์รูปการ์ดเลเวลส่วนตัว');
-
-    const imageInput = new TextInputBuilder()
-      .setCustomId('cardImageUrl')
-      .setLabel('วางลิงก์รูปภาพ (Image URL) ที่ต้องการ')
-      .setStyle(TextInputStyle.Short)
-      .setPlaceholder('https://example.com/my-image.png')
-      .setRequired(true);
-
-    modal.addComponents(new ActionRowBuilder().addComponents(imageInput));
-    return await interaction.showModal(modal);
   }
 
   if (userCoins < item.price) {
-    await interaction.reply({ content: `❌ Zen Coins ของคุณไม่พอ! (คุณมี ${userCoins} Coins แต่สินค้าราคา ${item.price} Coins)`, flags: 64 });
+    await interaction.reply({ content: `❌ Zen Coins ของคุณไม่พอ! (คุณมี ${userCoins} Coins แต่สินค้าราคา ${item.price} Coins)`, ephemeral: true });
     return true;
   }
 
@@ -198,7 +192,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
 
     return await interaction.reply({ 
       content: `🎁 **ผลการสุ่มกาชาปอง:**\n${roll.text}\n(ยอด Zen Coins ปัจจุบันของคุณ: ${userStat.orbs} Coins)`, 
-      flags: 64 
+      ephemeral: true 
     });
   } 
   
@@ -222,7 +216,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
 
     return await interaction.reply({ 
       content: `⚡ เปิดใช้งานน้ำยาคูณ XP สำเร็จ! คุณได้รับสิทธิ์คูณ XP 2 เท่า และรับยศ Xp Booster เป็นเวลา 1 ชั่วโมงเต็ม!`, 
-      flags: 64 
+      ephemeral: true 
     });
   } 
   
@@ -233,60 +227,34 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
       const role = await interaction.guild.roles.fetch(item.roleId);
       if (role) {
         await member.roles.add(role);
-        return await interaction.reply({ content: `🎉 ซื้อสำเร็จ! คุณได้รับ **${item.name}** เรียบร้อยแล้ว (ยอดคงเหลือ: ${userStat.orbs} Zen Coins)`, flags: 64 });
+        return await interaction.reply({ content: `🎉 ซื้อสำเร็จ! คุณได้รับ **${item.name}** เรียบร้อยแล้ว (ยอดคงเหลือ: ${userStat.orbs} Zen Coins)`, ephemeral: true });
       } else {
-        return await interaction.reply({ content: `⚠️ ซื้อสำเร็จและหักเหรียญแล้ว แต่ยังไม่ได้ตั้งค่า ID ยศนี้ในระบบ กรุณาแจ้ง Admin ครับ!`, flags: 64 });
+        return await interaction.reply({ content: `⚠️ ซื้อสำเร็จและหักเหรียญแล้ว แต่ยังไม่ได้ตั้งค่า ID ยศนี้ในระบบ กรุณาแจ้ง Admin ครับ!`, ephemeral: true });
       }
     } catch (err) {
-      return await interaction.reply({ content: `❌ เกิดข้อผิดพลาดในการมอบยศ กรุณาแจ้ง Admin ครับ`, flags: 64 });
+      return await interaction.reply({ content: `❌ เกิดข้อผิดพลาดในการมอบยศ กรุณาแจ้ง Admin ครับ`, ephemeral: true });
     }
   } 
   
+  else if (item.type === 'theme') {
+    userStat.customTheme = item.imageUrl;
+    await saveConfigs(serverConfigs);
+
+    return await interaction.reply({ 
+      content: `🎨 ซื้อธีมการ์ดสำเร็จ! ตอนนี้การ์ด \`/level\` ของคุณเปลี่ยนเป็น **${item.name}** เรียบร้อยแล้ว ลองพิมพ์เช็กดูได้เลย!`, 
+      ephemeral: true 
+    });
+  }
+
   else if (item.type === 'reset_theme') {
     userStat.customTheme = '';
     await saveConfigs(serverConfigs);
 
     return await interaction.reply({ 
       content: `🔄 รีเซ็ตการ์ดเลเวลสำเร็จ! ตอนนี้การ์ด \`/level\` ของคุณกลับมาใช้ภาพค่าเริ่มต้นของเซิร์ฟเวอร์แล้ว`, 
-      flags: 64 
+      ephemeral: true 
     });
   }
-
-  return true;
-}
-
-async function handleCustomCardModal(interaction, serverConfigs, saveConfigs) {
-  if (interaction.customId !== 'setCustomCardImageModal') return false;
-
-  const guildId = interaction.guildId;
-  const userId = interaction.user.id;
-  const imageUrl = interaction.fields.getTextInputValue('cardImageUrl').trim();
-
-  const ticketItem = SHOP_ITEMS.find(i => i.id === 'custom_card_ticket');
-  const price = ticketItem ? ticketItem.price : 150;
-
-  if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
-  if (!serverConfigs[guildId].levels) serverConfigs[guildId].levels = {};
-  if (!serverConfigs[guildId].levels[userId]) {
-    serverConfigs[guildId].levels[userId] = { xp: 0, level: 1, orbs: 0, lastDaily: 0, boostUntil: 0, customTheme: '' };
-  }
-
-  const userStat = serverConfigs[guildId].levels[userId];
-  const userCoins = userStat.orbs || 0;
-
-  if (userCoins < price) {
-    await interaction.reply({ content: `❌ Zen Coins ของคุณไม่พอ! (คุณมี ${userCoins} Coins แต่สินค้าราคา ${price} Coins)`, flags: 64 });
-    return true;
-  }
-
-  userStat.orbs -= price;
-  userStat.customTheme = imageUrl;
-  await saveConfigs(serverConfigs);
-
-  await interaction.reply({ 
-    content: `🎉 ซื้อตั๋วและตั้งค่ารูปการ์ดส่วนตัวสำเร็จ! ตอนนี้การ์ด \`/level\` ของคุณเปลี่ยนเป็นรูปที่คุณเลือกเรียบร้อยแล้ว ลองพิมพ์เช็กดูได้เลย!`, 
-    flags: 64 
-  });
 
   return true;
 }
@@ -297,6 +265,5 @@ module.exports = {
   handleBoostStatusCommand,
   handleShopCommand,
   handleShopButton,
-  handleCustomCardModal,
   SHOP_ITEMS
 };
