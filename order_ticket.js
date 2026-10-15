@@ -13,11 +13,10 @@ async function handleSetupOrderTicketCommand(interaction) {
   const embed = new EmbedBuilder()
     .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM STORE')
     .setDescription('🎉 **ของดีต้อง Zen Bot เท่านั้น!**\n💎 จำหน่ายสินค้า Bot Premium, ยศถาวร และแพ็กเกจเสริมสุดคุ้ม')
-    .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1560424207702040647/1792104497426.jpg')
     .setColor('#00FF00')
-    .setFooter({ text: '👇 คลิกเลือกสินค้าที่ต้องการสั่งซื้อจากเมนูด้านล่างได้เลยครับ' }); // ย้ายมาไว้ที่ Footer ตรงนี้แทนครับ
+    .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg'); // แบนเนอร์ใหม่ล่าสุด
 
-  // สร้างเมนูกดเลือกสินค้าพร้อมตัวเลือก "ล้างตัวเลือก"
+  // สร้างเมนูกดเลือกสินค้า พร้อมปุ่มล้างตัวเลือกไอคอนสีแดงและเคลียร์ค่าได้จริง
   const selectMenu = new StringSelectMenuBuilder()
     .setCustomId('select_product_order')
     .setPlaceholder('🛒 เลือกสินค้าที่ต้องการสั่งซื้อ')
@@ -36,9 +35,9 @@ async function handleSetupOrderTicketCommand(interaction) {
       },
       {
         label: 'ล้างตัวเลือก',
-        description: 'ล้างสินค้าที่เลือกไว้แล้ว',
+        description: 'เคลียร์ค่าตัวเลือกให้กลับมาเป็นค่าเริ่มต้น',
         value: 'clear_selection',
-        emoji: '✖️'
+        emoji: '❌'
       }
     ]);
 
@@ -54,8 +53,42 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
 
   const selectedValue = interaction.values[0];
 
+  // ถ้าผู้ใช้กดเลือก "ล้างตัวเลือก" ให้รีเซ็ตแผงเมนูดรอปดาวน์ให้กลับมาเป็นปกติเหมือนยังไม่ได้เลือก
   if (selectedValue === 'clear_selection') {
-    return await interaction.reply({ content: '🧹 ล้างตัวเลือกสินค้าเรียบร้อยแล้วครับ', ephemeral: true });
+    const embed = new EmbedBuilder()
+      .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM STORE')
+      .setDescription('🎉 **ของดีต้อง Zen Bot เท่านั้น!**\n💎 จำหน่ายสินค้า Bot Premium, ยศถาวร และแพ็กเกจเสริมสุดคุ้ม')
+      .setColor('#00FF00')
+      .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg');
+
+    const selectMenu = new StringSelectMenuBuilder()
+      .setCustomId('select_product_order')
+      .setPlaceholder('🛒 เลือกสินค้าที่ต้องการสั่งซื้อ')
+      .addOptions([
+        {
+          label: 'BOT PREMIUM (รายเดือน)',
+          description: 'สต็อกไม่จำกัด • ฿299.00 / 1 เดือน • ยศ: Bot Premium',
+          value: 'product_bot_premium',
+          emoji: '💎'
+        },
+        {
+          label: 'ยศ Artist ถาวร',
+          description: 'สต็อกไม่จำกัด • ฿60.00 / ถาวร • สิทธิ์แต่งการ์ดส่วนตัว',
+          value: 'product_artist_role',
+          emoji: '🎨'
+        },
+        {
+          label: 'ล้างตัวเลือก',
+          description: 'เคลียร์ค่าตัวเลือกให้กลับมาเป็นค่าเริ่มต้น',
+          value: 'clear_selection',
+          emoji: '❌'
+        }
+      ]);
+
+    const row = new ActionRowBuilder().addComponents(selectMenu);
+    
+    await interaction.update({ embeds: [embed], components: [row] });
+    return true;
   }
 
   const guild = interaction.guild;
@@ -174,7 +207,7 @@ async function handleOrderPaymentButton(interaction) {
 async function handleCloseTicketButton(interaction) {
   if (interaction.customId !== 'close_order_ticket') return false;
 
-  await interaction.reply({ content: '🔒 กำลังปิดห้องออร์เดอร์ใน 5 วินาที...' });
+  await interaction.reply({ content: '🔒 กำลังปิดห้องออร์เดอร์ใน 5 วินาทีละครึ่ง...' });
   setTimeout(() => {
     interaction.channel.delete().catch(() => {});
   }, 5000);
