@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, RoleSelectMenuBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
 const cron = require('node-cron');
 const { SHOP_ITEMS } = require('./shop');
+const { generateProfileCard } = require('./canvas_card');
 
 const pendingRoleRewardImages = new Map();
 
@@ -22,7 +23,6 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
   let finalAmount = amount;
   let isBoosted = false;
 
-  // ตรวจสอบสถานะบัฟ XP Booster
   if (userStat.boostUntil && now < userStat.boostUntil) {
     finalAmount *= 2; 
     isBoosted = true;
@@ -42,7 +42,6 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
     }
   }
 
-  // ตรวจสอบและจัดการหมดอายุสิทธิ์ Artist 3 วัน
   const artistRoleId = '1560136361015513108';
   if (userStat.artistUntil && now >= userStat.artistUntil) {
     userStat.artistUntil = 0;
@@ -162,7 +161,6 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
   }
 }
 
-// ⏰ Background Cron Job: คอยเช็กถอดรหัสยศ XP Booster และ Artist ทุกๆ 1 นาทีแบบอัตโนมัติ
 function startVoiceXpCron(client, serverConfigs, saveConfigs) {
   cron.schedule('* * * * *', async () => {
     const now = Date.now();
@@ -179,7 +177,6 @@ function startVoiceXpCron(client, serverConfigs, saveConfigs) {
 
       let updated = false;
 
-      // 1. เช็ก XP ห้องเสียง (ถ้าเปิดใช้งาน)
       if (config.levelConfig && config.levelConfig.enabled && config.levelConfig.voiceXpEnabled) {
         const xpPerMin = config.levelConfig.voiceXpAmount || 10;
         guild.channels.cache.forEach(channel => {
@@ -192,11 +189,9 @@ function startVoiceXpCron(client, serverConfigs, saveConfigs) {
         });
       }
 
-      // 2. เช็กเวลาหมดอายุของ Booster และ Artist สำหรับทุกคนในเซิร์ฟเวอร์
       for (const userId in config.levels) {
         const userStat = config.levels[userId];
 
-        // เช็กหมดอายุ XP Booster
         if (userStat.boostUntil && now >= userStat.boostUntil) {
           userStat.boostUntil = 0;
           if (boostRoleId) {
@@ -212,7 +207,6 @@ function startVoiceXpCron(client, serverConfigs, saveConfigs) {
           updated = true;
         }
 
-        // เช็กหมดอายุสิทธิ์ Artist 3 วัน
         if (userStat.artistUntil && now >= userStat.artistUntil) {
           userStat.artistUntil = 0;
           userStat.customTheme = '';
@@ -278,7 +272,7 @@ function handleCommandLeveling(interaction, serverConfigs, saveConfigs) {
 
 const levelCommand = new SlashCommandBuilder()
   .setName('level')
-  .setDescription('เช็กเลเวลและค่าประสบการณ์ (XP) ของคุณ')
+  .setDescription('เช็กเลเวลและค่าประสบการณ์ (XP) เป็นรูปภาพการ์ดโปรไฟล์')
   .addUserOption(option =>
     option.setName('user')
       .setDescription('เลือกสมาชิกที่ต้องการดูเลเวล')
@@ -286,41 +280,22 @@ const levelCommand = new SlashCommandBuilder()
   );
 
 async function handleLevelCommand(interaction, serverConfigs) {
+  await interaction.deferReply(); // ใช้ deferReply เนื่องจากต้องใช้เวลาเรนเดอร์รูปภาพ Canvas
+
   const guildId = interaction.guildId;
   const targetUser = interaction.options.getUser('user') || interaction.user;
   const userId = targetUser.id;
 
   const config = serverConfigs[guildId] || {};
   const levels = config.levels || {};
-  const lConfig = config.levelConfig || { xpMultiplier: 100, cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD', cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**', embedColor: '#66FFFF', statsCardImageUrl: '' };
+  const lConfig = config.levelConfig || { xpMultiplier: 100, embedColor: '#66FFFF', statsCardImageUrl: '' };
 
   const userStat = levels[userId] || { xp: 0, level: 1, customTheme: '' };
-  const requiredXp = userStat.level * lConfig.xpMultiplier;
 
-  const percentage = Math.min(Math.round((userStat.xp / requiredXp) * 10), 10);
-  const progressBar = '█'.repeat(percentage) + '░'.repeat(10 - percentage);
+  // สร้างไฟล์รูปภาพ Canvas Profile Card
+  const attachment = await generateProfileCard(targetUser, userStat, lConfig);
 
-  const finalTitle = (lConfig.cardTitle || '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD').replace('{user}', `<@${userId}>`);
-  const finalDesc = (lConfig.cardDescription || 'การ์ดข้อมูลเลเวลของ **{user}**').replace('{user}', `<@${userId}>`);
-
-  const embed = new EmbedBuilder()
-    .setTitle(finalTitle)
-    .setDescription(finalDesc)
-    .setColor(lConfig.embedColor || '#66FFFF')
-    .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
-    .addFields(
-      { name: 'เลเวล (Level)', value: `\` Level ${userStat.level} \``, inline: true },
-      { name: 'ค่าประสบการณ์ (XP)', value: `\` ${userStat.xp} / ${requiredXp} XP \``, inline: true },
-      { name: 'ความคืบหน้า', value: `\`[${progressBar}]\` (${Math.floor((userStat.xp / requiredXp) * 100)}%)`, inline: false }
-    );
-
-  if (userStat.customTheme && userStat.customTheme.trim() !== '') {
-    embed.setImage(userStat.customTheme.trim());
-  } else if (lConfig.statsCardImageUrl && lConfig.statsCardImageUrl.trim() !== '') {
-    embed.setImage(lConfig.statsCardImageUrl.trim());
-  }
-
-  await interaction.reply({ embeds: [embed] });
+  await interaction.editReply({ files: [attachment] });
 }
 
 const leaderboardCommand = new SlashCommandBuilder()
