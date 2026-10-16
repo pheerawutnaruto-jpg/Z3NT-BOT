@@ -11,7 +11,7 @@ async function handleSetupArtistCommand(interaction) {
 
   const embed = new EmbedBuilder()
     .setTitle('🎨 𝙕𝙀𝙉 𝘽𝙊𝙏 • ARTIST CARD CUSTOMIZER')
-    .setDescription('สำหรับสมาชิกที่มียศ **Artist** กดปุ่มด้านล่างเพื่อกรอกลิงก์รูปภาพสำหรับเปลี่ยนพื้นหลังการ์ด `/level` ส่วนตัวของคุณได้ทันที!\n──────────────────────')
+    .setDescription('สำหรับสมาชิกที่มียศ **Artist** หรือ **Aritist | 3d** กดปุ่มด้านล่างเพื่อกรอกลิงก์รูปภาพสำหรับเปลี่ยนพื้นหลังการ์ด `/level` ส่วนตัวของคุณได้ทันที!\n──────────────────────')
     .setColor('#FF69B4');
 
   const row = new ActionRowBuilder().addComponents(
@@ -30,21 +30,31 @@ async function handleArtistButton(interaction, serverConfigs) {
 
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
-  const artistRoleId = '1560136361015513108';
+  
+  // 📌 ID ของยศถาวร (ใส่เลขยศถาวรที่คุณให้มา)
+  const artistRoleId = '1560224726868295740';     
+  const artist3dRoleId = 'YOUR_ARTIST_3D_ROLE_ID';  // 👈 (ถ้ามีอีกยศ ให้ใส่ ID ของยศ 3 วัน หรือลบออกได้ถ้าไม่มี)
 
   const member = interaction.member;
   const config = serverConfigs[guildId] || {};
   const userStat = config.levels?.[userId] || {};
   const now = Date.now();
 
-  const hasRole = member.roles.cache.has(artistRoleId);
+  // 🔍 1. เช็กจากยศถาวรจริงๆ บน Discord
+  const hasArtistRole = member.roles.cache.has(artistRoleId);
+  const hasArtist3dRole = artist3dRoleId !== 'YOUR_ARTIST_3D_ROLE_ID' && member.roles.cache.has(artist3dRoleId);
+
+  // ⏳ 2. เช็กจากระบบบัตรเช่า 3 วันใน Database (ถ้ามีคนซื้อแบบเช่า)
   const hasTempAccess = userStat.artistUntil && userStat.artistUntil > now;
 
-  if (!hasRole && !hasTempAccess) {
-    return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์ใช้งาน! เฉพาะผู้ที่มี **ยศ Artist** (หรือซื้อบัตรเช่า 3 วัน) เท่านั้นที่จะเปลี่ยนพื้นหลังการ์ดได้', ephemeral: true });
+  // ถ้าไม่มีทั้งยศถาวรและไม่มีบัตรเช่า ถึงจะบล็อก
+  if (!hasArtistRole && !hasArtist3dRole && !hasTempAccess) {
+    return await interaction.reply({ 
+      content: '❌ คุณไม่มีสิทธิ์ใช้งาน! เฉพาะผู้ที่มี **ยศ Artist**, **Aritist | 3d** หรือมีบัตรเช่า 3 วันเท่านั้นที่จะเปลี่ยนพื้นหลังการ์ดได้', 
+      ephemeral: true 
+    });
   }
 
-  // 🛠️ แก้ไข CustomId ให้ตรงกันที่นี่
   const modal = new ModalBuilder()
     .setCustomId('artistCardModal')
     .setTitle('🎨 ปรับแต่งรูปการ์ด /level ส่วนตัว');
@@ -63,7 +73,6 @@ async function handleArtistButton(interaction, serverConfigs) {
 }
 
 async function handleArtistModalSubmit(interaction, serverConfigs, saveConfigs) {
-  // 🛠️ ใช้ชื่อให้ตรงกับ modal ด้านบน
   if (interaction.customId !== 'artistCardModal') return false;
 
   const guildId = interaction.guildId;
