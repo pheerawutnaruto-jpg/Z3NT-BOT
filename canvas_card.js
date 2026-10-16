@@ -92,7 +92,7 @@ async function generateProfileCard(user, userStat, lConfig) {
   return new AttachmentBuilder(await canvas.encode('png'), { name: 'profile-card.png' });
 }
 
-// 🎨 ฟังก์ชันสร้างการ์ดต้อนรับสมาชิกใหม่ (Welcome Canvas)
+// 🎨 ฟังก์ชันสร้างการ์ดต้อนรับสมาชิกใหม่ (Welcome Canvas - ภาษาอังกฤษทั้งหมด ป้องกันฟอนต์พัง)
 async function generateWelcomeCard(member) {
   const canvas = createCanvas(930, 320);
   const ctx = canvas.getContext('2d');
@@ -101,32 +101,31 @@ async function generateWelcomeCard(member) {
   ctx.fillStyle = '#0f0f1a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // 2. ดึงรูป Zen Bot มาทำเป็นภาพพื้นหลังแบบโปร่งแสง / ตกแต่งฝั่งขวา
+  // 2. ดึงรูป Zen Bot มาทำเป็นภาพพื้นหลังแบบโปร่งแสงฝั่งขวา
   const zenBotBgUrl = 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg';
   try {
     const zenImage = await loadImage(zenBotBgUrl);
     ctx.save();
-    ctx.globalAlpha = 0.25; // ปรับความโปร่งแสงให้ไม่บังตัวหนังสือ
+    ctx.globalAlpha = 0.25;
     ctx.drawImage(zenImage, canvas.width - 400, 0, 400, canvas.height);
     ctx.restore();
   } catch (e) {
     console.error('Failed to load Zen Bot background:', e);
   }
 
-  // 3. กล่องการ์ดโปร่งแสงด้านหลัง
+  // 3. กรอบการ์ดโปร่งแสง
   ctx.fillStyle = 'rgba(20, 20, 35, 0.85)';
   ctx.beginPath();
   ctx.roundRect(20, 20, canvas.width - 40, canvas.height - 40, 20);
   ctx.fill();
 
-  // ขอบเรืองแสงสีฟ้าอมเขียวสไตล์ Zen Bot
   ctx.strokeStyle = '#66FFFF';
   ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.roundRect(20, 20, canvas.width - 40, canvas.height - 40, 20);
   ctx.stroke();
 
-  // 4. วาดรูป Avatar ของสมาชิกใหม่ (วงกลมตรงกลางซ้าย)
+  // 4. วาดรูป Avatar ของสมาชิกใหม่ (วงกลม)
   const avatarUrl = member.user.displayAvatarURL({ extension: 'png', size: 256 });
   try {
     const avatar = await loadImage(avatarUrl);
@@ -138,7 +137,6 @@ async function generateWelcomeCard(member) {
     ctx.drawImage(avatar, 55, 85, 150, 150);
     ctx.restore();
 
-    // ขอบวงกลม Avatar
     ctx.strokeStyle = '#66FFFF';
     ctx.lineWidth = 5;
     ctx.beginPath();
@@ -148,7 +146,7 @@ async function generateWelcomeCard(member) {
     console.error('Failed to load member avatar:', e);
   }
 
-  // 5. ข้อความต้อนรับ
+  // 5. ข้อความต้อนรับ (ภาษาอังกฤษ)
   ctx.fillStyle = '#66FFFF';
   ctx.font = 'bold 24px sans-serif';
   ctx.fillText('WELCOME TO THE SERVER', 240, 105);
@@ -159,17 +157,17 @@ async function generateWelcomeCard(member) {
 
   ctx.fillStyle = '#AAAAAA';
   ctx.font = '22px sans-serif';
-  ctx.fillText(`คุณคือสมาชิกคนที่ #${member.guild.memberCount} ของเรา! ✨`, 240, 205);
+  ctx.fillText(`Member #${member.guild.memberCount} • Enjoy your stay!`, 240, 205);
 
-  // ป้ายชื่อเซิร์ฟเวอร์ด้านล่าง
+  // ป้ายชื่อคอมมูนิตี้ด้านล่าง
   ctx.fillStyle = 'rgba(102, 255, 255, 0.15)';
   ctx.beginPath();
-  ctx.roundRect(240, 225, 320, 40, 10);
+  ctx.roundRect(240, 225, 280, 40, 10);
   ctx.fill();
 
   ctx.fillStyle = '#66FFFF';
   ctx.font = 'bold 18px sans-serif';
-  ctx.fillText(`🌟 เซิร์ฟเวอร์: ${member.guild.name}`, 255, 252);
+  ctx.fillText('ZEN TH COMMUNITY', 260, 252);
 
   return new AttachmentBuilder(await canvas.encode('png'), { name: 'welcome-card.png' });
 }
