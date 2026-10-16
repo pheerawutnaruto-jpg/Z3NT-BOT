@@ -1,32 +1,16 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits } = require('discord.js');
 
 const TOPUP_ITEMS = [
-  { 
-    id: 'buy_coins_5', 
-    name: '🪙 เติม 5 Zen Coins', 
-    price: 5, 
-    coins: 5, 
-    description: 'เติมเงิน 5 บาท รับทันที 5 Zen Coins เข้ากระเป๋า' 
-  },
-  { 
-    id: 'buy_coins_10', 
-    name: '🪙 เติม 10 Zen Coins', 
-    price: 10, 
-    coins: 10, 
-    description: 'เติมเงิน 10 บาท รับทันที 10 Zen Coins เข้ากระเป๋า' 
-  },
-  { 
-    id: 'buy_coins_30', 
-    name: '🪙 เติม 30 Zen Coins', 
-    price: 30, 
-    coins: 30, 
-    description: 'เติมเงิน 30 บาท รับทันที 30 Zen Coins เข้ากระเป๋า' 
-  }
+  { id: 'buy_coins_5', name: '🪙 เติม 5 Zen Coins', price: 5, coins: 5, description: 'เติมเงิน 5 บาท รับทันที 5 Zen Coins' },
+  { id: 'buy_coins_10', name: '🪙 เติม 10 Zen Coins', price: 10, coins: 10, description: 'เติมเงิน 10 บาท รับทันที 10 Zen Coins' },
+  { id: 'buy_coins_30', name: '🪙 เติม 30 Zen Coins', price: 30, coins: 30, description: 'เติมเงิน 30 บาท รับทันที 30 Zen Coins' }
 ];
 
 const topupCommand = new SlashCommandBuilder()
   .setName('topup')
-  .setDescription('💎 เปิดร้านค้าเติม Zen Coins');
+  .setDescription('💎 [ADMIN] เติม Zen Coins ให้กับสมาชิก')
+  .addUserOption(option => option.setName('user').setDescription('เลือกสมาชิกที่ต้องการเติมเหรียญ').setRequired(true))
+  .addIntegerOption(option => option.setName('amount').setDescription('จำนวน Zen Coins ที่ต้องการเติม').setRequired(true));
 
 const setupTopupShopCommand = new SlashCommandBuilder()
   .setName('setup-topup-shop')
@@ -35,12 +19,6 @@ const setupTopupShopCommand = new SlashCommandBuilder()
 const coinsCommand = new SlashCommandBuilder()
   .setName('coins')
   .setDescription('💎 เช็กยอด Zen Coins และเหรียญคงเหลือในกระเป๋าของคุณ');
-
-const addCoinsCommand = new SlashCommandBuilder()
-  .setName('add-coins')
-  .setDescription('💎 เติม Zen Coins ให้กับสมาชิก (สำหรับ Admin)')
-  .addUserOption(option => option.setName('user').setDescription('เลือกสมาชิกที่ต้องการเติมเหรียญ').setRequired(true))
-  .addIntegerOption(option => option.setName('amount').setDescription('จำนวน Zen Coins ที่ต้องการเติม').setRequired(true));
 
 async function handleSetupTopupShopCommand(interaction) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
@@ -80,7 +58,7 @@ async function handleCoinsCommand(interaction, serverConfigs) {
   await interaction.reply({ embeds: [embed], ephemeral: true });
 }
 
-async function handleAddCoinsCommand(interaction, serverConfigs, saveConfigs) {
+async function handleTopupCommand(interaction, serverConfigs, saveConfigs) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
     return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
   }
@@ -103,43 +81,39 @@ async function handleAddCoinsCommand(interaction, serverConfigs, saveConfigs) {
   await interaction.reply({ content: `✅ เติม Zen Coins จำนวน **+${amount} Coins** ให้กับคุณ <@${userId}> สำเร็จแล้ว! (ยอดรวม: ${userStat.orbs} Coins)`, ephemeral: true });
 }
 
-async function handleTopupCommand(interaction, serverConfigs) {
-  const guildId = interaction.guildId;
-  const userId = interaction.user.id;
-  const config = serverConfigs[guildId] || {};
-  const userStat = config.levels?.[userId];
-  const userCoins = userStat ? (userStat.orbs || 0) : 0;
-
-  const embed = new EmbedBuilder()
-    .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • TOPUP CENTER')
-    .setDescription(`🛒 ศูนย์เติม Zen Coins\n<a:emoji_100:1560416789211516938> เหรียญของคุณตอนนี้: **${userCoins} Coins**\n\n📌 เลือกแพ็กเกจเติมเงินด้านล่างเพื่อสร้างห้องส่วนตัว:`)
-    .setColor('#FFD700');
-
-  TOPUP_ITEMS.forEach(item => {
-    embed.addFields({
-      name: `${item.name} (ราคา: ${item.price} บาท)`,
-      value: `${item.description}\n──────────────────────`,
-      inline: false
-    });
-  });
-
-  const row = new ActionRowBuilder();
-  TOPUP_ITEMS.forEach(item => {
-    row.addComponents(
-      new ButtonBuilder()
-        .setCustomId(`create_topup_${item.id}`)
-        .setLabel(item.name)
-        .setEmoji('1560416845322920067')
-        .setStyle(ButtonStyle.Primary)
-    );
-  });
-
-  await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
-}
-
 async function handleTopupShopButton(interaction, serverConfigs) {
   if (interaction.customId === 'open_topup_shop_panel') {
-    return await handleTopupCommand(interaction, serverConfigs);
+    const guildId = interaction.guildId;
+    const userId = interaction.user.id;
+    const config = serverConfigs[guildId] || {};
+    const userStat = config.levels?.[userId];
+    const userCoins = userStat ? (userStat.orbs || 0) : 0;
+
+    const embed = new EmbedBuilder()
+      .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • TOPUP CENTER')
+      .setDescription(`🛒 ศูนย์เติม Zen Coins\n<a:emoji_100:1560416789211516938> เหรียญของคุณตอนนี้: **${userCoins} Coins**\n\n📌 เลือกแพ็กเกจเติมเงินด้านล่างเพื่อสร้างห้องส่วนตัว:`)
+      .setColor('#FFD700');
+
+    TOPUP_ITEMS.forEach(item => {
+      embed.addFields({
+        name: `${item.name} (ราคา: ${item.price} บาท)`,
+        value: `${item.description}\n──────────────────────`,
+        inline: false
+      });
+    });
+
+    const row = new ActionRowBuilder();
+    TOPUP_ITEMS.forEach(item => {
+      row.addComponents(
+        new ButtonBuilder()
+          .setCustomId(`create_topup_${item.id}`)
+          .setLabel(item.name)
+          .setEmoji('1560416845322920067')
+          .setStyle(ButtonStyle.Primary)
+      );
+    });
+
+    return await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
   }
 
   if (interaction.customId.startsWith('create_topup_')) {
@@ -251,10 +225,8 @@ module.exports = {
   topupCommand,
   setupTopupShopCommand,
   coinsCommand,
-  addCoinsCommand,
   handleSetupTopupShopCommand,
   handleCoinsCommand,
-  handleAddCoinsCommand,
   handleTopupCommand,
   handleTopupShopButton
 };
