@@ -24,7 +24,7 @@ const { setupMediaGuardCommand, handleSetupMediaGuardCommand, handleMediaGuardMe
 const { setupOrderTicketCommand, handleSetupOrderTicketCommand, handleOrderTicketSelect, handleOrderPaymentButton, handleCloseTicketButton } = require('./order_ticket');
 const { isServerPremium, grantPremiumCommand, handleGrantPremiumCommand } = require('./license');
 const { generateWelcomeCard } = require('./canvas_card');
-const { announcementCommand, handleSetupAnnouncementCommand, loadAllAnnouncementCrons } = require('./announcement');
+const { cinemaAnnouncementCommand, handleCinemaAnnounceCommand, handleCinemaButtonAndModal } = require('./cinema_announcement');
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
@@ -83,7 +83,6 @@ client.once('ready', async () => {
     new SlashCommandBuilder().setName('set-welcom').setDescription('เปิดแผงควบคุมระบบต้อนรับ (Welcome Dashboard)'),
     new SlashCommandBuilder().setName('set-autorole').setDescription('ตั้งค่าระบบแจกยศอัตโนมัติสำหรับสมาชิกใหม่'),
     new SlashCommandBuilder().setName('set-security').setDescription('เปิดแผงควบคุมระบบป้องกันความปลอดภัยขั้นสูง'),
-    announcementCommand,
     levelCommand,
     leaderboardCommand,
     setupQuestCommand,
@@ -98,6 +97,7 @@ client.once('ready', async () => {
     setupArtistCommand,
     setupMediaGuardCommand,
     setLevelCommand,
+    cinemaAnnouncementCommand,
     new SlashCommandBuilder().setName('clear').setDescription('ลบข้อความในแชทจำนวน 1-100 ข้อความ')
       .addIntegerOption(option => option.setName('amount').setDescription('จำนวนข้อความที่ต้องการลบ (1-100)').setRequired(true)),
     new SlashCommandBuilder().setName('set-autoclear').setDescription('💎 [PREMIUM] ตั้งเวลาระบบลบข้อความอัตโนมัติ')
@@ -120,8 +120,6 @@ client.once('ready', async () => {
       setupCronJob(guildId, config.autoClear.time, config.autoClear.channelId);
     }
   }
-
-  loadAllAnnouncementCrons(client, serverConfigs);
 });
 
 function setupCronJob(guildId, timeStr, channelId) {
@@ -133,7 +131,7 @@ function setupCronJob(guildId, timeStr, channelId) {
   const [hour, minute] = timeStr.split(':');
   if (!hour || !minute) return;
 
-  const cronExpression = `${minute} ${hour} * * *`;
+  const cronExpression = `${minute}${hour} * * *`;
 
   activeCronJobs[guildId] = cron.schedule(cronExpression, async () => {
     try {
@@ -233,7 +231,13 @@ client.on('interactionCreate', async interaction => {
       },
       embed: { title: '', description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!', color: '#66FFFF', image: '', footerText: '', footerIcon: '', timestamp: 'no' },
       autoClear: { enabled: false, time: '06:00', channelId: null },
-      mediaGuardChannels: []
+      mediaGuardChannels: [],
+      cinemaAnnouncement: {
+        title: '🍿 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼𝙎 • NOW SHOWING & COMMUNITY BULLETIN',
+        description: '✨ **ยินดีต้อนรับสู่โรงภาพยนตร์ Zen Cinemas! โปรดตรวจดูรอบฉายและสิทธิประโยชน์ประจำวันของคุณ:**\n\n🎥 **FEATURED ATTRACTIONS:**\n• 🪙 **สุ่มเหรียญประจำวัน:** แวะไปที่ห้องเควสต์แล้วกดรับ Zen Coins ฟรีทุก 24 ชั่วโมง!\n• 🛒 **บ็อกซ์ออฟฟิศพรีเมียม:** ตรวจสอบสินค้าและยศถาวรได้ที่ `/shop`\n• 🎙️ **โซนพูดคุย & แชท:** สะสม XP เลเวลพุ่งกระฉูดทั้งพิมพ์แชทและเข้าห้องเสียง!\n\n🎟️ *ขอให้ทุกท่านเพลิดเพลินไปกับการรับชมและใช้เวลาในคอมมูนิตี้ของเราครับ!*',
+        imageUrl: 'https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg',
+        channelId: null
+      }
     };
   }
   const config = serverConfigs[guildId];
@@ -249,7 +253,7 @@ client.on('interactionCreate', async interaction => {
   }
   if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
 
-  const premiumCommands = ['shop', 'setup-quest', 'setup-in-game-shop', 'coins', 'setup-premium-shop', 'setup-order-ticket', 'add-coins', 'setup-media-guard', 'set-autoclear', 'setup-artist-card', 'boost-status', 'setup-announcement'];
+  const premiumCommands = ['shop', 'setup-quest', 'setup-in-game-shop', 'coins', 'setup-premium-shop', 'setup-order-ticket', 'add-coins', 'setup-media-guard', 'set-autoclear', 'setup-artist-card', 'boost-status', 'cinema-announce'];
   if (interaction.isChatInputCommand() && premiumCommands.includes(interaction.commandName)) {
     const hasPremium = await isServerPremium(guildId, serverConfigs);
     if (!hasPremium) {
@@ -293,9 +297,6 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isChatInputCommand() && interaction.commandName === 'setup-order-ticket') {
     return await handleSetupOrderTicketCommand(interaction);
   }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'setup-announcement') {
-    return await handleSetupAnnouncementCommand(interaction, serverConfigs, saveConfigs, activeCronJobs, client);
-  }
   if (interaction.isChatInputCommand() && interaction.commandName === 'shop') {
     return await handlePremiumShopCommand(interaction, serverConfigs);
   }
@@ -319,6 +320,9 @@ client.on('interactionCreate', async interaction => {
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'set-level') {
     return await handleSetLevelCommand(interaction, serverConfigs);
+  }
+  if (interaction.isChatInputCommand() && interaction.commandName === 'cinema-announce') {
+    return await handleCinemaAnnounceCommand(interaction, serverConfigs);
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'set-security') {
     if (!interaction.member.permissions.has('Administrator')) return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
@@ -358,6 +362,11 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isChatInputCommand() && interaction.commandName === 'set-autorole') {
     if (!interaction.member.permissions.has('Administrator')) return await interaction.reply({ content: '❌ เฉพาะ Administrator', ephemeral: true });
     return await sendAutoroleDashboard(interaction);
+  }
+
+  if (interaction.isButton() || interaction.isChannelSelectMenu() || interaction.isModalSubmit()) {
+    const handledCinema = await handleCinemaButtonAndModal(interaction, serverConfigs, saveConfigs);
+    if (handledCinema) return;
   }
 
   if (interaction.isButton()) {
@@ -491,7 +500,7 @@ client.on('interactionCreate', async interaction => {
           const embedConfig = config.embed || {
             description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!'
           };
-          const finalDesc = embedConfig.description.replace('{user}', `${interaction.user}`).replace('{server}', interaction.guild.name);
+          const finalDesc = embedConfig.description.replace('{user}', `${interaction.user}`).replace('{server}`, interaction.guild.name);
           await channel.send({ content: finalDesc, files: [attachment] });
         }
       } catch (err) {
