@@ -25,17 +25,22 @@ const { setupOrderTicketCommand, handleSetupOrderTicketCommand, handleOrderTicke
 const { isServerPremium, grantPremiumCommand, handleGrantPremiumCommand } = require('./license');
 const { generateWelcomeCard } = require('./canvas_card');
 const { 
-  autoCinemaCommand,
-  cinemaBroadcastCommand,
   setupCinemaCommand,
-  handleAutoCinemaCommand,
-  handleCinemaBroadcastCommand,
+  cinemaBroadcastCommand,
   handleSetupCinemaCommand,
+  handleCinemaBroadcastCommand,
   handleCinemaButton,
+  handleCinemaSelect,
+  handleCinemaModal
+} = require('./cinema');
+const { 
+  autoCinemaCommand,
+  handleAutoCinemaCommand,
+  handleAutoCinemaButton,
   handleAutoCinemaSelect,
   handleAutoCinemaModal,
   loadAllAutoCinemaCrons 
-} = require('./cinema');
+} = require('./auto_cinema');
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
@@ -109,9 +114,9 @@ client.once('ready', async () => {
     setupArtistCommand,
     setupMediaGuardCommand,
     setLevelCommand,
-    autoCinemaCommand,
-    cinemaBroadcastCommand,
     setupCinemaCommand,
+    cinemaBroadcastCommand,
+    autoCinemaCommand,
     new SlashCommandBuilder().setName('clear').setDescription('ลบข้อความในแชทจำนวน 1-100 ข้อความ')
       .addIntegerOption(option => option.setName('amount').setDescription('จำนวนข้อความที่ต้องการลบ (1-100)').setRequired(true)),
     new SlashCommandBuilder().setName('set-autoclear').setDescription('💎 [PREMIUM] ตั้งเวลาระบบลบข้อความอัตโนมัติ')
@@ -333,7 +338,7 @@ client.on('interactionCreate', async interaction => {
     return await handleCinemaBroadcastCommand(interaction, serverConfigs);
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'auto-cinema') {
-    return await handleAutoCinemaCommand(interaction, serverConfigs, saveConfigs, client);
+    return await handleAutoCinemaCommand(interaction, serverConfigs);
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'set-level') {
     return await handleSetLevelCommand(interaction, serverConfigs);
@@ -384,6 +389,9 @@ client.on('interactionCreate', async interaction => {
     const handledCinemaBtn = await handleCinemaButton(interaction, serverConfigs, saveConfigs);
     if (handledCinemaBtn) return;
 
+    const handledAutoCinemaBtn = await handleAutoCinemaButton(interaction, serverConfigs, saveConfigs, client);
+    if (handledAutoCinemaBtn) return;
+
     const hasPremiumBtn = await isServerPremium(guildId, serverConfigs);
     const premiumButtons = ['open_premium_shop_panel', 'open_artist_card_modal'];
     if (premiumButtons.includes(id) && !hasPremiumBtn) {
@@ -413,7 +421,8 @@ client.on('interactionCreate', async interaction => {
       'edit_level_messages', 'set_role_reward', 'delete_role_reward', 
       'sec_config_time', 'edit_embed', 'edit_footer', 'test_welcome',
       'open_artist_card_modal', 'open_premium_shop_panel',
-      'autocinema_edit_info', 'autocinema_edit_role'
+      'cinemabc_edit_info', 'cinemabc_edit_role',
+      'autocinema_edit_info'
     ];
 
     if (!modalButtons.includes(id)) {
@@ -546,9 +555,6 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.isStringSelectMenu()) {
-    const handledAutoCinemaSelect = await handleAutoCinemaSelect(interaction, serverConfigs, saveConfigs, client);
-    if (handledAutoCinemaSelect) return;
-
     const handledOrder = await handleOrderTicketSelect(interaction, serverConfigs);
     if (handledOrder) return;
 
@@ -572,6 +578,12 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.isChannelSelectMenu()) {
+    const handledCinemaSelect = await handleCinemaSelect(interaction, serverConfigs, saveConfigs);
+    if (handledCinemaSelect) return;
+
+    const handledAutoCinemaSelect = await handleAutoCinemaSelect(interaction, serverConfigs, saveConfigs, client);
+    if (handledAutoCinemaSelect) return;
+
     await interaction.deferUpdate().catch(() => {});
     if (interaction.customId === 'select_channel') {
       config.channelId = interaction.values[0];
@@ -623,6 +635,9 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.isModalSubmit()) {
+    const handledCinemaModal = await handleCinemaModal(interaction, serverConfigs, saveConfigs);
+    if (handledCinemaModal) return;
+
     const handledAutoCinemaModal = await handleAutoCinemaModal(interaction, serverConfigs, saveConfigs, client);
     if (handledAutoCinemaModal) return;
 
