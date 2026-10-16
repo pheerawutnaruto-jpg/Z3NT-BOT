@@ -34,13 +34,13 @@ async function handleSetupCinemaCommand(interaction) {
       `> <@&${permRoleId}>\n` +
       '> รับแจ้งเตือนล่วงหน้า'
     )
-    .setColor('#E50914')
+    .setColor('#66FFFF')
     .setImage(imageUrl);
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('cinema_perm_ticket')
-      .setLabel('🎟️ รับตั๋วเข้าชม')
+      .setLabel('🎫 รับตั๋ว')
       .setStyle(ButtonStyle.Danger)
   );
 
@@ -78,9 +78,9 @@ function getCinemaBroadcastDashboard(config) {
   const roleText = `<@&${config.roleId || '1551183125076508713'}>`;
 
   const embed = new EmbedBuilder()
-    .setTitle('🍿 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼S • COMING SOON CONTROL PANEL')
+    .setTitle('🍿 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼 • COMING SOON CONTROL PANEL')
     .setDescription('แผงควบคุมประกาศ COMING SOON คุณสามารถตั้งค่าข้อมูล หนัง วันที่ และกดส่งประกาศได้ที่นี่ครับ')
-    .setColor('#E50914')
+    .setColor('#FFD700')
     .addFields(
       { name: '🎬 ชื่อเรื่อง', value: `\`${config.title || 'ภาพยนตร์ฟอร์มยักษ์เรื่องใหม่'}\``, inline: true },
       { name: '📅 วันที่ฉาย (d/m/y)', value: `\`${config.dateStr || '17/10/2026'}\``, inline: true },
@@ -157,12 +157,12 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs, clien
         } catch (e) {
           console.error('Error removing temporary cinema role:', e);
         }
-      }, 2 * 60 * 60 * 1000);
+      }, 4 * 24 * 60 * 60 * 1000);
 
-      return await interaction.reply({ content: `🎉 **รับตั๋วเข้าชมสำเร็จ!** ระบบได้มอบยศชั่วคราวให้คุณเรียบร้อยแล้ว (ยศจะหมดอายุและถอดออกเองใน 2 ชั่วโมง)`, ephemeral: true });
+      return await interaction.reply({ content: `🎉 **หยิบตั๋วเข้าชมสำเร็จ!** ระบบได้มอบยศให้คุณเรียบร้อยแล้ว (ยศนี้จะถอดออกเองใน4วันหลังจากได้รับ)`, ephemeral: true });
     } catch (err) {
       console.error('Error assigning temp cinema role:', err);
-      return await interaction.reply({ content: '❌ เกิดข้อผิดพลาดในการมอบยศชั่วคราว กรุณาตรวจสอบสิทธิ์ของบอทครับ', ephemeral: true });
+      return await interaction.reply({ content: '❌ เกิดข้อผิดพลาดในการมอบยศ กรุณาตรวจสอบสิทธิ์ของบอทครับ', ephemeral: true });
     }
   }
 
@@ -203,19 +203,19 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs, clien
       const imageUrl = (config.imageUrl && config.imageUrl.trim() !== '') ? config.imageUrl.trim() : defaultImage;
 
       const embed = new EmbedBuilder()
-        .setTitle('🍿 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼S • COMING SOON')
+        .setTitle('🍿 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼 • COMING SOON')
         .setDescription(
           `🎬 **ชื่อเรื่อง:** ${config.title}\n` +
           `📅 **วันที่ฉาย:** ${config.dateStr}`
         )
-        .setColor('#E50914')
+        .setColor('#FFD700')
         .setImage(imageUrl);
 
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId('cinema_temp_ticket')
-          .setLabel('🎟️ รับตั๋วเข้าชม')
-          .setStyle(ButtonStyle.Danger)
+          .setLabel('🎟️ หยิบตั๋ว')
+          .setStyle(ButtonStyle.Success)
       );
 
       const sentMsg = await channel.send({ 
