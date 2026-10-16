@@ -33,11 +33,11 @@ const IN_GAME_ITEMS = [
 
 const setupShopCommand = new SlashCommandBuilder()
   .setName('setup-in-game-shop')
-  .setDescription('💎 [PREMIUM] ส่งแผงร้านค้าในเกม (ใช้ Zen Coins ซื้อ) ไปยังห้องนี้ (สำหรับ Admin)');
+  .setDescription('🛒 [PREMIUM / ADMIN] ส่งแผงร้านค้าในเกม (ใช้ Zen Coins ซื้อไอเทม/บัฟ) ไปยังห้องนี้');
 
 const boostStatusCommand = new SlashCommandBuilder()
   .setName('boost-status')
-  .setDescription('💎 [PREMIUM] เช็กสถานะและเวลาคงเหลือของน้ำยาคูณ XP');
+  .setDescription('⚡ [PREMIUM] ตรวจสอบสถานะและเวลาคงเหลือของน้ำยาคูณ XP (XP Booster) ของคุณ');
 
 async function handleSetupShopCommand(interaction) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
