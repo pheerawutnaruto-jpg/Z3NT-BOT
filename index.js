@@ -24,6 +24,7 @@ const { setupMediaGuardCommand, handleSetupMediaGuardCommand, handleMediaGuardMe
 const { setupOrderTicketCommand, handleSetupOrderTicketCommand, handleOrderTicketSelect, handleOrderPaymentButton, handleCloseTicketButton } = require('./order_ticket');
 const { isServerPremium, grantPremiumCommand, handleGrantPremiumCommand } = require('./license');
 const { generateWelcomeCard } = require('./canvas_card');
+const { announcementCommand, handleSetupAnnouncementCommand, loadAllAnnouncementCrons } = require('./announcement');
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
@@ -82,6 +83,7 @@ client.once('ready', async () => {
     new SlashCommandBuilder().setName('set-welcom').setDescription('เปิดแผงควบคุมระบบต้อนรับ (Welcome Dashboard)'),
     new SlashCommandBuilder().setName('set-autorole').setDescription('ตั้งค่าระบบแจกยศอัตโนมัติสำหรับสมาชิกใหม่'),
     new SlashCommandBuilder().setName('set-security').setDescription('เปิดแผงควบคุมระบบป้องกันความปลอดภัยขั้นสูง'),
+    announcementCommand,
     levelCommand,
     leaderboardCommand,
     setupQuestCommand,
@@ -118,6 +120,8 @@ client.once('ready', async () => {
       setupCronJob(guildId, config.autoClear.time, config.autoClear.channelId);
     }
   }
+
+  loadAllAnnouncementCrons(client, serverConfigs);
 });
 
 function setupCronJob(guildId, timeStr, channelId) {
@@ -245,7 +249,7 @@ client.on('interactionCreate', async interaction => {
   }
   if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
 
-  const premiumCommands = ['shop', 'setup-quest', 'setup-in-game-shop', 'coins', 'setup-premium-shop', 'setup-order-ticket', 'add-coins', 'setup-media-guard', 'set-autoclear', 'setup-artist-card', 'boost-status'];
+  const premiumCommands = ['shop', 'setup-quest', 'setup-in-game-shop', 'coins', 'setup-premium-shop', 'setup-order-ticket', 'add-coins', 'setup-media-guard', 'set-autoclear', 'setup-artist-card', 'boost-status', 'setup-announcement'];
   if (interaction.isChatInputCommand() && premiumCommands.includes(interaction.commandName)) {
     const hasPremium = await isServerPremium(guildId, serverConfigs);
     if (!hasPremium) {
@@ -288,6 +292,9 @@ client.on('interactionCreate', async interaction => {
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'setup-order-ticket') {
     return await handleSetupOrderTicketCommand(interaction);
+  }
+  if (interaction.isChatInputCommand() && interaction.commandName === 'setup-announcement') {
+    return await handleSetupAnnouncementCommand(interaction, serverConfigs, saveConfigs, activeCronJobs, client);
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'shop') {
     return await handlePremiumShopCommand(interaction, serverConfigs);
