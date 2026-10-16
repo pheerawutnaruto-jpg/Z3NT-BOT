@@ -37,19 +37,19 @@ const PREMIUM_ITEMS = [
 
 const premiumShopCommand = new SlashCommandBuilder()
   .setName('shop')
-  .setDescription('💎 [PREMIUM] เปิดหน้าต่างร้านค้าพรีเมียมหลักเพื่อเลือกซื้อสินค้าและยศถาวร');
+  .setDescription('💎 [PREMIUM] เปิดร้านค้าพรีเมียม เติมเหรียญ และซื้อยศถาวร');
 
 const setupPremiumShopCommand = new SlashCommandBuilder()
   .setName('setup-premium-shop')
-  .setDescription('💎 [PREMIUM / ADMIN] ส่งแผงป้ายร้านค้าพรีเมียมถาวรและปุ่มเปิดร้านไปยังห้องนี้');
+  .setDescription('💎 [PREMIUM] ส่งแผงป้ายร้านค้าพรีเมียมถาวรไปยังห้องนี้ (สำหรับ Admin)');
 
 const coinsCommand = new SlashCommandBuilder()
   .setName('coins')
-  .setDescription('🪙 [PREMIUM] ตรวจสอบยอด Zen Coins และเหรียญคงเหลือในกระเป๋าของคุณ');
+  .setDescription('💎 [PREMIUM] เช็กยอด Zen Coins และเหรียญคงเหลือในกระเป๋าของคุณ');
 
 const addCoinsCommand = new SlashCommandBuilder()
   .setName('add-coins')
-  .setDescription('🪙 [PREMIUM / ADMIN] เติม Zen Coins เพิ่มให้กับสมาชิกที่ต้องการ')
+  .setDescription('💎 [PREMIUM] เติม Zen Coins ให้กับสมาชิก (สำหรับ Admin)')
   .addUserOption(option => option.setName('user').setDescription('เลือกสมาชิกที่ต้องการเติมเหรียญ').setRequired(true))
   .addIntegerOption(option => option.setName('amount').setDescription('จำนวน Zen Coins ที่ต้องการเติม').setRequired(true));
 
@@ -60,7 +60,7 @@ async function handleSetupPremiumShopCommand(interaction) {
 
   const embed = new EmbedBuilder()
     .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • OFFICIAL PREMIUM STORE')
-    .setDescription('บริการระบบเติม Zen Coins อัตโนมัติ\n\n📌 **คำแนะนำ:** คลิกปุ่มด้านล่างเพื่อเปิดหน้าต่างร้านค้าหลัก หรือใช้คำสั่ง `/shop` ได้ทันที')
+    .setDescription('ยินดีต้อนรับสู่ศูนย์รวมบริการพรีเมียมและระบบเติม Zen Coins อัตโนมัติ\n\n📌 **คำแนะนำ:** คลิกปุ่มด้านล่างเพื่อเปิดหน้าต่างร้านค้าหลัก หรือใช้คำสั่ง `/shop` ได้ทันที')
     .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1560424207702040647/1792104497426.jpg')
     .setColor('#FFD700');
 
