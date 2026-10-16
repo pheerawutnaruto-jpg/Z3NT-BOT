@@ -37,7 +37,7 @@ function getAutoCinemaDashboard(config) {
 
   const embed = new EmbedBuilder()
     .setTitle('⏰ 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼𝙎 • AUTO-CINEMA CONTROL PANEL')
-    .setDescription('แผงควบคุมระบบประกาศรอบฉายอัตโนมัติ คุณสามารถตั้งค่าเวลา รูปภาพ และเปิด-ปิดระบบได้ที่นี่ครับ')
+    .setDescription('แผงควบคุมระบบประกาศรอบฉายอัตโนมัติ คุณสามารถตั้งค่าเวลา ชื่อเรื่อง รูปภาพ เปิด-ปิด และทดลองส่งได้ที่นี่ครับ')
     .setColor('#E50914')
     .addFields(
       { name: '📥 สถานะระบบ', value: statusText, inline: true },
@@ -54,11 +54,15 @@ function getAutoCinemaDashboard(config) {
       .setStyle(config.enabled ? ButtonStyle.Danger : ButtonStyle.Success),
     new ButtonBuilder()
       .setCustomId('autocinema_edit_info')
-      .setLabel('✏️ ตั้งค่าข้อมูล (เวลา/ชื่อเรื่อง/รูป)')
+      .setLabel('✏️ ตั้งค่าข้อมูล (เวลา/ชื่อ/รูป)')
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
       .setCustomId('autocinema_edit_role')
       .setLabel('👑 เปลี่ยนยศที่แท็ก')
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId('autocinema_test_send')
+      .setLabel('🚀 ทดลองส่งข้อความทันที')
       .setStyle(ButtonStyle.Secondary)
   );
 
@@ -73,69 +77,69 @@ function getAutoCinemaDashboard(config) {
 }
 
 
-// 2. /cinema-broadcast (ประกาศ COMING SOON แบบกดส่งเอง)
+// 2. /cinema-broadcast (ประกาศ COMING SOON แบบกดส่งเอง พร้อมแผงควบคุมตั้งค่า)
 const cinemaBroadcastCommand = new SlashCommandBuilder()
   .setName('cinema-broadcast')
-  .setDescription('🎥 [CINEMA] ประกาศ COMING SOON รอบฉายภาพยนตร์ (สำหรับ Admin)')
-  .addStringOption(option =>
-    option.setName('title')
-      .setDescription('ชื่อภาพยนตร์')
-      .setRequired(true)
-  )
-  .addStringOption(option =>
-    option.setName('date')
-      .setDescription('วันที่ฉาย เช่น 25/10/2026 หรือ วันเสาร์นี้')
-      .setRequired(true)
-  )
-  .addChannelOption(option =>
-    option.setName('channel')
-      .setDescription('เลือกห้องสำหรับส่งประกาศ')
-      .addChannelTypes(ChannelType.GuildText)
-      .setRequired(true)
-  )
-  .addStringOption(option =>
-    option.setName('image')
-      .setDescription('ลิงก์รูปภาพโปสเตอร์หนัง')
-      .setRequired(false)
-  );
+  .setDescription('🎥 [CINEMA] แผงควบคุมและส่งประกาศ COMING SOON ภาพยนตร์ (สำหรับ Admin)');
 
-async function handleCinemaBroadcastCommand(interaction, serverConfigs) {
+async function handleCinemaBroadcastCommand(interaction, serverConfigs, saveConfigs) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
     return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้นที่จะใช้คำสั่งนี้ได้ครับ!', ephemeral: true });
   }
 
-  const title = interaction.options.getString('title');
-  const dateStr = interaction.options.getString('date');
-  const channel = interaction.options.getChannel('channel');
-  const customImage = interaction.options.getString('image');
+  const guildId = interaction.guildId;
+  if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
+  if (!serverConfigs[guildId].cinemaBroadcast) {
+    serverConfigs[guildId].cinemaBroadcast = {
+      title: 'ภาพยนตร์ฟอร์มยักษ์เรื่องใหม่',
+      dateStr: '25/10/2026',
+      channelId: null,
+      roleId: '1551183125076508713',
+      imageUrl: 'https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg'
+    };
+  }
 
-  const defaultImage = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg';
-  const imageUrl = (customImage && customImage.trim() !== '') ? customImage.trim() : defaultImage;
-  const roleId = '1551183125076508713'; // ยศสำหรับ COMING SOON / ประกาศทั่วไปตามสเปค
+  return await interaction.reply({ ...getCinemaBroadcastDashboard(serverConfigs[guildId].cinemaBroadcast), ephemeral: true });
+}
+
+function getCinemaBroadcastDashboard(config) {
+  const channelText = config.channelId ? `<#${config.channelId}>` : 'ยังไม่ได้เลือกห้อง';
+  const roleText = `<@&${config.roleId || '1551183125076508713'}>`;
 
   const embed = new EmbedBuilder()
-    .setTitle('🍿 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼𝙎 • COMING SOON')
-    .setDescription(
-      `🎬 **ชื่อเรื่อง:** ${title}\n` +
-      `📅 **กำหนดฉาย:** ${dateStr}`
-    )
+    .setTitle('🍿 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼𝙎 • COMING SOON CONTROL PANEL')
+    .setDescription('แผงควบคุมประกาศ COMING SOON คุณสามารถตั้งค่าข้อมูล หนัง วันที่ และกดส่งประกาศหรือทดลองส่งได้ที่นี่ครับ')
     .setColor('#E50914')
-    .setImage(imageUrl);
+    .addFields(
+      { name: '🎬 ชื่อเรื่อง', value: `\`${config.title || 'ภาพยนตร์ฟอร์มยักษ์เรื่องใหม่'}\``, inline: true },
+      { name: '📅 วันที่ฉาย (d/m/y)', value: `\`${config.dateStr || '25/10/2026'}\``, inline: true },
+      { name: '📢 ห้องที่จะส่ง', value: channelText, inline: true },
+      { name: '👥 ยศที่แท็ก', value: roleText, inline: true }
+    );
 
-  const row = new ActionRowBuilder().addComponents(
+  const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId('cinema_temp_ticket')
-      .setLabel('🎟️ รับตั๋วเข้าชม')
-      .setStyle(ButtonStyle.Danger)
+      .setCustomId('cinemabc_edit_info')
+      .setLabel('✏️ ตั้งค่าข้อมูล (ชื่อ/วันที่/รูป)')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId('cinemabc_edit_role')
+      .setLabel('👑 เปลี่ยนยศที่แท็ก')
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId('cinemabc_test_send')
+      .setLabel('🚀 ส่งประกาศ COMING SOON')
+      .setStyle(ButtonStyle.Success)
   );
 
-  await channel.send({ 
-    content: `<@&${roleId}>`, 
-    embeds: [embed], 
-    components: [row] 
-  });
+  const channelRow = new ActionRowBuilder().addComponents(
+    new ChannelSelectMenuBuilder()
+      .setCustomId('cinemabc_select_channel')
+      .setPlaceholder('📂 เลือกห้องสำหรับส่งประกาศ COMING SOON')
+      .addChannelTypes(ChannelType.GuildText)
+  );
 
-  await interaction.reply({ content: `✅ ส่งประกาศ COMING SOON ไปยังห้อง <#${channel.id}> เรียบร้อยแล้วครับ!`, ephemeral: true });
+  return { embeds: [embed], components: [row1, channelRow] };
 }
 
 
@@ -167,11 +171,11 @@ async function handleSetupCinemaCommand(interaction) {
   const permRoleId = '1560731553766707241';
 
   const embed = new EmbedBuilder()
-    .setTitle('Zen cinema • box office')
+    .setTitle('🎟️ Z E N  C I N E M A  •  B O X  O F F I C E')
     .setDescription(
-      'บริการจำหน่ายตั๋วรับชมภาพยนตร์\n\n' +
-      `> <@&${permRoleId}>\n` +
-      '> รับแจ้งเตือนล่วงหน้า'
+      '✨ **บริการจำหน่ายตั๋วรับชมภาพยนตร์คอมมูนิตี้** ✨\n\n' +
+      `> 📌 **Role แจ้งเตือน:** <@&${permRoleId}>\n` +
+      '> 🔔 **สิทธิประโยชน์:** รับแจ้งเตือนรอบฉายพิเศษล่วงหน้าก่อนใคร'
     )
     .setColor('#E50914')
     .setImage(imageUrl);
@@ -179,7 +183,7 @@ async function handleSetupCinemaCommand(interaction) {
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('cinema_perm_ticket')
-      .setLabel('🎟️ รับตั๋วเข้าชม')
+      .setLabel('🎟️ รับตั๋วเข้าชม (ถาวร)')
       .setStyle(ButtonStyle.Danger)
   );
 
@@ -188,7 +192,7 @@ async function handleSetupCinemaCommand(interaction) {
 }
 
 
-// 🔘 จัดการปุ่มกดรับตั๋วและแผงควบคุม Auto-Cinema
+// 🔘 จัดการปุ่มกดรับตั๋วและแผงควบคุมต่างๆ
 async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
   const id = interaction.customId;
 
@@ -198,7 +202,7 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
     const member = interaction.member;
 
     if (member.roles.cache.has(permRoleId)) {
-      return await interaction.reply({ content: `🎟️ คุณมีตั๋วและได้รับยศ <@&${permRoleId}> เรียบร้อยแล้วครับ!`, ephemeral: true });
+      return await interaction.reply({ content: `🎟️ คุณมีตั๋วและได้รับยศถาวร <@&${permRoleId}> เรียบร้อยแล้วครับ!`, ephemeral: true });
     }
 
     try {
@@ -210,9 +214,9 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
     }
   }
 
-  // 2. ปุ่มรับตั๋วชั่วคราวจาก COMING SOON (ยศ 1551183125076508713 ออกใน 2 ชั่วโมง)
+  // 2. ปุ่มรับตั๋วชั่วคราวจาก COMING SOON (ยศ 1551006184272560148 ออกใน 2 ชั่วโมง)
   if (id === 'cinema_temp_ticket') {
-    const tempRoleId = '1551183125076508713';
+    const tempRoleId = '1551006184272560148';
     const member = interaction.member;
 
     if (member.roles.cache.has(tempRoleId)) {
@@ -282,35 +286,164 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
     return await interaction.showModal(modal);
   }
 
+  // 6. ปุ่มทดลองส่งข้อความ Auto-Cinema
+  if (id === 'autocinema_test_send') {
+    const guildId = interaction.guildId;
+    const config = serverConfigs[guildId].autoCinema;
+    if (!config.channelId) {
+      return await interaction.reply({ content: '❌ กรุณาเลือกห้องส่งประกาศจากเมนูด้านล่างก่อนทดลองส่งครับ!', ephemeral: true });
+    }
+
+    try {
+      const channel = await interaction.guild.channels.fetch(config.channelId).catch(() => null);
+      if (!channel || !channel.isTextBased()) {
+        return await interaction.reply({ content: '❌ ไม่พบห้องที่เลือก กรุณาเลือกห้องใหม่อีกครั้งครับ', ephemeral: true });
+      }
+
+      const todayStr = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+      const embed = new EmbedBuilder()
+        .setTitle('🍿 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼S • NOW SHOWING')
+        .setDescription(
+          `🎬 **ชื่อเรื่อง:** ${config.title || 'ภาพยนตร์รอบพิเศษ'}\n` +
+          `⏰ **เวลาฉาย:** วันนี้เวลา ${config.time || '20:00'} น.`
+        )
+        .setColor('#E50914')
+        .setImage(config.imageUrl || 'https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg')
+        .setFooter({ text: `วันที่ฉาย: ${todayStr}` });
+
+      await channel.send({
+        content: `<@&${config.roleId || '1551006184272560148'}>`,
+        embeds: [embed]
+      });
+
+      return await interaction.reply({ content: `✅ ส่งข้อความทดลองไปยังห้อง <#${config.channelId}> เรียบร้อยแล้วครับ!`, ephemeral: true });
+    } catch (err) {
+      console.error('Error testing auto-cinema send:', err);
+      return await interaction.reply({ content: '❌ เกิดข้อผิดพลาดในการส่งข้อความ กรุณาตรวจสอบสิทธิ์ของบอทครับ', ephemeral: true });
+    }
+  }
+
+  // 7. ปุ่มตั้งค่าข้อมูล COMING SOON Broadcast
+  if (id === 'cinemabc_edit_info') {
+    const config = serverConfigs[interaction.guildId].cinemaBroadcast;
+    const modal = new ModalBuilder().setCustomId('cinemaBcInfoModal').setTitle('ตั้งค่า COMING SOON');
+    
+    const titleInput = new TextInputBuilder().setCustomId('titleInput').setLabel('ชื่อภาพยนตร์').setStyle(TextInputStyle.Short).setValue(config.title || '').setRequired(true);
+    const dateInput = new TextInputBuilder().setCustomId('dateInput').setLabel('วันที่ฉาย (d/m/y)').setStyle(TextInputStyle.Short).setValue(config.dateStr || '').setRequired(true);
+    const imageInput = new TextInputBuilder().setCustomId('imageInput').setLabel('ลิงก์รูปภาพโปสเตอร์ (Image URL)').setStyle(TextInputStyle.Short).setValue(config.imageUrl || '').setRequired(false);
+
+    modal.addComponents(new ActionRowBuilder().addComponents(titleInput), new ActionRowBuilder().addComponents(dateInput), new ActionRowBuilder().addComponents(imageInput));
+    return await interaction.showModal(modal);
+  }
+
+  // 8. ปุ่มเปลี่ยนยศ COMING SOON Broadcast
+  if (id === 'cinemabc_edit_role') {
+    const config = serverConfigs[interaction.guildId].cinemaBroadcast;
+    const modal = new ModalBuilder().setCustomId('cinemaBcRoleModal').setTitle('เปลี่ยนยศ COMING SOON');
+    const roleInput = new TextInputBuilder().setCustomId('roleIdInput').setLabel('ระบุ Role ID ที่ต้องการแท็ก').setStyle(TextInputStyle.Short).setValue(config.roleId || '1551183125076508713').setRequired(true);
+    modal.addComponents(new ActionRowBuilder().addComponents(roleInput));
+    return await interaction.showModal(modal);
+  }
+
+  // 9. ปุ่มส่งประกาศ COMING SOON (พร้อมลบหลัง 30 นาที)
+  if (id === 'cinemabc_test_send') {
+    const guildId = interaction.guildId;
+    const config = serverConfigs[guildId].cinemaBroadcast;
+    if (!config.channelId) {
+      return await interaction.reply({ content: '❌ กรุณาเลือกห้องส่งประกาศ COMING SOON จากเมนูด้านล่างก่อนครับ!', ephemeral: true });
+    }
+
+    try {
+      const channel = await interaction.guild.channels.fetch(config.channelId).catch(() => null);
+      if (!channel || !channel.isTextBased()) {
+        return await interaction.reply({ content: '❌ ไม่พบห้องที่เลือก กรุณาเลือกห้องใหม่อีกครั้งครับ', ephemeral: true });
+      }
+
+      const defaultImage = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg';
+      const imageUrl = (config.imageUrl && config.imageUrl.trim() !== '') ? config.imageUrl.trim() : defaultImage;
+
+      const embed = new EmbedBuilder()
+        .setTitle('🍿 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼S • COMING SOON')
+        .setDescription(
+          `🎬 **ชื่อเรื่อง:** ${config.title}\n` +
+          `📅 **กำหนดฉาย:** ${config.dateStr}`
+        )
+        .setColor('#E50914')
+        .setImage(imageUrl);
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId('cinema_temp_ticket')
+          .setLabel('🎟️ รับตั๋วเข้าชม')
+          .setStyle(ButtonStyle.Danger)
+      );
+
+      const sentMsg = await channel.send({ 
+        content: `<@&${config.roleId || '1551183125076508713'}>`, 
+        embeds: [embed], 
+        components: [row] 
+      });
+
+      // ตั้งเวลาลบข้อความหลังผ่านไป 30 นาที (1800000 มิลลิวินาที)
+      setTimeout(async () => {
+        try {
+          if (sentMsg && typeof sentMsg.delete === 'function') {
+            await sentMsg.delete().catch(() => {});
+          }
+        } catch (e) {
+          console.error('Error auto-deleting cinema broadcast message:', e);
+        }
+      }, 30 * 60 * 1000);
+
+      return await interaction.reply({ content: `✅ ส่งประกาศ COMING SOON ไปยังห้อง <#${config.channelId}> เรียบร้อยแล้ว (ข้อความจะถูกลบอัตโนมัติใน 30 นาทีครับ)!`, ephemeral: true });
+    } catch (err) {
+      console.error('Error sending cinema broadcast:', err);
+      return await interaction.reply({ content: '❌ เกิดข้อผิดพลาดในการส่งประกาศ กรุณาตรวจสอบสิทธิ์ของบอทครับ', ephemeral: true });
+    }
+  }
+
   return false;
 }
 
-// 📂 จัดการ Channel Select Menu สำหรับ Auto-Cinema
+
+// 📂 จัดการ Channel Select Menu สำหรับ Auto-Cinema และ Broadcast
 async function handleAutoCinemaSelect(interaction, serverConfigs, saveConfigs, client) {
-  if (interaction.customId !== 'autocinema_select_channel') return false;
-
   const guildId = interaction.guildId;
-  const channelId = interaction.values[0];
-  const config = serverConfigs[guildId].autoCinema;
-  
-  config.channelId = channelId;
-  await saveConfigs(serverConfigs);
 
-  if (config.enabled) {
-    setupAutoCinemaCron(guildId, config, client, serverConfigs);
+  if (interaction.customId === 'autocinema_select_channel') {
+    const channelId = interaction.values[0];
+    const config = serverConfigs[guildId].autoCinema;
+    config.channelId = channelId;
+    await saveConfigs(serverConfigs);
+
+    if (config.enabled) {
+      setupAutoCinemaCron(guildId, config, client, serverConfigs);
+    }
+
+    await interaction.update(getAutoCinemaDashboard(config));
+    return true;
   }
 
-  await interaction.update(getAutoCinemaDashboard(config));
-  return true;
+  if (interaction.customId === 'cinemabc_select_channel') {
+    const channelId = interaction.values[0];
+    const config = serverConfigs[guildId].cinemaBroadcast;
+    config.channelId = channelId;
+    await saveConfigs(serverConfigs);
+
+    await interaction.update(getCinemaBroadcastDashboard(config));
+    return true;
+  }
+
+  return false;
 }
 
-// 📝 จัดการ Modal Submit ของ Auto-Cinema
+// 📝 จัดการ Modal Submit ของ Auto-Cinema และ Broadcast
 async function handleAutoCinemaModal(interaction, serverConfigs, saveConfigs, client) {
   const guildId = interaction.guildId;
-  if (!serverConfigs[guildId] || !serverConfigs[guildId].autoCinema) return false;
-  const config = serverConfigs[guildId].autoCinema;
+  if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
 
   if (interaction.customId === 'autoCinemaInfoModal') {
+    const config = serverConfigs[guildId].autoCinema;
     const timeVal = interaction.fields.getTextInputValue('timeInput').trim();
     if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(timeVal)) {
       return await interaction.reply({ content: '❌ รูปแบบเวลาไม่ถูกต้อง กรุณาใช้รูปแบบ HH:MM เช่น 20:00', ephemeral: true });
@@ -331,13 +464,33 @@ async function handleAutoCinemaModal(interaction, serverConfigs, saveConfigs, cl
   }
 
   if (interaction.customId === 'autoCinemaRoleModal') {
+    const config = serverConfigs[guildId].autoCinema;
     config.roleId = interaction.fields.getTextInputValue('roleIdInput').trim();
     await saveConfigs(serverConfigs);
     return await interaction.reply({ content: `✅ เปลี่ยนยศที่แท็กเป็น <@&${config.roleId}> เรียบร้อยแล้ว!`, ephemeral: true });
   }
 
+  if (interaction.customId === 'cinemaBcInfoModal') {
+    const config = serverConfigs[guildId].cinemaBroadcast;
+    config.title = interaction.fields.getTextInputValue('titleInput').trim();
+    config.dateStr = interaction.fields.getTextInputValue('dateInput').trim();
+    const imgVal = interaction.fields.getTextInputValue('imageInput').trim();
+    if (imgVal) config.imageUrl = imgVal;
+
+    await saveConfigs(serverConfigs);
+    return await interaction.reply({ content: '✅ บันทึกข้อมูล COMING SOON เรียบร้อยแล้ว!', ephemeral: true });
+  }
+
+  if (interaction.customId === 'cinemaBcRoleModal') {
+    const config = serverConfigs[guildId].cinemaBroadcast;
+    config.roleId = interaction.fields.getTextInputValue('roleIdInput').trim();
+    await saveConfigs(serverConfigs);
+    return await interaction.reply({ content: `✅ เปลี่ยนยศ COMING SOON เป็น <@&${config.roleId}> เรียบร้อยแล้ว!`, ephemeral: true });
+  }
+
   return false;
 }
+
 
 // ⏰ ตั้งค่า Cron Job สำหรับ Auto-Cinema
 function setupAutoCinemaCron(guildId, config, client, serverConfigs) {
@@ -354,14 +507,16 @@ function setupAutoCinemaCron(guildId, config, client, serverConfigs) {
       const channel = await guild.channels.fetch(config.channelId).catch(() => null);
       if (!channel || !channel.isTextBased()) return;
 
+      const todayStr = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
       const embed = new EmbedBuilder()
-        .setTitle('🍿 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼𝙎 • NOW SHOWING')
+        .setTitle('🍿 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼S • NOW SHOWING')
         .setDescription(
           `🎬 **ชื่อเรื่อง:** ${config.title || 'ภาพยนตร์รอบพิเศษ'}\n` +
           `⏰ **เวลาฉาย:** วันนี้เวลา ${config.time} น.`
         )
         .setColor('#E50914')
-        .setImage(config.imageUrl || 'https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg');
+        .setImage(config.imageUrl || 'https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg')
+        .setFooter({ text: `วันที่ฉาย: ${todayStr}` });
 
       await channel.send({
         content: `<@&${config.roleId || '1551006184272560148'}>`,
