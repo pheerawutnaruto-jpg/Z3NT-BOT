@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits } = require('discord.js');
 
 const setupPremiumShopCommand = new SlashCommandBuilder()
-  .setName('setup-shop')
+  .setName('setup-premium-shop')
   .setDescription('💎 ส่งแผงร้านค้าพรีเมียมแบบเลือกสินค้าและสร้างห้องออร์เดอร์ (สำหรับ Admin)');
 
 async function handleSetupPremiumShopCommand(interaction) {
