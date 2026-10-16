@@ -23,6 +23,7 @@ const { setupArtistCommand, handleSetupArtistCommand, handleArtistButton, handle
 const { setupMediaGuardCommand, handleSetupMediaGuardCommand, handleMediaGuardMessage } = require('./media_guard');
 const { setupOrderTicketCommand, handleSetupOrderTicketCommand, handleOrderTicketSelect, handleOrderPaymentButton, handleCloseTicketButton } = require('./order_ticket');
 const { isServerPremium, grantPremiumCommand, handleGrantPremiumCommand } = require('./license');
+const { generateWelcomeCard } = require('./canvas_card');
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
@@ -190,41 +191,15 @@ client.on('guildMemberAdd', async member => {
     const channel = await member.guild.channels.fetch(config.channelId);
     if (!channel) return;
 
+    const attachment = await generateWelcomeCard(member);
+
     const embedConfig = config.embed || {
-      title: '',
-      description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!',
-      color: '#66FFFF',
-      image: '',
-      footerText: '',
-      footerIcon: '',
-      timestamp: 'no'
+      description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!'
     };
 
-    const finalTitle = embedConfig.title ? embedConfig.title.replace('{user}', member.user.username).replace('{server}', member.guild.name) : null;
     const finalDesc = embedConfig.description.replace('{user}', `${member}`).replace('{server}', member.guild.name);
 
-    let embedColor = '#66FFFF';
-    try { embedColor = embedConfig.color; } catch (e) {}
-
-    const embed = new EmbedBuilder().setDescription(finalDesc).setColor(embedColor);
-    if (finalTitle) embed.setTitle(finalTitle);
-    if (embedConfig.image && embedConfig.image.trim() !== '') embed.setImage(embedConfig.image.trim());
-
-    if (embedConfig.footerText && embedConfig.footerText.trim() !== '') {
-      const memberCount = member.guild.memberCount.toString();
-      const finalFooterText = embedConfig.footerText.replace('{server_membercount}', memberCount);
-      if (embedConfig.footerIcon && embedConfig.footerIcon.trim() !== '') {
-        embed.setFooter({ text: finalFooterText, iconURL: embedConfig.footerIcon.trim() });
-      } else {
-        embed.setFooter({ text: finalFooterText });
-      }
-    }
-
-    if (embedConfig.timestamp && embedConfig.timestamp.toLowerCase() === 'yes') {
-      embed.setTimestamp();
-    }
-
-    await channel.send({ embeds: [embed] });
+    await channel.send({ content: finalDesc, files: [attachment] });
   } catch (err) {
     console.error('Send welcome error:', err);
   }
@@ -456,7 +431,6 @@ client.on('interactionCreate', async interaction => {
       const titleInput = new TextInputBuilder().setCustomId('cardTitle').setLabel('Title').setStyle(TextInputStyle.Short).setValue(config.levelConfig.cardTitle || '').setRequired(true);
       const descInput = new TextInputBuilder().setCustomId('cardDesc').setLabel('Description').setStyle(TextInputStyle.Paragraph).setValue(config.levelConfig.cardDescription || '').setRequired(true);
       const colorInput = new TextInputBuilder().setCustomId('embedColor').setLabel('Hex Color').setStyle(TextInputStyle.Short).setValue(config.levelConfig.embedColor || '#66FFFF').setRequired(true);
-      // แก้ไขจุดนี้: ดึงค่าจาก config มาแสดง แทนการใส่ข้อความยาวๆ เป็น value
       const imageInput = new TextInputBuilder().setCustomId('statsCardImg').setLabel('Image URL').setStyle(TextInputStyle.Short).setValue(config.levelConfig.statsCardImageUrl || '').setRequired(false);
       modal.addComponents(new ActionRowBuilder().addComponents(titleInput), new ActionRowBuilder().addComponents(descInput), new ActionRowBuilder().addComponents(colorInput), new ActionRowBuilder().addComponents(imageInput));
       return await interaction.showModal(modal);
@@ -502,24 +476,16 @@ client.on('interactionCreate', async interaction => {
       if (!config.channelId) {
         return await interaction.reply({ content: '❌ กรุณาเลือกช่องสำหรับส่งข้อความต้อนรับก่อนกดทดสอบครับ!', ephemeral: true });
       }
-      await interaction.reply({ content: `🔄 กำลังส่งข้อความทดสอบ...`, ephemeral: true });
+      await interaction.reply({ content: `🔄 กำลังส่งการ์ดต้อนรับทดสอบ...`, ephemeral: true });
       try {
         const channel = await interaction.guild.channels.fetch(config.channelId);
         if (channel) {
-          const embedConfig = config.embed;
-          const finalTitle = embedConfig.title ? embedConfig.title.replace('{user}', interaction.user.username).replace('{server}', interaction.guild.name) : null;
+          const attachment = await generateWelcomeCard(interaction.member);
+          const embedConfig = config.embed || {
+            description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!'
+          };
           const finalDesc = embedConfig.description.replace('{user}', `${interaction.user}`).replace('{server}', interaction.guild.name);
-          const embed = new EmbedBuilder().setDescription(finalDesc).setColor(embedConfig.color || '#66FFFF');
-          if (finalTitle) embed.setTitle(finalTitle);
-          if (embedConfig.image?.trim()) embed.setImage(embedConfig.image.trim());
-          if (embedConfig.footerText?.trim()) {
-            const memberCount = interaction.guild.memberCount.toString();
-            const finalFooterText = embedConfig.footerText.replace('{server_membercount}', memberCount);
-            if (embedConfig.footerIcon?.trim()) embed.setFooter({ text: finalFooterText, iconURL: embedConfig.footerIcon.trim() });
-            else embed.setFooter({ text: finalFooterText });
-          }
-          if (embedConfig.timestamp?.toLowerCase() === 'yes') embed.setTimestamp();
-          await channel.send({ embeds: [embed] });
+          await channel.send({ content: finalDesc, files: [attachment] });
         }
       } catch (err) {
         console.error('Test welcome error:', err);
@@ -710,7 +676,6 @@ function getDashboardContent(config) {
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('toggle_welcome').setLabel(config.welcomeEnabled ? 'ปิด' : 'เปิด').setStyle(config.welcomeEnabled ? ButtonStyle.Danger : ButtonStyle.Success),
     new ButtonBuilder().setCustomId('edit_embed').setLabel('ตั้งค่า Embed').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('edit_footer').setLabel('ตั้งค่า Footer').setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId('test_welcome').setLabel('ทดสอบ').setStyle(ButtonStyle.Secondary)
   );
   const channelRow = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('select_channel').setPlaceholder('📂 เลือกห้องต้อนรับ').addChannelTypes(ChannelType.GuildText));
