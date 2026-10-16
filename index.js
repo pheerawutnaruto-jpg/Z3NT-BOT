@@ -25,13 +25,16 @@ const { setupOrderTicketCommand, handleSetupOrderTicketCommand, handleOrderTicke
 const { isServerPremium, grantPremiumCommand, handleGrantPremiumCommand } = require('./license');
 const { generateWelcomeCard } = require('./canvas_card');
 const { 
-  setupCinemaCommand, 
-  cinemaBroadcastCommand, 
-  cinemaScheduleCommand, 
-  handleSetupCinemaCommand, 
-  handleCinemaBroadcastCommand, 
-  handleCinemaButton, 
-  loadCinemaCronJobs 
+  autoCinemaCommand,
+  cinemaBroadcastCommand,
+  setupCinemaCommand,
+  handleAutoCinemaCommand,
+  handleCinemaBroadcastCommand,
+  handleSetupCinemaCommand,
+  handleCinemaButton,
+  handleAutoCinemaSelect,
+  handleAutoCinemaModal,
+  loadAllAutoCinemaCrons 
 } = require('./cinema');
 
 const redis = new Redis({
@@ -85,7 +88,7 @@ client.once('ready', async () => {
   console.log(`Bot Online แล้วจ้า: ${client.user.tag}`);
 
   startVoiceXpCron(client, serverConfigs, saveConfigs);
-  loadCinemaCronJobs(client, serverConfigs);
+  loadAllAutoCinemaCrons(client, serverConfigs);
 
   const commands = [
     new SlashCommandBuilder().setName('ping').setDescription('เช็กความเร็วและสถานะของบอท'),
@@ -106,9 +109,9 @@ client.once('ready', async () => {
     setupArtistCommand,
     setupMediaGuardCommand,
     setLevelCommand,
-    setupCinemaCommand,
+    autoCinemaCommand,
     cinemaBroadcastCommand,
-    cinemaScheduleCommand,
+    setupCinemaCommand,
     new SlashCommandBuilder().setName('clear').setDescription('ลบข้อความในแชทจำนวน 1-100 ข้อความ')
       .addIntegerOption(option => option.setName('amount').setDescription('จำนวนข้อความที่ต้องการลบ (1-100)').setRequired(true)),
     new SlashCommandBuilder().setName('set-autoclear').setDescription('💎 [PREMIUM] ตั้งเวลาระบบลบข้อความอัตโนมัติ')
@@ -258,7 +261,7 @@ client.on('interactionCreate', async interaction => {
   }
   if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
 
-  const premiumCommands = ['shop', 'setup-quest', 'setup-in-game-shop', 'coins', 'setup-premium-shop', 'setup-order-ticket', 'add-coins', 'setup-media-guard', 'set-autoclear', 'setup-artist-card', 'boost-status', 'cinema-setup', 'cinema-broadcast', 'cinema-schedule'];
+  const premiumCommands = ['shop', 'setup-quest', 'setup-in-game-shop', 'coins', 'setup-premium-shop', 'setup-order-ticket', 'add-coins', 'setup-media-guard', 'set-autoclear', 'setup-artist-card', 'boost-status', 'cinema-setup', 'cinema-broadcast', 'auto-cinema'];
   if (interaction.isChatInputCommand() && premiumCommands.includes(interaction.commandName)) {
     const hasPremium = await isServerPremium(guildId, serverConfigs);
     if (!hasPremium) {
@@ -327,10 +330,10 @@ client.on('interactionCreate', async interaction => {
     return await handleSetupCinemaCommand(interaction);
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'cinema-broadcast') {
-    return await handleCinemaBroadcastCommand(interaction);
+    return await handleCinemaBroadcastCommand(interaction, serverConfigs);
   }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'cinema-schedule') {
-    return await interaction.reply({ content: '⏰ ระบบตั้งเวลาประกาศรอบฉายอัตโนมัติกำลังพัฒนาเพิ่มเติมครับ!', ephemeral: true });
+  if (interaction.isChatInputCommand() && interaction.commandName === 'auto-cinema') {
+    return await handleAutoCinemaCommand(interaction, serverConfigs, saveConfigs, client);
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'set-level') {
     return await handleSetLevelCommand(interaction, serverConfigs);
@@ -378,7 +381,7 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isButton()) {
     const id = interaction.customId;
 
-    const handledCinemaBtn = await handleCinemaButton(interaction);
+    const handledCinemaBtn = await handleCinemaButton(interaction, serverConfigs, saveConfigs);
     if (handledCinemaBtn) return;
 
     const hasPremiumBtn = await isServerPremium(guildId, serverConfigs);
@@ -409,7 +412,8 @@ client.on('interactionCreate', async interaction => {
       'edit_voice_amount', 'edit_level_rate', 'edit_level_card', 
       'edit_level_messages', 'set_role_reward', 'delete_role_reward', 
       'sec_config_time', 'edit_embed', 'edit_footer', 'test_welcome',
-      'open_artist_card_modal', 'open_premium_shop_panel'
+      'open_artist_card_modal', 'open_premium_shop_panel',
+      'autocinema_edit_info', 'autocinema_edit_role'
     ];
 
     if (!modalButtons.includes(id)) {
@@ -542,6 +546,9 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.isStringSelectMenu()) {
+    const handledAutoCinemaSelect = await handleAutoCinemaSelect(interaction, serverConfigs, saveConfigs, client);
+    if (handledAutoCinemaSelect) return;
+
     const handledOrder = await handleOrderTicketSelect(interaction, serverConfigs);
     if (handledOrder) return;
 
@@ -616,6 +623,9 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.isModalSubmit()) {
+    const handledAutoCinemaModal = await handleAutoCinemaModal(interaction, serverConfigs, saveConfigs, client);
+    if (handledAutoCinemaModal) return;
+
     const handledArtistModal = await handleArtistModalSubmit(interaction, serverConfigs, saveConfigs);
     if (handledArtistModal) return;
 
