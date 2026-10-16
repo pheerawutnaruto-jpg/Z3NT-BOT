@@ -2,7 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Butt
 
 const setupQuestCommand = new SlashCommandBuilder()
   .setName('setup-quest')
-  .setDescription('🎁 [PREMIUM / ADMIN] ส่งแผงปุ่มกดรับเควสต์สุ่ม Zen Coins ประจำวันถาวรไปยังห้องนี้');
+  .setDescription('💎 [PREMIUM] ส่งแผงปุ่มกดรับเควสต์ประจำวันถาวรไปยังห้องนี้ (สำหรับ Admin)');
 
 async function handleSetupQuestCommand(interaction) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
@@ -11,7 +11,7 @@ async function handleSetupQuestCommand(interaction) {
 
   const embed = new EmbedBuilder()
     .setTitle('🎁 𝙕𝙀𝙉 𝘽𝙊𝙏 • DAILY QUEST')
-    .setDescription('กดปุ่มด้านล่างเพื่อสุ่มรับ **Zen Coins** ฟรีประจำวัน (รีเซ็ตทุกๆ 24 ชั่วโมง) ลุ้นรับ 20 Coins ทุกวัน!')
+    .setDescription('กดปุ่มด้านล่างเพื่อสุ่มรับ **Zen Coins** ฟรีประจำวัน (รีเซ็ตทุกๆ 24 ชั่วโมง) ลุ้นรับ 10 ถึง 20 Coins ทุกวัน!')
     .setColor('#66FFFF');
 
   const row = new ActionRowBuilder().addComponents(
