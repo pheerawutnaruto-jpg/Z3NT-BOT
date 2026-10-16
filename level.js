@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, RoleSelectMenuBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
 const cron = require('node-cron');
 const { generateProfileCard } = require('./canvas_card');
-const { isServerPremium } = require('./status'); // อัปเดตจาก ./license เป็น ./status
+const { isServerPremium } = require('./license');
 
 const pendingRoleRewardImages = new Map();
 
@@ -270,10 +270,10 @@ function handleCommandLeveling(interaction, serverConfigs, saveConfigs) {
 
 const levelCommand = new SlashCommandBuilder()
   .setName('level')
-  .setDescription('เช็กเลเวลและค่าประสบการณ์ (XP)')
+  .setDescription('📊 เช็กระดับเลเวล ค่าประสบการณ์ (XP) และการ์ดสเตตัสส่วนตัวของคุณ')
   .addUserOption(option =>
     option.setName('user')
-      .setDescription('เลือกสมาชิกที่ต้องการดูเลเวล')
+      .setDescription('เลือกสมาชิกที่ต้องการตรวจสอบเลเวล')
       .setRequired(false)
   );
 
@@ -322,7 +322,7 @@ async function handleLevelCommand(interaction, serverConfigs) {
 
 const leaderboardCommand = new SlashCommandBuilder()
   .setName('leaderboard')
-  .setDescription('ดู 10 อันดับผู้ที่มีเลเวลและ XP สูงสุดในเซิร์ฟเวอร์');
+  .setDescription('🏆 ตารางจัดอันดับ 10 สมาชิกที่มีเลเวลและค่าประสบการณ์ (XP) สูงสุดในเซิร์ฟเวอร์');
 
 async function handleLeaderboardCommand(interaction, serverConfigs) {
   const guildId = interaction.guildId;
@@ -364,7 +364,7 @@ async function handleLeaderboardCommand(interaction, serverConfigs) {
 
 const setLevelCommand = new SlashCommandBuilder()
   .setName('set-level')
-  .setDescription('เปิดแผงควบคุมตั้งค่าระบบเลเวลและห้องเสียง');
+  .setDescription('⚙️ [ADMIN] เปิดแผงควบคุมระบบเลเวล ตั้งค่าเรต XP ห้องเสียง และยศรางวัล');
 
 function getLevelDashboardContent(config) {
   if (!config.levelConfig) {
