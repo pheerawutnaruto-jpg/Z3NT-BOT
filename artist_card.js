@@ -31,23 +31,23 @@ async function handleArtistButton(interaction, serverConfigs) {
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
   
-  // 📌 ID ของยศถาวร (ใส่เลขยศถาวรที่คุณให้มา)
-  const artistRoleId = '1560224726868295740';     
-  const artist3dRoleId = 'YOUR_ARTIST_3D_ROLE_ID';  // 👈 (ถ้ามีอีกยศ ให้ใส่ ID ของยศ 3 วัน หรือลบออกได้ถ้าไม่มี)
+  // 📌 ID ของยศ Artist และยศเช่า 3 วัน
+  const artistRoleId = '1560224726868295740';     // ยศ Artist ถาวร
+  const artist3dRoleId = '1560136361015513108';  // ยศ Aritist | 3d (เช่า 3 วัน)
 
   const member = interaction.member;
   const config = serverConfigs[guildId] || {};
   const userStat = config.levels?.[userId] || {};
   const now = Date.now();
 
-  // 🔍 1. เช็กจากยศถาวรจริงๆ บน Discord
+  // 🔍 1. เช็กจากยศจริงๆ บน Discord ทั้งแบบถาวรและแบบ 3 วัน
   const hasArtistRole = member.roles.cache.has(artistRoleId);
-  const hasArtist3dRole = artist3dRoleId !== 'YOUR_ARTIST_3D_ROLE_ID' && member.roles.cache.has(artist3dRoleId);
+  const hasArtist3dRole = member.roles.cache.has(artist3dRoleId);
 
-  // ⏳ 2. เช็กจากระบบบัตรเช่า 3 วันใน Database (ถ้ามีคนซื้อแบบเช่า)
+  // ⏳ 2. เช็กจากระบบฐานข้อมูลบัตรเช่า (กรณีระบบบันทึกสถานะเวลา)
   const hasTempAccess = userStat.artistUntil && userStat.artistUntil > now;
 
-  // ถ้าไม่มีทั้งยศถาวรและไม่มีบัตรเช่า ถึงจะบล็อก
+  // ถ้าไม่มีทั้งยศถาวร ยศ 3 วัน และไม่มีสิทธิ์ในระบบ ถึงจะบล็อก
   if (!hasArtistRole && !hasArtist3dRole && !hasTempAccess) {
     return await interaction.reply({ 
       content: '❌ คุณไม่มีสิทธิ์ใช้งาน! เฉพาะผู้ที่มี **ยศ Artist**, **Aritist | 3d** หรือมีบัตรเช่า 3 วันเท่านั้นที่จะเปลี่ยนพื้นหลังการ์ดได้', 
