@@ -730,4 +730,8 @@ async function sendAutoroleDashboard(target) {
   }
 }
 
+process.on('unhandledRejection', error => {
+  console.error('Unhandled promise rejection:', error);
+});
+
 client.login(process.env.DISCORD_TOKEN);
