@@ -2,28 +2,12 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Butt
 
 const PREMIUM_ITEMS = [
   { 
-    id: 'buy_coins_5', 
-    name: '🪙 เติม 5 Zen Coins', 
-    price: 5, 
-    coins: 5, 
-    type: 'topup',
-    description: 'เติมแพ็กเกจ 5 บาท รับทันที 5 Zen Coins เข้ากระเป๋าสำหรับซื้อไอเทมในเซิร์ฟเวอร์!' 
-  },
-  { 
     id: 'buy_coins_10', 
     name: '🪙 เติม 10 Zen Coins', 
     price: 10, 
     coins: 10, 
     type: 'topup',
-    description: 'เติมแพ็กเกจ 10 บาท รับทันที 10 Zen Coins เข้ากระเป๋าสำหรับซื้อไอเทมในเซิร์ฟเวอร์!' 
-  },
-  { 
-    id: 'buy_coins_20', 
-    name: '🪙 เติม 20 Zen Coins', 
-    price: 20, 
-    coins: 20, 
-    type: 'topup',
-    description: 'เติมแพ็กเกจ 20 บาท รับทันที 20 Zen Coins เข้ากระเป๋าสำหรับซื้อไอเทมในเซิร์ฟเวอร์!' 
+    description: '• เติมแพ็กเกจ: **10 Zen Coins**\n• สำหรับ: ใช้ซื้อไอเทม / ปลดล็อกฟีเจอร์ในระบบ' 
   },
   { 
     id: 'perm_artist', 
@@ -31,7 +15,7 @@ const PREMIUM_ITEMS = [
     price: 60, 
     type: 'role',
     roleId: '1560136361015513108',
-    description: 'ปลดล็อกยศ Artist ถาวรตลอดชีพ ไม่ต้องต่ออายุ เปลี่ยนรูปการ์ด /level ได้ตลอดไป!' 
+    description: '• สิทธิ์ถาวร: **ยศ Artist + แต่งการ์ด /level ส่วนตัว**\n• ระยะเวลา: **ถาวรตลอดชีพ (ไม่ต้องต่ออายุ)**' 
   },
   { 
     id: 'perm_chilling', 
@@ -39,7 +23,7 @@ const PREMIUM_ITEMS = [
     price: 20, 
     type: 'role',
     roleId: '1560002494204084395',
-    description: 'ยศตกแต่งโปรไฟล์สุดชิลล์ ถาวรตลอดชีพ แยกจากสายแรงค์เลเวล' 
+    description: '• สิทธิ์ถาวร: **ยศตกแต่งโปรไฟล์สุดชิลล์**\n• ระยะเวลา: **ถาวรตลอดชีพ**' 
   },
   { 
     id: 'perm_nightowl', 
@@ -47,17 +31,27 @@ const PREMIUM_ITEMS = [
     price: 20, 
     type: 'role',
     roleId: '1560002616266854420',
-    description: 'ยศตกแต่งโปรไฟล์สำหรับสายโต้รุ่ง ถาวรตลอดชีพ' 
+    description: '• สิทธิ์ถาวร: **ยศตกแต่งโปรไฟล์สายโต้รุ่ง**\n• ระยะเวลา: **ถาวรตลอดชีพ**' 
   }
 ];
 
+const premiumShopCommand = new SlashCommandBuilder()
+  .setName('shop')
+  .setDescription('💎 [PREMIUM] เปิดหน้าต่างร้านค้าพรีเมียมหลักเพื่อเลือกซื้อสินค้าและยศถาวร');
+
 const setupPremiumShopCommand = new SlashCommandBuilder()
   .setName('setup-premium-shop')
-  .setDescription('💎 [PREMIUM] ส่งแผงป้ายร้านค้าพรีเมียมถาวรไปยังห้องนี้ (สำหรับ Admin)');
+  .setDescription('💎 [PREMIUM / ADMIN] ส่งแผงป้ายร้านค้าพรีเมียมถาวรและปุ่มเปิดร้านไปยังห้องนี้');
 
 const coinsCommand = new SlashCommandBuilder()
   .setName('coins')
-  .setDescription('💎 [PREMIUM] เช็กยอด Zen Coins และเหรียญคงเหลือในกระเป๋าของคุณ');
+  .setDescription('🪙 [PREMIUM] ตรวจสอบยอด Zen Coins และเหรียญคงเหลือในกระเป๋าของคุณ');
+
+const addCoinsCommand = new SlashCommandBuilder()
+  .setName('add-coins')
+  .setDescription('🪙 [PREMIUM / ADMIN] เติม Zen Coins เพิ่มให้กับสมาชิกที่ต้องการ')
+  .addUserOption(option => option.setName('user').setDescription('เลือกสมาชิกที่ต้องการเติมเหรียญ').setRequired(true))
+  .addIntegerOption(option => option.setName('amount').setDescription('จำนวน Zen Coins ที่ต้องการเติม').setRequired(true));
 
 async function handleSetupPremiumShopCommand(interaction) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
@@ -65,19 +59,20 @@ async function handleSetupPremiumShopCommand(interaction) {
   }
 
   const embed = new EmbedBuilder()
-    .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM STORE & TOPUP')
-    .setDescription('ร้านค้าพรีเมียมสำหรับเติม Zen Coins และซื้อยศถาวรตลอดชีพ!\nกดปุ่มด้านล่างเพื่อเปิดร้านค้าพรีเมียมได้เลย:')
+    .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • OFFICIAL PREMIUM STORE')
+    .setDescription('บริการระบบเติม Zen Coins อัตโนมัติ\n\n📌 **คำแนะนำ:** คลิกปุ่มด้านล่างเพื่อเปิดหน้าต่างร้านค้าหลัก หรือใช้คำสั่ง `/shop` ได้ทันที')
+    .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1560424207702040647/1792104497426.jpg')
     .setColor('#FFD700');
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('open_premium_shop_panel')
-      .setLabel('💳 เปิดร้านค้าพรีเมียม / เติมเหรียญ')
+      .setLabel('💳 เปิดแผงร้านค้าพรีเมียม')
       .setStyle(ButtonStyle.Success)
   );
 
   await interaction.channel.send({ embeds: [embed], components: [row] });
-  await interaction.reply({ content: '✅ ส่งป้ายร้านค้าพรีเมียมไปยังห้องนี้สำเร็จแล้ว!', ephemeral: true });
+  await interaction.reply({ content: '✅ ส่งแผงป้ายร้านค้าพรีเมียมไปยังห้องนี้สำเร็จแล้ว!', ephemeral: true });
 }
 
 async function handleCoinsCommand(interaction, serverConfigs) {
@@ -96,6 +91,29 @@ async function handleCoinsCommand(interaction, serverConfigs) {
   await interaction.reply({ embeds: [embed], ephemeral: true });
 }
 
+async function handleAddCoinsCommand(interaction, serverConfigs, saveConfigs) {
+  if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+    return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
+  }
+
+  const targetUser = interaction.options.getUser('user');
+  const amount = interaction.options.getInteger('amount');
+  const guildId = interaction.guildId;
+  const userId = targetUser.id;
+
+  if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
+  if (!serverConfigs[guildId].levels) serverConfigs[guildId].levels = {};
+  if (!serverConfigs[guildId].levels[userId]) {
+    serverConfigs[guildId].levels[userId] = { xp: 0, level: 1, orbs: 0, lastDaily: 0, boostUntil: 0, artistUntil: 0, customTheme: '' };
+  }
+
+  const userStat = serverConfigs[guildId].levels[userId];
+  userStat.orbs = (userStat.orbs || 0) + amount;
+  await saveConfigs(serverConfigs);
+
+  await interaction.reply({ content: `✅ เติม Zen Coins จำนวน **+${amount} Coins** ให้กับคุณ <@${userId}> สำเร็จแล้ว! (ยอดรวม: ${userStat.orbs} Coins)`, ephemeral: true });
+}
+
 async function handlePremiumShopCommand(interaction, serverConfigs) {
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
@@ -104,13 +122,13 @@ async function handlePremiumShopCommand(interaction, serverConfigs) {
   const userCoins = userStat ? (userStat.orbs || 0) : 0;
 
   const embed = new EmbedBuilder()
-    .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM STORE & TOPUP')
-    .setDescription(`ร้านค้าพรีเมียมและระบบเติมเหรียญสะสม\n<a:emoji_100:1560416789211516938> เหรียญของคุณตอนนี้: **${userCoins} Coins**\n\nกดปุ่มสินค้าด้านล่างเพื่อเลือกซื้อและสร้างห้องออร์เดอร์ส่วนตัว:`)
+    .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM STORE')
+    .setDescription(`<a:emoji_100:1560416789211516938> **ยอดเหรียญของคุณ:** \`${userCoins} Zen Coins\`\n\nเลือกรายการสินค้าที่คุณต้องการสั่งซื้อจากปุ่มด้านล่างระบบจะสร้างห้องส่วนตัวให้ทันที:`)
     .setColor('#FFD700');
 
   PREMIUM_ITEMS.forEach(item => {
     embed.addFields({
-      name: `${item.name} (ราคา: ${item.price} บาท)`,
+      name: `${item.name} ➔ ฿${item.price}.00`,
       value: `${item.description}\n──────────────────────`,
       inline: false
     });
@@ -145,8 +163,8 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
     const loadingGif = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560407479412588686/IMG_7559.gif';
 
     const loadingEmbed = new EmbedBuilder()
-      .setTitle('⏳ กำลังประมวลผลออร์เดอร์ของคุณ...')
-      .setDescription('กรุณารอสักครู่ ระบบกำลังสร้างห้องออร์เดอร์ส่วนตัวให้คุณครับ')
+      .setTitle('⏳ กำลังเตรียมช่องทางส่วนตัวของคุณ...')
+      .setDescription('ระบบกำลังสร้างห้องออร์เดอร์เฉพาะกิจ กรุณารอสักครู่ครับ')
       .setImage(loadingGif)
       .setColor('#00FFFF');
 
@@ -175,8 +193,8 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
       const newOrderGif = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560415906281300059/image0.gif';
 
       const embed = new EmbedBuilder()
-        .setTitle(`<a:emoji_103:1560417845903491112> ออร์เดอร์สินค้า: ${item.name}`)
-        .setDescription(`สวัสดีคุณ <@${user.id}>!\nคุณได้เลือกสั่งซื้อสินค้า: **${item.name}**\n💰 **ยอดชำระ:** \`${item.price} บาท\`\n\n${item.description}`)
+        .setTitle(`<a:emoji_103:1560417845903491112> รายละเอียดออร์เดอร์: ${item.name}`)
+        .setDescription(`• **ผู้สั่งซื้อ:** <@${user.id}>\n• **สินค้า:** ${item.name}\n• **ยอดที่ต้องชำระ:** \`${item.price} บาท\`\n\n──────────────────────\nเลือกช่องทางการชำระเงินจากปุ่มด้านล่างได้เลยครับ:`)
         .setImage(newOrderGif)
         .setColor('#FFD700')
         .setFooter({ text: 'ช่องทางชำระ' });
@@ -221,8 +239,8 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
     const selectedQr = isTrueMoney ? trueMoneyQr : promptPayQr;
 
     const embed = new EmbedBuilder()
-      .setTitle('💳 ชำระเงินพรีเมียม / เติมเหรียญ')
-      .setDescription(`คุณกำลังสั่งซื้อ: **${item.name}**\n💰 ยอดที่ต้องชำระ: **${item.price} บาท**\n\n──────────────────────\n📌 **${isTrueMoney ? 'สแกน QR Code ทรูมันนี่ หรือเติมผ่านลิงก์ซองของขวัญ:' : 'สแกน QR Code PromptPay ด้านล่างเพื่อโอนเงิน:'}**\n${isTrueMoney ? `🔗 [กดที่นี่เพื่อเปิดแอป TrueMoney Wallet](${truemoneyLink})` : ''}\n\nเมื่อโอนเงินแล้ว ส่งสลิปหลักฐานในห้องนี้เพื่อให้แอดมินตรวจสอบและเติมเหรียญ / มอบยศให้ได้เลยครับ!`)
+      .setTitle('💳 ยืนยันช่องทางชำระเงิน')
+      .setDescription(`• **สินค้า:** ${item.name}\n• **ยอดชำระ:** \`${item.price} บาท\`\n\n──────────────────────\n📌 **${isTrueMoney ? 'สแกน QR Code ทรูมันนี่ หรือกดลิงก์ซองของขวัญ:' : 'สแกน QR Code PromptPay ด้านล่างเพื่อโอนเงิน:'}**\n${isTrueMoney ? `🔗 [เปิดแอป TrueMoney Wallet](${truemoneyLink})` : ''}\n\n*เมื่อทำรายการเรียบร้อยแล้ว ส่งสลิปหลักฐานในห้องนี้เพื่อให้แอดมินตรวจสอบและมอบสินค้าให้ได้เลยครับ!*`)
       .setImage(selectedQr)
       .setColor('#00FF00')
       .setFooter({ text: 'ช่องทางชำระ' });
@@ -250,10 +268,13 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
 }
 
 module.exports = {
+  premiumShopCommand,
   setupPremiumShopCommand,
   coinsCommand,
+  addCoinsCommand,
   handleSetupPremiumShopCommand,
   handleCoinsCommand,
+  handleAddCoinsCommand,
   handlePremiumShopCommand,
   handlePremiumShopButton
 };
