@@ -1,10 +1,8 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, RoleSelectMenuBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder } = require('discord.js');
 const cron = require('node-cron');
 
-// เก็บสถานะ Cron jobs สำหรับ Auto-Cinema ของแต่ละกิลด์
 let activeAutoCinemaCrons = {};
 
-// 1. /auto-cinema (ระบบตั้งเวลาประกาศอัตโนมัติ พร้อมแผงควบคุม)
 const autoCinemaCommand = new SlashCommandBuilder()
   .setName('auto-cinema')
   .setDescription('⏰ [CINEMA] แผงควบคุมระบบประกาศรอบฉายภาพยนตร์อัตโนมัติ (สำหรับ Admin)');
@@ -76,8 +74,6 @@ function getAutoCinemaDashboard(config) {
   return { embeds: [embed], components: [row1, channelRow] };
 }
 
-
-// 2. /cinema-broadcast (ประกาศ COMING SOON แบบกดส่งเอง พร้อมแผงควบคุมตั้งค่า)
 const cinemaBroadcastCommand = new SlashCommandBuilder()
   .setName('cinema-broadcast')
   .setDescription('🎥 [CINEMA] แผงควบคุมและส่งประกาศ COMING SOON ภาพยนตร์ (สำหรับ Admin)');
@@ -142,8 +138,6 @@ function getCinemaBroadcastDashboard(config) {
   return { embeds: [embed], components: [row1, channelRow] };
 }
 
-
-// 3. /cinema-setup (Box Office ถาวร ส่งครั้งเดียว)
 const setupCinemaCommand = new SlashCommandBuilder()
   .setName('cinema-setup')
   .setDescription('🎬 [CINEMA] ส่งแผงป้าย Box Office จุดจำหน่ายตั๋วถาวร (สำหรับ Admin)')
@@ -183,7 +177,7 @@ async function handleSetupCinemaCommand(interaction) {
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('cinema_perm_ticket')
-      .setLabel('🎟️ รับตั๋วเข้าชม (ถาวร)')
+      .setLabel('🎟️ รับตั๋วเข้าชม')
       .setStyle(ButtonStyle.Danger)
   );
 
@@ -191,36 +185,32 @@ async function handleSetupCinemaCommand(interaction) {
   await interaction.reply({ content: `✅ ส่งแผงป้าย Box Office ไปยังห้อง <#${channel.id}> เรียบร้อยแล้วครับ!`, ephemeral: true });
 }
 
-
-// 🔘 จัดการปุ่มกดรับตั๋วและแผงควบคุมต่างๆ
 async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
   const id = interaction.customId;
 
-  // 1. ปุ่มรับตั๋วถาวรจาก Box Office (ยศ 1560731553766707241 ถาวร - กดได้ครั้งเดียว)
   if (id === 'cinema_perm_ticket') {
     const permRoleId = '1560731553766707241';
     const member = interaction.member;
 
     if (member.roles.cache.has(permRoleId)) {
-      return await interaction.reply({ content: `🎟️ คุณมีตั๋วและได้รับยศถาวร <@&${permRoleId}> เรียบร้อยแล้วครับ!`, ephemeral: true });
+      return await interaction.reply({ content: `❗ คุณมีตั๋วแล้ว`, ephemeral: true });
     }
 
     try {
       await member.roles.add(permRoleId);
-      return await interaction.reply({ content: `🎉 **จองตั๋วสำเร็จ!** ระบบได้มอบยศถาวร <@&${permRoleId}> ให้คุณเรียบร้อยแล้ว เตรียมรับแจ้งเตือนรอบฉายได้เลยครับ!`, ephemeral: true });
+      return await interaction.reply({ content: `🎉 **จองตั๋วสำเร็จ!** ระบบได้มอบยศ <@&${permRoleId}> ให้คุณเรียบร้อยแล้ว เตรียมรับแจ้งเตือนรอบฉายได้เลยครับ!`, ephemeral: true });
     } catch (err) {
       console.error('Error assigning permanent cinema role:', err);
       return await interaction.reply({ content: '❌ เกิดข้อผิดพลาดในการมอบยศ กรุณาติดต่อแอดมินเซิร์ฟเวอร์ครับ', ephemeral: true });
     }
   }
 
-  // 2. ปุ่มรับตั๋วชั่วคราวจาก COMING SOON (ยศ 1551006184272560148 ออกใน 2 ชั่วโมง)
   if (id === 'cinema_temp_ticket') {
     const tempRoleId = '1551006184272560148';
     const member = interaction.member;
 
     if (member.roles.cache.has(tempRoleId)) {
-      return await interaction.reply({ content: `🎟️ คุณมีตั๋วชั่วคราว <@&${tempRoleId}> สำหรับรอบนี้อยู่แล้วครับ!`, ephemeral: true });
+      return await interaction.reply({ content: `❗ คุณมีตั๋วแล้ว`, ephemeral: true });
     }
 
     try {
@@ -247,7 +237,6 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
     }
   }
 
-  // 3. แผงควบคุม Auto-Cinema ปุ่มสลับเปิด-ปิดระบบ
   if (id === 'autocinema_toggle') {
     const guildId = interaction.guildId;
     const config = serverConfigs[guildId].autoCinema;
@@ -263,7 +252,6 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
     return await interaction.update(getAutoCinemaDashboard(config));
   }
 
-  // 4. ปุ่มเปิด Modal ตั้งค่าข้อมูล Auto-Cinema
   if (id === 'autocinema_edit_info') {
     const config = serverConfigs[interaction.guildId].autoCinema;
     const modal = new ModalBuilder().setCustomId('autoCinemaInfoModal').setTitle('ตั้งค่า Auto-Cinema');
@@ -276,7 +264,6 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
     return await interaction.showModal(modal);
   }
 
-  // 5. ปุ่มเปิด Modal เปลี่ยนยศที่แท็กใน Auto-Cinema
   if (id === 'autocinema_edit_role') {
     const config = serverConfigs[interaction.guildId].autoCinema;
     const modal = new ModalBuilder().setCustomId('autoCinemaRoleModal').setTitle('เปลี่ยนยศที่แท็ก Auto-Cinema');
@@ -285,7 +272,6 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
     return await interaction.showModal(modal);
   }
 
-  // 6. ปุ่มทดลองส่งข้อความ Auto-Cinema
   if (id === 'autocinema_test_send') {
     const guildId = interaction.guildId;
     const config = serverConfigs[guildId].autoCinema;
@@ -322,7 +308,6 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
     }
   }
 
-  // 7. ปุ่มตั้งค่าข้อมูล COMING SOON Broadcast
   if (id === 'cinemabc_edit_info') {
     const config = serverConfigs[interaction.guildId].cinemaBroadcast;
     const modal = new ModalBuilder().setCustomId('cinemaBcInfoModal').setTitle('ตั้งค่า COMING SOON');
@@ -335,7 +320,6 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
     return await interaction.showModal(modal);
   }
 
-  // 8. ปุ่มเปลี่ยนยศ COMING SOON Broadcast
   if (id === 'cinemabc_edit_role') {
     const config = serverConfigs[interaction.guildId].cinemaBroadcast;
     const modal = new ModalBuilder().setCustomId('cinemaBcRoleModal').setTitle('เปลี่ยนยศ COMING SOON');
@@ -344,7 +328,6 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
     return await interaction.showModal(modal);
   }
 
-  // 9. ปุ่มส่งประกาศ COMING SOON (พร้อมลบหลัง 30 นาที)
   if (id === 'cinemabc_test_send') {
     const guildId = interaction.guildId;
     const config = serverConfigs[guildId].cinemaBroadcast;
@@ -403,8 +386,6 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
   return false;
 }
 
-
-// 📂 จัดการ Channel Select Menu สำหรับ Auto-Cinema และ Broadcast
 async function handleAutoCinemaSelect(interaction, serverConfigs, saveConfigs, client) {
   const guildId = interaction.guildId;
 
@@ -435,7 +416,6 @@ async function handleAutoCinemaSelect(interaction, serverConfigs, saveConfigs, c
   return false;
 }
 
-// 📝 จัดการ Modal Submit ของ Auto-Cinema และ Broadcast
 async function handleAutoCinemaModal(interaction, serverConfigs, saveConfigs, client) {
   const guildId = interaction.guildId;
   if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
@@ -489,8 +469,6 @@ async function handleAutoCinemaModal(interaction, serverConfigs, saveConfigs, cl
   return false;
 }
 
-
-// ⏰ ตั้งค่า Cron Job สำหรับ Auto-Cinema
 function setupAutoCinemaCron(guildId, config, client, serverConfigs) {
   stopAutoCinemaCron(guildId);
 
