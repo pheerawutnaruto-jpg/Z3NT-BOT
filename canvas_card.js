@@ -92,7 +92,7 @@ async function generateProfileCard(user, userStat, lConfig) {
   return new AttachmentBuilder(await canvas.encode('png'), { name: 'profile-card.png' });
 }
 
-// 🎨 ฟังก์ชันสร้างการ์ดต้อนรับ (นำรูป Zen Bot มาแสดงเป็นโลโก้เด่นชัดเจนทางขวา)
+// 🎨 ฟังก์ชันสร้างการ์ดต้อนรับ (พร้อมระบบดัก Error ป้องกัน 404)
 async function generateWelcomeCard(member) {
   const canvas = createCanvas(930, 320);
   const ctx = canvas.getContext('2d');
@@ -134,27 +134,25 @@ async function generateWelcomeCard(member) {
     console.error('Failed to load member avatar:', e);
   }
 
-  // 4. นำรูป Zen Bot มาวาดเป็นโลโก้เด่นชัดเจนทางฝั่งขวาของการ์ด
-  const zenBotLogoUrl = 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg';
+  // 4. โหลดรูปโลโก้ Zen Bot (ถ้าลิงก์พังหรือ 404 ระบบจะไม่แครช)
+  const zenBotLogoUrl = 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg'; 
   try {
     const zenLogo = await loadImage(zenBotLogoUrl);
     ctx.save();
     ctx.beginPath();
-    // สร้างกรอบวงกลมสำหรับใส่โลโก้ Zen Bot ทางขวา (พิกัด x=770, y=160, รัศมี=60)
     ctx.arc(770, 160, 60, 0, Math.PI * 2, true);
     ctx.closePath();
     ctx.clip();
     ctx.drawImage(zenLogo, 710, 100, 120, 120);
     ctx.restore();
 
-    // วาดขอบวงกลมให้โลโก้ Zen Bot ดูโดดเด่น
     ctx.strokeStyle = '#66FFFF';
     ctx.lineWidth = 4;
     ctx.beginPath();
     ctx.arc(770, 160, 60, 0, Math.PI * 2, true);
     ctx.stroke();
   } catch (e) {
-    console.error('Failed to load Zen Bot logo:', e);
+    console.warn('⚠️ ข้ามการโหลดโลโก้ Zen Bot เนื่องจากลิงก์รูปภาพหมดอายุหรือเข้าถึงไม่ได้ (ใช้การ์ดแบบปกติแทน)');
   }
 
   // 5. ข้อความต้อนรับตรงกลาง
