@@ -4,7 +4,6 @@ const cinemaAnnouncementCommand = new SlashCommandBuilder()
   .setName('cinema-announce')
   .setDescription('🎬 [PREMIUM] แผงควบคุมและส่งประกาศรอบฉายสไตล์โรงภาพยนตร์ (สำหรับ Admin)');
 
-// ฟังก์ชันสร้างหน้าตา Dashboard ตั้งค่าประกาศโรงหนัง
 function getCinemaDashboardContent(config) {
   const cConfig = config.cinemaAnnouncement || {
     title: '🍿 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼S • NOW SHOWING & COMMUNITY BULLETIN',
@@ -26,15 +25,15 @@ function getCinemaDashboardContent(config) {
     );
 
   const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('cinema_edit_text').setLabel('✏️ แก้ไขข้อความประกาศ').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('cinema_edit_image').setLabel('🖼️ ตั้งค่ารูปภาพแบนเนอร์').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('cinema_edit_text').setLabel('✏️ แก้ไขข้อความ').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('cinema_edit_image').setLabel('🖼️ ตั้งค่ารูปภาพ').setStyle(ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId('cinema_send_preview').setLabel('🚀 ส่งประกาศทันที').setStyle(ButtonStyle.Success)
   );
 
   const channelRow = new ActionRowBuilder().addComponents(
     new ChannelSelectMenuBuilder()
       .setCustomId('cinema_select_channel')
-      .setPlaceholder('📂 เลือกห้องโรงภาพยนตร์สำหรับฉายประกาศ')
+      .setPlaceholder('📂 เลือกห้องสำหรับฉายประกาศ')
       .addChannelTypes(ChannelType.GuildText)
   );
 
@@ -43,7 +42,7 @@ function getCinemaDashboardContent(config) {
 
 async function handleCinemaAnnounceCommand(interaction, serverConfigs) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-    return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้นที่จะใช้คำสั่งนี้ได้ครับ!', ephemeral: true });
+    return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้นครับ!', ephemeral: true });
   }
 
   const guildId = interaction.guildId;
@@ -67,7 +66,6 @@ async function handleCinemaButtonAndModal(interaction, serverConfigs, saveConfig
 
   const config = serverConfigs[guildId].cinemaAnnouncement;
 
-  // 1. กดปุ่มแก้ไขข้อความ
   if (interaction.isButton() && interaction.customId === 'cinema_edit_text') {
     const modal = new ModalBuilder().setCustomId('cinemaTextModal').setTitle('แก้ไขข้อความประกาศโรงหนัง');
     const titleInput = new TextInputBuilder().setCustomId('cinemaTitle').setLabel('Title (หัวข้อประกาศ)').setStyle(TextInputStyle.Short).setValue(config.title).setRequired(true);
@@ -77,7 +75,6 @@ async function handleCinemaButtonAndModal(interaction, serverConfigs, saveConfig
     return await interaction.showModal(modal);
   }
 
-  // 2. กดปุ่มแก้ไขรูปภาพ
   if (interaction.isButton() && interaction.customId === 'cinema_edit_image') {
     const modal = new ModalBuilder().setCustomId('cinemaImageModal').setTitle('ตั้งค่ารูปภาพแบนเนอร์โรงหนัง');
     const imageInput = new TextInputBuilder().setCustomId('cinemaImageUrl').setLabel('Image URL (ลิงก์รูปภาพ)').setStyle(TextInputStyle.Short).setValue(config.imageUrl || '').setRequired(false);
@@ -86,15 +83,14 @@ async function handleCinemaButtonAndModal(interaction, serverConfigs, saveConfig
     return await interaction.showModal(modal);
   }
 
-  // 3. กดปุ่มส่งประกาศทันที
   if (interaction.isButton() && interaction.customId === 'cinema_send_preview') {
     if (!config.channelId) {
-      return await interaction.reply({ content: '❌ กรุณาเลือกห้อง (Channel) สำหรับฉายประกาศจากเมนูด้านล่างก่อนกดส่งครับ!', ephemeral: true });
+      return await interaction.reply({ content: '❌ กรุณาเลือกห้องก่อนกดส่งครับ!', ephemeral: true });
     }
 
     try {
       const channel = await interaction.guild.channels.fetch(config.channelId).catch(() => null);
-      if (!channel) return await interaction.reply({ content: '❌ ไม่พบห้องที่เลือกไว้ กรุณาเลือกห้องใหม่อีกครั้งครับ', ephemeral: true });
+      if (!channel) return await interaction.reply({ content: '❌ ไม่พบห้องที่เลือกไว้ครับ', ephemeral: true });
 
       const embed = new EmbedBuilder()
         .setTitle(config.title)
@@ -115,19 +111,18 @@ async function handleCinemaButtonAndModal(interaction, serverConfigs, saveConfig
       );
 
       await channel.send({ 
-        content: '@everyone 📢 **ไฟในโรงภาพยนตร์หรี่ลงแล้ว! มีประกาศรอบฉายใหม่มาเสิร์ฟครับ!**', 
+        content: '<@&1551183125076508713> 📢 **ไฟในโรงภาพยนตร์หรี่ลงแล้ว! มีประกาศรอบฉายใหม่มาเสิร์ฟครับ!**', 
         embeds: [embed], 
         components: [row] 
       });
 
-      return await interaction.reply({ content: `✅ ส่งประกาศสไตล์โรงภาพยนตร์ไปยังห้อง <#${config.channelId}> เรียบร้อยแล้วครับ! 🎬`, ephemeral: true });
+      return await interaction.reply({ content: `✅ ส่งประกาศไปยังห้อง <#${config.channelId}> เรียบร้อยแล้วครับ!`, ephemeral: true });
     } catch (err) {
       console.error('Error sending cinematic announcement:', err);
-      return await interaction.reply({ content: '❌ เกิดข้อผิดพลาดในการส่งประกาศ กรุณาตรวจสอบสิทธิ์ของบอทอีกครั้งครับ', ephemeral: true });
+      return await interaction.reply({ content: '❌ เกิดข้อผิดพลาดในการส่งประกาศครับ', ephemeral: true });
     }
   }
 
-  // 4. เลือกห้องจาก Channel Select Menu
   if (interaction.isChannelSelectMenu() && interaction.customId === 'cinema_select_channel') {
     await interaction.deferUpdate().catch(() => {});
     config.channelId = interaction.values[0];
@@ -135,19 +130,17 @@ async function handleCinemaButtonAndModal(interaction, serverConfigs, saveConfig
     return await interaction.editReply(getCinemaDashboardContent(serverConfigs[guildId]));
   }
 
-  // 5. บันทึก Modal ข้อความ
   if (interaction.isModalSubmit() && interaction.customId === 'cinemaTextModal') {
     config.title = interaction.fields.getTextInputValue('cinemaTitle');
     config.description = interaction.fields.getTextInputValue('cinemaDesc');
     await saveConfigs(serverConfigs);
-    return await interaction.reply({ content: '✅ บันทึกหัวข้อและเนื้อหาประกาศเรียบร้อยแล้ว!', ephemeral: true });
+    return await interaction.reply({ content: '✅ บันทึกข้อความเรียบร้อยแล้ว!', ephemeral: true });
   }
 
-  // 6. บันทึก Modal รูปภาพ
   if (interaction.isModalSubmit() && interaction.customId === 'cinemaImageModal') {
     config.imageUrl = interaction.fields.getTextInputValue('cinemaImageUrl');
     await saveConfigs(serverConfigs);
-    return await interaction.reply({ content: '✅ บันทึกลิงก์รูปภาพแบนเนอร์เรียบร้อยแล้ว!', ephemeral: true });
+    return await interaction.reply({ content: '✅ บันทึกรูปภาพเรียบร้อยแล้ว!', ephemeral: true });
   }
 
   return false;
