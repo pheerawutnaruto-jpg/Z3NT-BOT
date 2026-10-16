@@ -77,10 +77,10 @@ client.once('ready', async () => {
   startVoiceXpCron(client, serverConfigs, saveConfigs);
 
   const commands = [
-    new SlashCommandBuilder().setName('ping').setDescription('🏓 เช็กความเร็วปิงและสถานะการทำงานของบอทแบบเรียลไทม์'),
-    new SlashCommandBuilder().setName('set-welcom').setDescription('⚙️ [ADMIN] เปิดแผงควบคุมระบบต้อนรับสมาชิกใหม่ (Welcome Dashboard)'),
-    new SlashCommandBuilder().setName('set-autorole').setDescription('🛡️ [ADMIN] ตั้งค่าระบบแจกยศอัตโนมัติสำหรับสมาชิกใหม่ที่เข้าเซิร์ฟเวอร์'),
-    new SlashCommandBuilder().setName('set-security').setDescription('🛡️ [ADMIN] เปิดแผงควบคุมระบบป้องกันความปลอดภัยขั้นสูง (Security Panel)'),
+    new SlashCommandBuilder().setName('ping').setDescription('เช็กความเร็วและสถานะของบอท'),
+    new SlashCommandBuilder().setName('set-welcom').setDescription('เปิดแผงควบคุมระบบต้อนรับ (Welcome Dashboard)'),
+    new SlashCommandBuilder().setName('set-autorole').setDescription('ตั้งค่าระบบแจกยศอัตโนมัติสำหรับสมาชิกใหม่'),
+    new SlashCommandBuilder().setName('set-security').setDescription('เปิดแผงควบคุมระบบป้องกันความปลอดภัยขั้นสูง'),
     levelCommand,
     leaderboardCommand,
     setupQuestCommand,
@@ -95,9 +95,9 @@ client.once('ready', async () => {
     setupArtistCommand,
     setupMediaGuardCommand,
     setLevelCommand,
-    new SlashCommandBuilder().setName('clear').setDescription('🧹 [MOD] ลบข้อความในแชทจำนวนมากอย่างรวดเร็ว (1-100 ข้อความ)')
-      .addIntegerOption(option => option.setName('amount').setDescription('ระบุจำนวนข้อความที่ต้องการลบ (1-100)').setRequired(true)),
-    new SlashCommandBuilder().setName('set-autoclear').setDescription('💎 [PREMIUM] ตั้งเวลาระบบลบข้อความอัตโนมัติประจำวันในห้องที่กำหนด')
+    new SlashCommandBuilder().setName('clear').setDescription('ลบข้อความในแชทจำนวน 1-100 ข้อความ')
+      .addIntegerOption(option => option.setName('amount').setDescription('จำนวนข้อความที่ต้องการลบ (1-100)').setRequired(true)),
+    new SlashCommandBuilder().setName('set-autoclear').setDescription('💎 [PREMIUM] ตั้งเวลาระบบลบข้อความอัตโนมัติ')
       .addStringOption(option => option.setName('time').setDescription('ระบุเวลาในรูปแบบ HH:MM เช่น 06:00').setRequired(true))
       .addChannelOption(option => option.setName('channel').setDescription('เลือกห้องที่ต้องการให้ลบข้อความอัตโนมัติ').addChannelTypes(ChannelType.GuildText).setRequired(true)),
   ].map(command => command.toJSON());
