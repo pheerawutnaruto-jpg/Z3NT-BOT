@@ -24,7 +24,15 @@ const { setupMediaGuardCommand, handleSetupMediaGuardCommand, handleMediaGuardMe
 const { setupOrderTicketCommand, handleSetupOrderTicketCommand, handleOrderTicketSelect, handleOrderPaymentButton, handleCloseTicketButton } = require('./order_ticket');
 const { isServerPremium, grantPremiumCommand, handleGrantPremiumCommand } = require('./license');
 const { generateWelcomeCard } = require('./canvas_card');
-const { cinemaAnnouncementCommand, handleCinemaAnnounceCommand, handleCinemaButtonAndModal } = require('./cinema_announcement');
+const { 
+  setupCinemaCommand, 
+  cinemaBroadcastCommand, 
+  cinemaScheduleCommand, 
+  handleSetupCinemaCommand, 
+  handleCinemaBroadcastCommand, 
+  handleCinemaButton, 
+  loadCinemaCronJobs 
+} = require('./cinema');
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
@@ -77,6 +85,7 @@ client.once('ready', async () => {
   console.log(`Bot Online แล้วจ้า: ${client.user.tag}`);
 
   startVoiceXpCron(client, serverConfigs, saveConfigs);
+  loadCinemaCronJobs(client, serverConfigs);
 
   const commands = [
     new SlashCommandBuilder().setName('ping').setDescription('เช็กความเร็วและสถานะของบอท'),
@@ -97,7 +106,9 @@ client.once('ready', async () => {
     setupArtistCommand,
     setupMediaGuardCommand,
     setLevelCommand,
-    cinemaAnnouncementCommand,
+    setupCinemaCommand,
+    cinemaBroadcastCommand,
+    cinemaScheduleCommand,
     new SlashCommandBuilder().setName('clear').setDescription('ลบข้อความในแชทจำนวน 1-100 ข้อความ')
       .addIntegerOption(option => option.setName('amount').setDescription('จำนวนข้อความที่ต้องการลบ (1-100)').setRequired(true)),
     new SlashCommandBuilder().setName('set-autoclear').setDescription('💎 [PREMIUM] ตั้งเวลาระบบลบข้อความอัตโนมัติ')
@@ -231,13 +242,7 @@ client.on('interactionCreate', async interaction => {
       },
       embed: { title: '', description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!', color: '#66FFFF', image: '', footerText: '', footerIcon: '', timestamp: 'no' },
       autoClear: { enabled: false, time: '06:00', channelId: null },
-      mediaGuardChannels: [],
-      cinemaAnnouncement: {
-        title: '🍿 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼𝙎 • NOW SHOWING & COMMUNITY BULLETIN',
-        description: '✨ **ยินดีต้อนรับสู่โรงภาพยนตร์ Zen Cinemas! โปรดตรวจดูรอบฉายและสิทธิประโยชน์ประจำวันของคุณ:**\n\n🎥 **FEATURED ATTRACTIONS:**\n• 🪙 **สุ่มเหรียญประจำวัน:** แวะไปที่ห้องเควสต์แล้วกดรับ Zen Coins ฟรีทุก 24 ชั่วโมง!\n• 🛒 **บ็อกซ์ออฟฟิศพรีเมียม:** ตรวจสอบสินค้าและยศถาวรได้ที่ `/shop`\n• 🎙️ **โซนพูดคุย & แชท:** สะสม XP เลเวลพุ่งกระฉูดทั้งพิมพ์แชทและเข้าห้องเสียง!\n\n🎟️ *ขอให้ทุกท่านเพลิดเพลินไปกับการรับชมและใช้เวลาในคอมมูนิตี้ของเราครับ!*',
-        imageUrl: 'https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg',
-        channelId: null
-      }
+      mediaGuardChannels: []
     };
   }
   const config = serverConfigs[guildId];
@@ -253,7 +258,7 @@ client.on('interactionCreate', async interaction => {
   }
   if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
 
-  const premiumCommands = ['shop', 'setup-quest', 'setup-in-game-shop', 'coins', 'setup-premium-shop', 'setup-order-ticket', 'add-coins', 'setup-media-guard', 'set-autoclear', 'setup-artist-card', 'boost-status', 'cinema-announce'];
+  const premiumCommands = ['shop', 'setup-quest', 'setup-in-game-shop', 'coins', 'setup-premium-shop', 'setup-order-ticket', 'add-coins', 'setup-media-guard', 'set-autoclear', 'setup-artist-card', 'boost-status', 'cinema-setup', 'cinema-broadcast', 'cinema-schedule'];
   if (interaction.isChatInputCommand() && premiumCommands.includes(interaction.commandName)) {
     const hasPremium = await isServerPremium(guildId, serverConfigs);
     if (!hasPremium) {
@@ -318,11 +323,17 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isChatInputCommand() && interaction.commandName === 'setup-media-guard') {
     return await handleSetupMediaGuardCommand(interaction, serverConfigs, saveConfigs);
   }
+  if (interaction.isChatInputCommand() && interaction.commandName === 'cinema-setup') {
+    return await handleSetupCinemaCommand(interaction);
+  }
+  if (interaction.isChatInputCommand() && interaction.commandName === 'cinema-broadcast') {
+    return await handleCinemaBroadcastCommand(interaction);
+  }
+  if (interaction.isChatInputCommand() && interaction.commandName === 'cinema-schedule') {
+    return await interaction.reply({ content: '⏰ ระบบตั้งเวลาประกาศรอบฉายอัตโนมัติกำลังพัฒนาเพิ่มเติมครับ!', ephemeral: true });
+  }
   if (interaction.isChatInputCommand() && interaction.commandName === 'set-level') {
     return await handleSetLevelCommand(interaction, serverConfigs);
-  }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'cinema-announce') {
-    return await handleCinemaAnnounceCommand(interaction, serverConfigs);
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'set-security') {
     if (!interaction.member.permissions.has('Administrator')) return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
@@ -364,13 +375,11 @@ client.on('interactionCreate', async interaction => {
     return await sendAutoroleDashboard(interaction);
   }
 
-  if (interaction.isButton() || interaction.isChannelSelectMenu() || interaction.isModalSubmit()) {
-    const handledCinema = await handleCinemaButtonAndModal(interaction, serverConfigs, saveConfigs);
-    if (handledCinema) return;
-  }
-
   if (interaction.isButton()) {
     const id = interaction.customId;
+
+    const handledCinemaBtn = await handleCinemaButton(interaction);
+    if (handledCinemaBtn) return;
 
     const hasPremiumBtn = await isServerPremium(guildId, serverConfigs);
     const premiumButtons = ['open_premium_shop_panel', 'open_artist_card_modal'];
@@ -729,9 +738,5 @@ async function sendAutoroleDashboard(target) {
     await channel.send(payload);
   }
 }
-
-process.on('unhandledRejection', error => {
-  console.error('Unhandled promise rejection:', error);
-});
 
 client.login(process.env.DISCORD_TOKEN);
