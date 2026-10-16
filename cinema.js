@@ -36,7 +36,7 @@ function getAutoCinemaDashboard(config) {
   const roleText = `<@&${config.roleId || '1551006184272560148'}>`;
 
   const embed = new EmbedBuilder()
-    .setTitle('⏰ 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼𝙎 • AUTO-CINEMA CONTROL PANEL')
+    .setTitle('⏰ 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼S • AUTO-CINEMA CONTROL PANEL')
     .setDescription('แผงควบคุมระบบประกาศรอบฉายอัตโนมัติ คุณสามารถตั้งค่าเวลา ชื่อเรื่อง รูปภาพ เปิด-ปิด และทดลองส่งได้ที่นี่ครับ')
     .setColor('#E50914')
     .addFields(
@@ -107,7 +107,7 @@ function getCinemaBroadcastDashboard(config) {
   const roleText = `<@&${config.roleId || '1551183125076508713'}>`;
 
   const embed = new EmbedBuilder()
-    .setTitle('🍿 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼𝙎 • COMING SOON CONTROL PANEL')
+    .setTitle('🍿 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼S • COMING SOON CONTROL PANEL')
     .setDescription('แผงควบคุมประกาศ COMING SOON คุณสามารถตั้งค่าข้อมูล หนัง วันที่ และกดส่งประกาศหรือทดลองส่งได้ที่นี่ครับ')
     .setColor('#E50914')
     .addFields(
@@ -171,9 +171,9 @@ async function handleSetupCinemaCommand(interaction) {
   const permRoleId = '1560731553766707241';
 
   const embed = new EmbedBuilder()
-    .setTitle('🎟️ Z E N  C I N E M A  •  B O X  O F F I C E')
+    .setTitle('🎟️ 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼 • 𝘽𝙊𝙓 𝙊𝙁𝙁𝙄𝘾𝙀')
     .setDescription(
-      '✨ **บริการจำหน่ายตั๋วรับชมภาพยนตร์คอมมูนิตี้** ✨\n\n' +
+      '✨ **บริการจำหน่ายตั๋วรับชมภาพยนตร์** ✨\n\n' +
       `> 📌 **Role แจ้งเตือน:** <@&${permRoleId}>\n` +
       '> 🔔 **สิทธิประโยชน์:** รับแจ้งเตือนรอบฉายพิเศษล่วงหน้าก่อนใคร'
     )
@@ -196,7 +196,7 @@ async function handleSetupCinemaCommand(interaction) {
 async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
   const id = interaction.customId;
 
-  // 1. ปุ่มรับตั๋วถาวรจาก Box Office (ยศ 1560731553766707241 ถาวร)
+  // 1. ปุ่มรับตั๋วถาวรจาก Box Office (ยศ 1560731553766707241 ถาวร - กดได้ครั้งเดียว)
   if (id === 'cinema_perm_ticket') {
     const permRoleId = '1560731553766707241';
     const member = interaction.member;
@@ -226,7 +226,6 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
     try {
       await member.roles.add(tempRoleId);
       
-      // ตั้งเวลาถอดรหัสยศออกใน 2 ชั่วโมง (7200000 มิลลิวินาที)
       setTimeout(async () => {
         try {
           const guild = interaction.guild;
@@ -384,7 +383,6 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
         components: [row] 
       });
 
-      // ตั้งเวลาลบข้อความหลังผ่านไป 30 นาที (1800000 มิลลิวินาที)
       setTimeout(async () => {
         try {
           if (sentMsg && typeof sentMsg.delete === 'function') {
