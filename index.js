@@ -386,7 +386,7 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isButton()) {
     const id = interaction.customId;
 
-    const handledCinemaBtn = await handleCinemaButton(interaction, serverConfigs, saveConfigs);
+    const handledCinemaBtn = await handleCinemaButton(interaction, serverConfigs, saveConfigs, client);
     if (handledCinemaBtn) return;
 
     const handledAutoCinemaBtn = await handleAutoCinemaButton(interaction, serverConfigs, saveConfigs, client);
