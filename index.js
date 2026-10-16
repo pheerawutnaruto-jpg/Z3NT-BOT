@@ -24,12 +24,6 @@ const { setupMediaGuardCommand, handleSetupMediaGuardCommand, handleMediaGuardMe
 const { setupOrderTicketCommand, handleSetupOrderTicketCommand, handleOrderTicketSelect, handleOrderPaymentButton, handleCloseTicketButton } = require('./order_ticket');
 const { isServerPremium, grantPremiumCommand, handleGrantPremiumCommand } = require('./license');
 const { generateWelcomeCard } = require('./canvas_card');
-const { 
-  setupAnnouncementCommand, 
-  handleSetupAnnouncementCommand, 
-  startAnnouncementCron, 
-  setupAnnouncementCronJob 
-} = require('./announcement');
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
@@ -82,7 +76,6 @@ client.once('ready', async () => {
   console.log(`Bot Online แล้วจ้า: ${client.user.tag}`);
 
   startVoiceXpCron(client, serverConfigs, saveConfigs);
-  startAnnouncementCron(client, serverConfigs);
 
   const commands = [
     new SlashCommandBuilder().setName('ping').setDescription('เช็กความเร็วและสถานะของบอท'),
@@ -103,7 +96,6 @@ client.once('ready', async () => {
     setupArtistCommand,
     setupMediaGuardCommand,
     setLevelCommand,
-    setupAnnouncementCommand,
     new SlashCommandBuilder().setName('clear').setDescription('ลบข้อความในแชทจำนวน 1-100 ข้อความ')
       .addIntegerOption(option => option.setName('amount').setDescription('จำนวนข้อความที่ต้องการลบ (1-100)').setRequired(true)),
     new SlashCommandBuilder().setName('set-autoclear').setDescription('💎 [PREMIUM] ตั้งเวลาระบบลบข้อความอัตโนมัติ')
@@ -237,8 +229,7 @@ client.on('interactionCreate', async interaction => {
       },
       embed: { title: '', description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!', color: '#66FFFF', image: '', footerText: '', footerIcon: '', timestamp: 'no' },
       autoClear: { enabled: false, time: '06:00', channelId: null },
-      mediaGuardChannels: [],
-      announcement: { enabled: false, channelId: null, time: '12:00', message: '📢 ประกาศประจำวันจากทางเซิร์ฟเวอร์! อย่าลืมมาร่วมกิจกรรมกันนะครับ ✨' }
+      mediaGuardChannels: []
     };
   }
   const config = serverConfigs[guildId];
@@ -253,11 +244,8 @@ client.on('interactionCreate', async interaction => {
     config.levelConfig.roleRewardMessage = '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!';
   }
   if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
-  if (!config.announcement) {
-    config.announcement = { enabled: false, channelId: null, time: '12:00', message: '📢 ประกาศประจำวันจากทางเซิร์ฟเวอร์! อย่าลืมมาร่วมกิจกรรมกันนะครับ ✨' };
-  }
 
-  const premiumCommands = ['shop', 'setup-quest', 'setup-in-game-shop', 'coins', 'setup-premium-shop', 'setup-order-ticket', 'add-coins', 'setup-media-guard', 'set-autoclear', 'setup-artist-card', 'boost-status', 'setup-announcement'];
+  const premiumCommands = ['shop', 'setup-quest', 'setup-in-game-shop', 'coins', 'setup-premium-shop', 'setup-order-ticket', 'add-coins', 'setup-media-guard', 'set-autoclear', 'setup-artist-card', 'boost-status'];
   if (interaction.isChatInputCommand() && premiumCommands.includes(interaction.commandName)) {
     const hasPremium = await isServerPremium(guildId, serverConfigs);
     if (!hasPremium) {
@@ -325,9 +313,6 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isChatInputCommand() && interaction.commandName === 'set-level') {
     return await handleSetLevelCommand(interaction, serverConfigs);
   }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'setup-announcement') {
-    return await handleSetupAnnouncementCommand(interaction, serverConfigs);
-  }
   if (interaction.isChatInputCommand() && interaction.commandName === 'set-security') {
     if (!interaction.member.permissions.has('Administrator')) return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
     return await interaction.reply({ ...getSecurityDashboardContent(config), ephemeral: true });
@@ -372,7 +357,7 @@ client.on('interactionCreate', async interaction => {
     const id = interaction.customId;
 
     const hasPremiumBtn = await isServerPremium(guildId, serverConfigs);
-    const premiumButtons = ['open_premium_shop_panel', 'open_artist_card_modal', 'toggle_announcement', 'edit_announcement_msg', 'edit_announcement_time'];
+    const premiumButtons = ['open_premium_shop_panel', 'open_artist_card_modal'];
     if (premiumButtons.includes(id) && !hasPremiumBtn) {
       return await interaction.reply({ content: '❌ คำสั่งนี้ใช้ได้เฉพาะเซิร์ฟเวอร์พรีเมียมเท่านั้น', ephemeral: true });
     }
@@ -395,33 +380,11 @@ client.on('interactionCreate', async interaction => {
     const handledArtistBtn = await handleArtistButton(interaction, serverConfigs);
     if (handledArtistBtn) return;
     
-    // จัดการปุ่มระบบ Announcement
-    if (id === 'toggle_announcement') {
-      config.announcement.enabled = !config.announcement.enabled;
-      await saveConfigs(serverConfigs);
-      if (config.announcement.enabled && config.announcement.time && config.announcement.channelId) {
-        setupAnnouncementCronJob(interaction.client, guildId, config.announcement.time, config.announcement.channelId, config.announcement.message);
-      }
-      return await interaction.update(getAnnouncementDashboardContent(config));
-    }
-    if (id === 'edit_announcement_msg') {
-      const modal = new ModalBuilder().setCustomId('announcementMsgModal').setTitle('แก้ไขข้อความประกาศ');
-      const msgInput = new TextInputBuilder().setCustomId('announcementMsg').setLabel('ข้อความประกาศประจำวัน').setStyle(TextInputStyle.Paragraph).setValue(config.announcement.message || '').setRequired(true);
-      modal.addComponents(new ActionRowBuilder().addComponents(msgInput));
-      return await interaction.showModal(modal);
-    }
-    if (id === 'edit_announcement_time') {
-      const modal = new ModalBuilder().setCustomId('announcementTimeModal').setTitle('ตั้งเวลาส่งประกาศ');
-      const timeInput = new TextInputBuilder().setCustomId('announcementTime').setLabel('เวลา (HH:MM เช่น 12:00)').setStyle(TextInputStyle.Short).setValue(config.announcement.time || '12:00').setRequired(true);
-      modal.addComponents(new ActionRowBuilder().addComponents(timeInput));
-      return await interaction.showModal(modal);
-    }
-
     const modalButtons = [
       'edit_voice_amount', 'edit_level_rate', 'edit_level_card', 
       'edit_level_messages', 'set_role_reward', 'delete_role_reward', 
       'sec_config_time', 'edit_embed', 'edit_footer', 'test_welcome',
-      'open_artist_card_modal', 'open_premium_shop_panel', 'edit_announcement_msg', 'edit_announcement_time'
+      'open_artist_card_modal', 'open_premium_shop_panel'
     ];
 
     if (!modalButtons.includes(id)) {
@@ -521,7 +484,7 @@ client.on('interactionCreate', async interaction => {
           const embedConfig = config.embed || {
             description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!'
           };
-          const finalDesc = embedConfig.description.replace('{user}', `${interaction.user}`).replace('{server}`, interaction.guild.name);
+          const finalDesc = embedConfig.description.replace('{user}', `${interaction.user}`).replace('{server}', interaction.guild.name);
           await channel.send({ content: finalDesc, files: [attachment] });
         }
       } catch (err) {
@@ -588,14 +551,6 @@ client.on('interactionCreate', async interaction => {
       await saveConfigs(serverConfigs);
       return await interaction.editReply(getLevelDashboardContent(config));
     }
-    if (interaction.customId === 'select_announcement_channel') {
-      config.announcement.channelId = interaction.values[0];
-      await saveConfigs(serverConfigs);
-      if (config.announcement.enabled && config.announcement.time) {
-        setupAnnouncementCronJob(interaction.client, guildId, config.announcement.time, config.announcement.channelId, config.announcement.message);
-      }
-      return await interaction.editReply(getAnnouncementDashboardContent(config));
-    }
     if (interaction.customId === 'sec_select_ignored') {
       config.security.ignoredChannels = interaction.values;
       await saveConfigs(serverConfigs);
@@ -610,32 +565,34 @@ client.on('interactionCreate', async interaction => {
       await saveConfigs(serverConfigs);
       return await interaction.editReply(getAutoroleDashboardContent(config));
     }
+    if (interaction.customId.startsWith('select_reward_role_')) {
+      const levelNum = interaction.customId.replace('select_reward_role_', '');
+      const selectedRoleId = interaction.values[0];
+      const imageUrl = pendingRoleRewardImages.get(`${interaction.user.id}_${levelNum}`) || '';
+
+      if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
+
+      for (const [lvl, data] of Object.entries(config.levelConfig.roleRewards)) {
+        const rId = typeof data === 'object' ? data.roleId : data;
+        if (rId === selectedRoleId) {
+          delete config.levelConfig.roleRewards[lvl];
+        }
+      }
+
+      config.levelConfig.roleRewards[levelNum] = { roleId: selectedRoleId, imageUrl: imageUrl };
+      await saveConfigs(serverConfigs);
+      pendingRoleRewardImages.delete(`${interaction.user.id}_${levelNum}`);
+
+      return await interaction.editReply({
+        content: `✅ ตั้งค่ายศรางวัลสำเร็จ! ยศ <@&${selectedRoleId}> ถูกย้ายมาอยู่ที่ Level ${levelNum} เรียบร้อยแล้ว`,
+        ...getLevelDashboardContent(config)
+      });
+    }
   }
 
   if (interaction.isModalSubmit()) {
     const handledArtistModal = await handleArtistModalSubmit(interaction, serverConfigs, saveConfigs);
     if (handledArtistModal) return;
-
-    if (interaction.customId === 'announcementMsgModal') {
-      config.announcement.message = interaction.fields.getTextInputValue('announcementMsg');
-      await saveConfigs(serverConfigs);
-      if (config.announcement.enabled && config.announcement.time && config.announcement.channelId) {
-        setupAnnouncementCronJob(interaction.client, guildId, config.announcement.time, config.announcement.channelId, config.announcement.message);
-      }
-      return await interaction.reply({ content: '✅ บันทึกข้อความประกาศประจำวันเรียบร้อยแล้ว!', ephemeral: true });
-    }
-    if (interaction.customId === 'announcementTimeModal') {
-      const timeInput = interaction.fields.getTextInputValue('announcementTime').trim();
-      if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(timeInput)) {
-        return await interaction.reply({ content: '❌ รูปแบบเวลาไม่ถูกต้อง (กรุณาระบุเป็น HH:MM เช่น 12:00)', ephemeral: true });
-      }
-      config.announcement.time = timeInput;
-      await saveConfigs(serverConfigs);
-      if (config.announcement.enabled && config.announcement.channelId) {
-        setupAnnouncementCronJob(interaction.client, guildId, config.announcement.time, config.announcement.channelId, config.announcement.message);
-      }
-      return await interaction.reply({ content: `✅ ตั้งเวลาส่งประกาศเป็น \`${timeInput} น.\` เรียบร้อยแล้ว!`, ephemeral: true });
-    }
 
     if (interaction.customId === 'editEmbedModal') {
       config.embed.title = interaction.fields.getTextInputValue('embedTitle');
@@ -690,49 +647,26 @@ client.on('interactionCreate', async interaction => {
       await saveConfigs(serverConfigs);
       return await interaction.reply({ content: '✅ บันทึกข้อความเรียบร้อยแล้ว!', ephemeral: true });
     }
+    if (interaction.customId === 'roleRewardModal') {
+      const targetLevel = interaction.fields.getTextInputValue('targetLevel');
+      const rewardImage = interaction.fields.getTextInputValue('rewardImage') || '';
+      if (isNaN(targetLevel)) return await interaction.reply({ content: '❌ กรุณากรอกเป็นตัวเลขเลเวลที่ถูกต้อง!', ephemeral: true });
+      pendingRoleRewardImages.set(`${interaction.user.id}_${targetLevel}`, rewardImage);
+      const roleSelectMenu = new RoleSelectMenuBuilder().setCustomId(`select_reward_role_${targetLevel}`).setPlaceholder(`👑 เลือกยศ Level ${targetLevel}`);
+      const row = new ActionRowBuilder().addComponents(roleSelectMenu);
+      return await interaction.reply({ content: `📌 กรุณาเลือกยศสำหรับ Level ${targetLevel}:`, components: [row], ephemeral: true });
+    }
+    if (interaction.customId === 'deleteRoleRewardModal') {
+      const targetLevel = interaction.fields.getTextInputValue('deleteRoleRewardModal') || interaction.fields.getTextInputValue('targetLevel');
+      if (!config.levelConfig.roleRewards || !config.levelConfig.roleRewards[targetLevel.trim()]) {
+        return await interaction.reply({ content: `❌ ไม่พบข้อมูลยศรางวัลสำหรับ Level ${targetLevel} ครับ!`, ephemeral: true });
+      }
+      delete config.levelConfig.roleRewards[targetLevel.trim()];
+      await saveConfigs(serverConfigs);
+      return await interaction.reply({ content: `✅ ลบยศรางวัลของของ **Level ${targetLevel}** เรียบร้อยแล้ว!`, ephemeral: true });
+    }
   }
 });
-
-function getAnnouncementDashboardContent(config) {
-  const annConfig = config.announcement || { enabled: false, channelId: null, time: '12:00', message: '📢 ประกาศประจำวันจากทางเซิร์ฟเวอร์! อย่าลืมมาร่วมกิจกรรมกันนะครับ ✨' };
-  const statusText = annConfig.enabled ? '✅ เปิดอยู่' : '❌ ปิดอยู่';
-  const channelName = annConfig.channelId ? `<#${annConfig.channelId}>` : 'ยังไม่ได้เลือกช่อง';
-
-  const embed = new EmbedBuilder()
-    .setTitle('📢 แผงควบคุมระบบประกาศอัตโนมัติ (Announcement Dashboard)')
-    .setDescription('ตั้งเวลาและเลือกช่องสำหรับส่งข้อความประกาศอัตโนมัติประจำวันได้จากปุ่มด้านล่าง')
-    .setColor('#5865F2')
-    .addFields(
-      { name: '📥 สถานะระบบ', value: statusText, inline: true },
-      { name: '📢 ห้องประกาศ', value: channelName, inline: true },
-      { name: '⏰ เวลาส่งประกาศ', value: `\`${annConfig.time} น. (Asia/Bangkok)\``, inline: true },
-      { name: '📝 ข้อความปัจจุบัน', value: `\`\`\`${annConfig.message}\`\`\``, inline: false }
-    );
-
-  const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('toggle_announcement')
-      .setLabel(annConfig.enabled ? 'ปิดระบบประกาศ' : 'เปิดระบบประกาศ')
-      .setStyle(annConfig.enabled ? ButtonStyle.Danger : ButtonStyle.Success),
-    new ButtonBuilder()
-      .setCustomId('edit_announcement_msg')
-      .setLabel('✏️ แก้ไขข้อความประกาศ')
-      .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId('edit_announcement_time')
-      .setLabel('⏰ ตั้งเวลา (HH:MM)')
-      .setStyle(ButtonStyle.Secondary)
-  );
-
-  const channelRow = new ActionRowBuilder().addComponents(
-    new ChannelSelectMenuBuilder()
-      .setCustomId('select_announcement_channel')
-      .setPlaceholder('📂 เลือกห้องสำหรับส่งประกาศอัตโนมัติ')
-      .addChannelTypes(ChannelType.GuildText)
-  );
-
-  return { embeds: [embed], components: [row1, channelRow] };
-}
 
 function getDashboardContent(config) {
   const channelName = config.channelId ? `<#${config.channelId}>` : 'ยังไม่ได้เลือกช่อง';
