@@ -1,30 +1,36 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits } = require('discord.js');
 
-// 💎 [PREMIUM] คำสั่งสำหรับแอดมินส่งแผงเลือกสินค้าพรีเมียม
-const setupPremiumShopCommand = new SlashCommandBuilder()
-  .setName('setup-premium-shop')
-  .setDescription('💎 [PREMIUM] ส่งแผงร้านค้าพรีเมียมแบบมีเมนูกดเลือกสินค้าและสร้างห้องออร์เดอร์ (สำหรับ Admin)');
+// 💎 [PREMIUM] คำสั่งสำหรับแอดมินส่งแผงเลือกสินค้า
+const setupOrderTicketCommand = new SlashCommandBuilder()
+  .setName('setup-order-ticket')
+  .setDescription('💎 [PREMIUM] ส่งแผงร้านค้าแบบมีเมนูกดเลือกสินค้าและสร้างห้องออร์เดอร์ (สำหรับ Admin)');
 
-async function handleSetupPremiumShopCommand(interaction) {
+async function handleSetupOrderTicketCommand(interaction) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
     return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้นที่จะใช้คำสั่งนี้ได้ครับ!', ephemeral: true });
   }
 
   const embed = new EmbedBuilder()
     .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM STORE')
-    .setDescription('🎉 **ของดีต้อง Zen Bot เท่านั้น!**\n💎 แพ็กเกจเสริมและบริการพิเศษสุดคุ้ม\n\n👇 **คลิกเลือกสินค้าที่ต้องการสั่งซื้อจากเมนูด้านล่างได้เลยครับ**')
+    .setDescription('🎉 **ของดีต้อง Zen Bot เท่านั้น!**\n💎 จำหน่ายสินค้า Bot Premium, ยศถาวร และแพ็กเกจเสริมสุดคุ้ม\n\n👇 **คลิกเลือกสินค้าที่ต้องการสั่งซื้อจากเมนูด้านล่างได้เลยครับ**')
     .setColor('#00FF00')
     .setImage('https://placehold.co/600x300/101010/FFFFFF/png?text=ZEN+BOT+PREMIUM+STORE');
 
-  // เมนูกดเลือกสินค้า (ตัด Bot Premium และยศถาวรออกแล้ว)
+  // สร้างเมนูกดเลือกสินค้า (Select Menu) พร้อมอิโมจิ
   const selectMenu = new StringSelectMenuBuilder()
     .setCustomId('select_product_order')
     .setPlaceholder('🛒 เลือกสินค้าที่ต้องการสั่งซื้อ')
     .addOptions([
       {
-        label: '🎨 ปลดล็อกสิทธิ์แต่งการ์ดพิเศษ (ชั่วคราว)',
-        description: 'สต็อกไม่จำกัด • ฿30.00 / แพ็กเกจ • สิทธิ์แต่งการ์ดส่วนตัว',
-        value: 'product_custom_card',
+        label: 'BOT PREMIUM (รายเดือน)',
+        description: 'สต็อกไม่จำกัด • ฿299.00 / 1 เดือน • ยศ: Bot Premium',
+        value: 'product_bot_premium',
+        emoji: '💎'
+      },
+      {
+        label: 'ยศ Artist ถาวร',
+        description: 'สต็อกไม่จำกัด • ฿60.00 / ถาวร • สิทธิ์แต่งการ์ดส่วนตัว',
+        value: 'product_artist_role',
         emoji: '🎨'
       }
     ]);
@@ -32,7 +38,7 @@ async function handleSetupPremiumShopCommand(interaction) {
   const row = new ActionRowBuilder().addComponents(selectMenu);
 
   await interaction.channel.send({ embeds: [embed], components: [row] });
-  await interaction.reply({ content: '✅ ส่งแผงร้านค้าพรีเมียมไปยังห้องนี้สำเร็จแล้ว!', ephemeral: true });
+  await interaction.reply({ content: '✅ ส่งแผงร้านค้าแบบเลือกสินค้าไปยังห้องนี้สำเร็จแล้ว!', ephemeral: true });
 }
 
 // 🎫 ฟังก์ชันสร้างห้องออร์เดอร์ส่วนตัว (Order Ticket Channel) เมื่อลูกค้าเลือกสินค้า
@@ -44,9 +50,17 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
   const user = interaction.user;
   const loadingGif = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560407479412588686/IMG_7559.gif';
 
-  let productName = 'ปลดล็อกสิทธิ์แต่งการ์ดพิเศษ (ชั่วคราว)';
-  let productPrice = '฿30.00';
+  let productName = '';
+  let productPrice = '';
+  if (selectedValue === 'product_bot_premium') {
+    productName = 'BOT PREMIUM (รายเดือน)';
+    productPrice = '฿299.00';
+  } else if (selectedValue === 'product_artist_role') {
+    productName = 'ยศ Artist ถาวร';
+    productPrice = '฿60.00';
+  }
 
+  // ส่ง Embed โหลดดิ้งชั่วคราวพร้อมภาพ GIF เคลื่อนไหว
   const loadingEmbed = new EmbedBuilder()
     .setTitle('⏳ กำลังประมวลผลออร์เดอร์ของคุณ...')
     .setDescription('กรุณารอสักครู่ ระบบกำลังสร้างห้องออร์เดอร์ส่วนตัวให้คุณครับ')
@@ -56,20 +70,21 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
   await interaction.reply({ embeds: [loadingEmbed], ephemeral: true });
 
   try {
+    // สร้างห้องแชทลับส่วนตัวสำหรับออร์เดอร์นี้
     const ticketChannel = await guild.channels.create({
       name: `🛒-order-${user.username}`,
       type: ChannelType.GuildText,
       permissionOverwrites: [
         {
-          id: guild.id,
+          id: guild.id, // ซ่อนไม่ให้คนอื่นเห็น
           deny: [PermissionFlagsBits.ViewChannel],
         },
         {
-          id: user.id,
+          id: user.id, // ให้ลูกค้าเห็นและพิมพ์ได้
           allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory],
         },
         {
-          id: interaction.client.user.id,
+          id: interaction.client.user.id, // ให้บอทจัดการได้
           allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels],
         }
       ],
@@ -84,6 +99,7 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
       .setColor('#FFD700')
       .setFooter({ text: 'ช่องทางชำระ' });
 
+    // ปุ่มเลือกช่องทางชำระเงิน พร้อมอิโมจินอนิเมชัน TrueMoney และ PromptPay
     const payRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`pay_truemoney_${selectedValue}`)
@@ -112,13 +128,15 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
   return true;
 }
 
-// 💳 ฟังก์ชันกดเลือกช่องทางชำระเงิน
+// 💳 ฟังก์ชันกดเลือกช่องทางชำระเงิน (แสดง QR Code หรือลิงก์ซองของขวัญ)
 async function handleOrderPaymentButton(interaction) {
   if (!interaction.customId.startsWith('pay_promptpay_') && !interaction.customId.startsWith('pay_truemoney_')) return false;
 
   const isTrueMoney = interaction.customId.startsWith('pay_truemoney_');
-  let productName = 'ปลดล็อกสิทธิ์แต่งการ์ดพิเศษ (ชั่วคราว)';
-  let productPrice = '฿30.00';
+  const selectedValue = interaction.customId.replace(isTrueMoney ? 'pay_truemoney_' : 'pay_promptpay_', '');
+
+  let productName = selectedValue === 'product_bot_premium' ? 'BOT PREMIUM (รายเดือน)' : 'ยศ Artist ถาวร';
+  let productPrice = selectedValue === 'product_bot_premium' ? '฿299.00' : '฿60.00';
 
   const promptPayQr = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560193260293595176/ReceiveMoney_QR_2026-10-15_14.13.55.png';
   const trueMoneyQr = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560193259953717279/ReceiveMoney_QR_2026-10-15_14.14.01.png';
@@ -157,8 +175,8 @@ async function handleCloseTicketButton(interaction) {
 }
 
 module.exports = {
-  setupPremiumShopCommand,
-  handleSetupPremiumShopCommand,
+  setupOrderTicketCommand,
+  handleSetupOrderTicketCommand,
   handleOrderTicketSelect,
   handleOrderPaymentButton,
   handleCloseTicketButton
