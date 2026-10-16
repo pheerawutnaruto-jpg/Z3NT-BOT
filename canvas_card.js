@@ -92,29 +92,17 @@ async function generateProfileCard(user, userStat, lConfig) {
   return new AttachmentBuilder(await canvas.encode('png'), { name: 'profile-card.png' });
 }
 
-// 🎨 ฟังก์ชันสร้างการ์ดต้อนรับสมาชิกใหม่ (Welcome Canvas - ภาษาอังกฤษทั้งหมด ป้องกันฟอนต์พัง)
+// 🎨 ฟังก์ชันสร้างการ์ดต้อนรับ (นำรูป Zen Bot มาแสดงเป็นโลโก้เด่นชัดเจนทางขวา)
 async function generateWelcomeCard(member) {
   const canvas = createCanvas(930, 320);
   const ctx = canvas.getContext('2d');
 
-  // 1. พื้นหลังโทนสีเข้มพรีเมียม
+  // 1. พื้นหลังการ์ดสีเข้มพรีเมียม
   ctx.fillStyle = '#0f0f1a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // 2. ดึงรูป Zen Bot มาทำเป็นภาพพื้นหลังแบบโปร่งแสงฝั่งขวา
-  const zenBotBgUrl = 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg';
-  try {
-    const zenImage = await loadImage(zenBotBgUrl);
-    ctx.save();
-    ctx.globalAlpha = 0.25;
-    ctx.drawImage(zenImage, canvas.width - 400, 0, 400, canvas.height);
-    ctx.restore();
-  } catch (e) {
-    console.error('Failed to load Zen Bot background:', e);
-  }
-
-  // 3. กรอบการ์ดโปร่งแสง
-  ctx.fillStyle = 'rgba(20, 20, 35, 0.85)';
+  // 2. กรอบการ์ด
+  ctx.fillStyle = 'rgba(20, 20, 35, 0.9)';
   ctx.beginPath();
   ctx.roundRect(20, 20, canvas.width - 40, canvas.height - 40, 20);
   ctx.fill();
@@ -125,7 +113,7 @@ async function generateWelcomeCard(member) {
   ctx.roundRect(20, 20, canvas.width - 40, canvas.height - 40, 20);
   ctx.stroke();
 
-  // 4. วาดรูป Avatar ของสมาชิกใหม่ (วงกลม)
+  // 3. วาดรูป Avatar ของสมาชิกใหม่ (วงกลมซ้าย)
   const avatarUrl = member.user.displayAvatarURL({ extension: 'png', size: 256 });
   try {
     const avatar = await loadImage(avatarUrl);
@@ -146,7 +134,30 @@ async function generateWelcomeCard(member) {
     console.error('Failed to load member avatar:', e);
   }
 
-  // 5. ข้อความต้อนรับ (ภาษาอังกฤษ)
+  // 4. นำรูป Zen Bot มาวาดเป็นโลโก้เด่นชัดเจนทางฝั่งขวาของการ์ด
+  const zenBotLogoUrl = 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg';
+  try {
+    const zenLogo = await loadImage(zenBotLogoUrl);
+    ctx.save();
+    ctx.beginPath();
+    // สร้างกรอบวงกลมสำหรับใส่โลโก้ Zen Bot ทางขวา (พิกัด x=770, y=160, รัศมี=60)
+    ctx.arc(770, 160, 60, 0, Math.PI * 2, true);
+    ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(zenLogo, 710, 100, 120, 120);
+    ctx.restore();
+
+    // วาดขอบวงกลมให้โลโก้ Zen Bot ดูโดดเด่น
+    ctx.strokeStyle = '#66FFFF';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(770, 160, 60, 0, Math.PI * 2, true);
+    ctx.stroke();
+  } catch (e) {
+    console.error('Failed to load Zen Bot logo:', e);
+  }
+
+  // 5. ข้อความต้อนรับตรงกลาง
   ctx.fillStyle = '#66FFFF';
   ctx.font = 'bold 24px sans-serif';
   ctx.fillText('WELCOME TO THE SERVER', 240, 105);
