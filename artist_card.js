@@ -44,15 +44,16 @@ async function handleArtistButton(interaction, serverConfigs) {
     return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์ใช้งาน! เฉพาะผู้ที่มี **ยศ Artist** (หรือซื้อบัตรเช่า 3 วัน) เท่านั้นที่จะเปลี่ยนพื้นหลังการ์ดได้', ephemeral: true });
   }
 
+  // 🛠️ แก้ไข CustomId ให้ตรงกันที่นี่
   const modal = new ModalBuilder()
-    .setCustomId('artistCardModalSubmit')
+    .setCustomId('artistCardModal')
     .setTitle('🎨 ปรับแต่งรูปการ์ด /level ส่วนตัว');
 
   const imageUrlInput = new TextInputBuilder()
-    .setCustomId('customImageUrl')
-    .setLabel('ลิงก์รูปภาพพื้นหลังการ์ด (Image URL ขนาด 1:1 หรือ 16:9)')
+    .setCustomId('cardImageUrl')
+    .setLabel('ลิงก์รูปภาพพื้นหลังการ์ด (Image URL)')
     .setStyle(TextInputStyle.Short)
-    .setPlaceholder('https://i.imgur.com/xxxxx.png')
+    .setPlaceholder('https://example.com/my-image.png')
     .setValue(userStat.customTheme || '')
     .setRequired(true);
 
@@ -62,11 +63,16 @@ async function handleArtistButton(interaction, serverConfigs) {
 }
 
 async function handleArtistModalSubmit(interaction, serverConfigs, saveConfigs) {
-  if (interaction.customId !== 'artistCardModalSubmit') return false;
+  // 🛠️ ใช้ชื่อให้ตรงกับ modal ด้านบน
+  if (interaction.customId !== 'artistCardModal') return false;
 
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
-  const imageUrl = interaction.fields.getTextInputValue('customImageUrl').trim();
+  const imageUrl = interaction.fields.getTextInputValue('cardImageUrl').trim();
+
+  if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
+    return await interaction.reply({ content: '❌ ลิงก์ไม่ถูกต้อง! กรุณาระบุลิงก์รูปภาพที่ขึ้นต้นด้วย http:// หรือ https://', ephemeral: true });
+  }
 
   if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
   if (!serverConfigs[guildId].levels) serverConfigs[guildId].levels = {};
