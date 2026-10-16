@@ -2,7 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBui
 
 const setupOrderTicketCommand = new SlashCommandBuilder()
   .setName('setup-order-ticket')
-  .setDescription('🛒 [PREMIUM / ADMIN] ส่งแผงร้านค้าแบบมีเมนูดรอปดาวน์เลือกสินค้าและสร้างห้องออร์เดอร์ส่วนตัวอัตโนมัติ');
+  .setDescription('💎 [PREMIUM] ส่งแผงร้านค้าแบบมีเมนูกดเลือกสินค้าและสร้างห้องออร์เดอร์ (สำหรับ Admin)');
 
 async function handleSetupOrderTicketCommand(interaction) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
@@ -11,7 +11,7 @@ async function handleSetupOrderTicketCommand(interaction) {
 
   const embed = new EmbedBuilder()
     .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • SELECT STORE')
-    .setDescription('ศูนย์รวมการสั่งซื้อสินค้า สะดวก รวดเร็ว และเป็นกันเอง\n\n📌 **วิธีใช้งาน:** เลือกรายการสินค้าที่ต้องการจากกล่องตัวเลือกด้านล่างได้ทันที')
+    .setDescription('ศูนย์รวมการสั่งซื้อสินค้าผ่านเมนูดรอปดาวน์อัตโนมัติ สะดวก รวดเร็ว และเป็นส่วนตัว\n\n📌 **วิธีใช้งาน:** เลือกรายการสินค้าที่ต้องการจากกล่องตัวเลือกด้านล่างได้ทันที')
     .setColor('#00FF00')
     .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg');
 
@@ -53,7 +53,7 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
   if (selectedValue === 'clear_selection') {
     const embed = new EmbedBuilder()
       .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • SELECT STORE')
-      .setDescription('ศูนย์รวมการสั่งซื้อสินค้า สะดวก รวดเร็ว และเป็นกันเอง\n\n📌 **วิธีใช้งาน:** เลือกรายการสินค้าที่ต้องการจากกล่องตัวเลือกด้านล่างได้ทันที')
+      .setDescription('ศูนย์รวมการสั่งซื้อสินค้าผ่านเมนูดรอปดาวน์อัตโนมัติ สะดวก รวดเร็ว และเป็นส่วนตัว\n\n📌 **วิธีใช้งาน:** เลือกรายการสินค้าที่ต้องการจากกล่องตัวเลือกด้านล่างได้ทันที')
       .setColor('#00FF00')
       .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg');
 
@@ -213,4 +213,6 @@ module.exports = {
   setupOrderTicketCommand,
   handleSetupOrderTicketCommand,
   handleOrderTicketSelect,
-  handleO'ศูนย์รวมการสั่งซื้อสินค้าผ่านเมนูดรอปดาวน์อัตโนมัติ
+  handleOrderPaymentButton,
+  handleCloseTicketButton
+};
