@@ -17,13 +17,12 @@ const {
   pendingRoleRewardImages 
 } = require('./level');
 const { setupQuestCommand, handleSetupQuestCommand, handleQuestButton } = require('./quest');
-const { setupShopCommand, handleShopButton } = require('./ingame'); // เปลี่ยนจาก ./shop เป็น ./ingame
-const { premiumShopCommand, setupPremiumShopCommand, coinsCommand, handleSetupPremiumShopCommand, handleCoinsCommand, handlePremiumShopCommand, handlePremiumShopButton } = require('./premium_shop');
+const { setupShopCommand, handleSetupShopCommand, boostStatusCommand, handleBoostStatusCommand, handleShopButton } = require('./shop');
+const { premiumShopCommand, setupPremiumShopCommand, coinsCommand, addCoinsCommand, handleSetupPremiumShopCommand, handleCoinsCommand, handleAddCoinsCommand, handlePremiumShopCommand, handlePremiumShopButton } = require('./premium_shop');
 const { setupArtistCommand, handleSetupArtistCommand, handleArtistButton, handleArtistModalSubmit } = require('./artist_card');
 const { setupMediaGuardCommand, handleSetupMediaGuardCommand, handleMediaGuardMessage } = require('./media_guard');
 const { setupOrderTicketCommand, handleSetupOrderTicketCommand, handleOrderTicketSelect, handleOrderPaymentButton, handleCloseTicketButton } = require('./order_ticket');
-const { topupCommand, setupTopupShopCommand, handleSetupTopupShopCommand, handleTopupCommand, handleTopupShopButton } = require('./topup_shop'); // เพิ่มคำสั่ง /topup สำหรับแอดมินเติมเหรียญ
-const { isServerPremium, boostStatusCommand, grantPremiumCommand, handleBoostStatusCommand, handleGrantPremiumCommand } = require('./status'); // เปลี่ยนจาก ./license เป็น ./status
+const { isServerPremium, grantPremiumCommand, handleGrantPremiumCommand } = require('./license');
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
@@ -78,27 +77,27 @@ client.once('ready', async () => {
   startVoiceXpCron(client, serverConfigs, saveConfigs);
 
   const commands = [
-    new SlashCommandBuilder().setName('ping').setDescription('เช็กความเร็วและสถานะของบอท'),
-    new SlashCommandBuilder().setName('set-welcom').setDescription('เปิดแผงควบคุมระบบต้อนรับ (Welcome Dashboard)'),
-    new SlashCommandBuilder().setName('set-autorole').setDescription('ตั้งค่าระบบแจกยศอัตโนมัติสำหรับสมาชิกใหม่'),
-    new SlashCommandBuilder().setName('set-security').setDescription('เปิดแผงควบคุมระบบป้องกันความปลอดภัยขั้นสูง'),
+    new SlashCommandBuilder().setName('ping').setDescription('🏓 เช็กความเร็วปิงและสถานะการทำงานของบอทแบบเรียลไทม์'),
+    new SlashCommandBuilder().setName('set-welcom').setDescription('⚙️ [ADMIN] เปิดแผงควบคุมระบบต้อนรับสมาชิกใหม่ (Welcome Dashboard)'),
+    new SlashCommandBuilder().setName('set-autorole').setDescription('🛡️ [ADMIN] ตั้งค่าระบบแจกยศอัตโนมัติสำหรับสมาชิกใหม่ที่เข้าเซิร์ฟเวอร์'),
+    new SlashCommandBuilder().setName('set-security').setDescription('🛡️ [ADMIN] เปิดแผงควบคุมระบบป้องกันความปลอดภัยขั้นสูง (Security Panel)'),
     levelCommand,
     leaderboardCommand,
     setupQuestCommand,
     setupShopCommand,
     setupPremiumShopCommand,
     setupOrderTicketCommand,
-    setupTopupShopCommand,
-    topupCommand, // คำสั่ง /topup แทนแอดมินเติมเหรียญ
+    premiumShopCommand,
     coinsCommand,
+    addCoinsCommand,
     grantPremiumCommand,
     boostStatusCommand,
     setupArtistCommand,
     setupMediaGuardCommand,
     setLevelCommand,
-    new SlashCommandBuilder().setName('clear').setDescription('ลบข้อความในแชทจำนวน 1-100 ข้อความ')
-      .addIntegerOption(option => option.setName('amount').setDescription('จำนวนข้อความที่ต้องการลบ (1-100)').setRequired(true)),
-    new SlashCommandBuilder().setName('set-autoclear').setDescription('💎 [PREMIUM] ตั้งเวลาระบบลบข้อความอัตโนมัติ')
+    new SlashCommandBuilder().setName('clear').setDescription('🧹 [MOD] ลบข้อความในแชทจำนวนมากอย่างรวดเร็ว (1-100 ข้อความ)')
+      .addIntegerOption(option => option.setName('amount').setDescription('ระบุจำนวนข้อความที่ต้องการลบ (1-100)').setRequired(true)),
+    new SlashCommandBuilder().setName('set-autoclear').setDescription('💎 [PREMIUM] ตั้งเวลาระบบลบข้อความอัตโนมัติประจำวันในห้องที่กำหนด')
       .addStringOption(option => option.setName('time').setDescription('ระบุเวลาในรูปแบบ HH:MM เช่น 06:00').setRequired(true))
       .addChannelOption(option => option.setName('channel').setDescription('เลือกห้องที่ต้องการให้ลบข้อความอัตโนมัติ').addChannelTypes(ChannelType.GuildText).setRequired(true)),
   ].map(command => command.toJSON());
@@ -271,7 +270,7 @@ client.on('interactionCreate', async interaction => {
   }
   if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
 
-  const premiumCommands = ['setup-quest', 'setup-in-game-shop', 'coins', 'setup-premium-shop', 'setup-order-ticket', 'setup-topup-shop', 'topup', 'setup-media-guard', 'set-autoclear', 'setup-artist-card', 'boost-status'];
+  const premiumCommands = ['shop', 'setup-quest', 'setup-in-game-shop', 'coins', 'setup-premium-shop', 'setup-order-ticket', 'add-coins', 'setup-media-guard', 'set-autoclear', 'setup-artist-card', 'boost-status'];
   if (interaction.isChatInputCommand() && premiumCommands.includes(interaction.commandName)) {
     const hasPremium = await isServerPremium(guildId, serverConfigs);
     if (!hasPremium) {
@@ -315,17 +314,17 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isChatInputCommand() && interaction.commandName === 'setup-order-ticket') {
     return await handleSetupOrderTicketCommand(interaction);
   }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'setup-topup-shop') {
-    return await handleSetupTopupShopCommand(interaction);
-  }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'topup') {
-    return await handleTopupCommand(interaction, serverConfigs, saveConfigs);
+  if (interaction.isChatInputCommand() && interaction.commandName === 'shop') {
+    return await handlePremiumShopCommand(interaction, serverConfigs);
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'coins') {
     return await handleCoinsCommand(interaction, serverConfigs);
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'grant-premium') {
     return await handleGrantPremiumCommand(interaction, serverConfigs, saveConfigs);
+  }
+  if (interaction.isChatInputCommand() && interaction.commandName === 'add-coins') {
+    return await handleAddCoinsCommand(interaction, serverConfigs, saveConfigs);
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'boost-status') {
     return await handleBoostStatusCommand(interaction, serverConfigs);
@@ -406,16 +405,13 @@ client.on('interactionCreate', async interaction => {
     const id = interaction.customId;
 
     const hasPremiumBtn = await isServerPremium(guildId, serverConfigs);
-    const premiumButtons = ['open_artist_card_modal'];
+    const premiumButtons = ['open_premium_shop_panel', 'open_artist_card_modal'];
     if (premiumButtons.includes(id) && !hasPremiumBtn) {
       return await interaction.reply({ content: '❌ คำสั่งนี้ใช้ได้เฉพาะเซิร์ฟเวอร์พรีเมียมเท่านั้น', ephemeral: true });
     }
 
     const handledPayment = await handleOrderPaymentButton(interaction);
     if (handledPayment) return;
-
-    const handledTopupBtn = await handleTopupShopButton(interaction, serverConfigs);
-    if (handledTopupBtn) return;
 
     const handledCloseTicket = await handleCloseTicketButton(interaction);
     if (handledCloseTicket) return;
@@ -436,7 +432,7 @@ client.on('interactionCreate', async interaction => {
       'edit_voice_amount', 'edit_level_rate', 'edit_level_card', 
       'edit_level_messages', 'set_role_reward', 'delete_role_reward', 
       'sec_config_time', 'edit_embed', 'edit_footer', 'test_welcome',
-      'open_artist_card_modal'
+      'open_artist_card_modal', 'open_premium_shop_panel'
     ];
 
     if (!modalButtons.includes(id)) {
@@ -574,6 +570,29 @@ client.on('interactionCreate', async interaction => {
 
     await saveConfigs(serverConfigs);
     if (id.startsWith('sec_')) return await interaction.editReply(getSecurityDashboardContent(config));
+  }
+
+  if (interaction.isStringSelectMenu()) {
+    const handledOrder = await handleOrderTicketSelect(interaction, serverConfigs);
+    if (handledOrder) return;
+
+    await interaction.deferUpdate().catch(() => {});
+    if (interaction.customId === 'act_invite_select') {
+      const vals = interaction.values;
+      config.security.actions.invite.timeout = vals.includes('timeout');
+      config.security.actions.invite.kick = vals.includes('kick');
+      config.security.actions.invite.ban = vals.includes('ban');
+      await saveConfigs(serverConfigs);
+      return await interaction.editReply(getSecurityDashboardContent(config));
+    }
+    if (interaction.customId === 'act_spam_select') {
+      const vals = interaction.values;
+      config.security.actions.spam.timeout = vals.includes('timeout');
+      config.security.actions.spam.kick = vals.includes('kick');
+      config.security.actions.spam.ban = vals.includes('ban');
+      await saveConfigs(serverConfigs);
+      return await interaction.editReply(getSecurityDashboardContent(config));
+    }
   }
 
   if (interaction.isChannelSelectMenu()) {
