@@ -2,12 +2,28 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Butt
 
 const PREMIUM_ITEMS = [
   { 
-    id: 'buy_coins_10', 
-    name: '🪙 เติม 10 Zen Coins', 
-    price: 10, 
-    coins: 10, 
+    id: 'buy_coins_5', 
+    name: '🪙 เติม 5 Zen Coins', 
+    price: 5, 
+    coins: 5, 
     type: 'topup',
-    description: '• เติมแพ็กเกจ: **10 Zen Coins**\n• สำหรับ: ใช้ซื้อไอเทม / ปลดล็อกฟีเจอร์ในระบบ' 
+    description: '• เติมแพ็กเกจ: **5 Zen Coins**\n• สำหรับ: ใช้ซื้อไอเทม / ปลดล็อกฟีเจอร์ในระบบ' 
+  },
+  { 
+    id: 'buy_coins_15', 
+    name: '🪙 เติม 15 Zen Coins', 
+    price: 15, 
+    coins: 15, 
+    type: 'topup',
+    description: '• เติมแพ็กเกจ: **15 Zen Coins**\n• สำหรับ: ใช้ซื้อไอเทม / ปลดล็อกฟีเจอร์ในระบบ' 
+  },
+  { 
+    id: 'buy_coins_30', 
+    name: '🪙 เติม 30 Zen Coins', 
+    price: 30, 
+    coins: 30, 
+    type: 'topup',
+    description: '• เติมแพ็กเกจ: **30 Zen Coins**\n• สำหรับ: ใช้ซื้อไอเทม / ปลดล็อกฟีเจอร์ในระบบ' 
   },
   { 
     id: 'perm_artist', 
