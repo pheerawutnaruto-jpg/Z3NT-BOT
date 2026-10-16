@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder } = require('discord.js');
 
 const cinemaAnnouncementCommand = new SlashCommandBuilder()
   .setName('cinema-announce')
@@ -7,7 +7,7 @@ const cinemaAnnouncementCommand = new SlashCommandBuilder()
 // ฟังก์ชันสร้างหน้าตา Dashboard ตั้งค่าประกาศโรงหนัง
 function getCinemaDashboardContent(config) {
   const cConfig = config.cinemaAnnouncement || {
-    title: '🍿 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼𝙎 • NOW SHOWING & COMMUNITY BULLETIN',
+    title: '🍿 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼S • NOW SHOWING & COMMUNITY BULLETIN',
     description: '✨ **ยินดีต้อนรับสู่โรงภาพยนตร์ Zen Cinemas! โปรดตรวจดูรอบฉายและสิทธิประโยชน์ประจำวันของคุณ:**\n\n🎥 **FEATURED ATTRACTIONS:**\n• 🪙 **สุ่มเหรียญประจำวัน:** แวะไปที่ห้องเควสต์แล้วกดรับ Zen Coins ฟรีทุก 24 ชั่วโมง!\n• 🛒 **บ็อกซ์ออฟฟิศพรีเมียม:** ตรวจสอบสินค้าและยศถาวรได้ที่ `/shop`\n• 🎙️ **โซนพูดคุย & แชท:** สะสม XP เลเวลพุ่งกระฉูดทั้งพิมพ์แชทและเข้าห้องเสียง!\n\n🎟️ *ขอให้ทุกท่านเพลิดเพลินไปกับการรับชมและใช้เวลาในคอมมูนิตี้ของเราครับ!*',
     imageUrl: 'https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg',
     channelId: null
@@ -58,7 +58,7 @@ async function handleCinemaButtonAndModal(interaction, serverConfigs, saveConfig
   if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
   if (!serverConfigs[guildId].cinemaAnnouncement) {
     serverConfigs[guildId].cinemaAnnouncement = {
-      title: '🍿 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼𝙎 • NOW SHOWING & COMMUNITY BULLETIN',
+      title: '🍿 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼S • NOW SHOWING & COMMUNITY BULLETIN',
       description: '✨ **ยินดีต้อนรับสู่โรงภาพยนตร์ Zen Cinemas! โปรดตรวจดูรอบฉายและสิทธิประโยชน์ประจำวันของคุณ:**\n\n🎥 **FEATURED ATTRACTIONS:**\n• 🪙 **สุ่มเหรียญประจำวัน:** แวะไปที่ห้องเควสต์แล้วกดรับ Zen Coins ฟรีทุก 24 ชั่วโมง!\n• 🛒 **บ็อกซ์ออฟฟิศพรีเมียม:** ตรวจสอบสินค้าและยศถาวรได้ที่ `/shop`\n• 🎙️ **โซนพูดคุย & แชท:** สะสม XP เลเวลพุ่งกระฉูดทั้งพิมพ์แชทและเข้าห้องเสียง!\n\n🎟️ *ขอให้ทุกท่านเพลิดเพลินไปกับการรับชมและใช้เวลาในคอมมูนิตี้ของเราครับ!*',
       imageUrl: 'https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg',
       channelId: null
