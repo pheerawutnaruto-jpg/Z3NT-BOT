@@ -2,20 +2,20 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Butt
 
 const PREMIUM_ITEMS = [
   { 
-    id: 'buy_coins_5', 
-    name: '🪙 เติม 5 Zen Coins', 
-    price: 5, 
-    coins: 5, 
+    id: 'buy_coins_10', 
+    name: '🪙 เติม 10 Zen Coins', 
+    price: 10, 
+    coins: 10, 
     type: 'topup',
-    description: '• เติมแพ็กเกจ: **5 Zen Coins**\n• สำหรับ: ใช้ซื้อไอเทม / ปลดล็อกฟีเจอร์ในระบบ' 
+    description: '• เติมแพ็กเกจ: **10 Zen Coins**\n• สำหรับ: ใช้ซื้อไอเทม / ปลดล็อกฟีเจอร์ในระบบ' 
   },
   { 
-    id: 'buy_coins_15', 
-    name: '🪙 เติม 15 Zen Coins', 
-    price: 15, 
-    coins: 15, 
+    id: 'buy_coins_20', 
+    name: '🪙 เติม 20 Zen Coins', 
+    price: 20, 
+    coins: 20, 
     type: 'topup',
-    description: '• เติมแพ็กเกจ: **15 Zen Coins**\n• สำหรับ: ใช้ซื้อไอเทม / ปลดล็อกฟีเจอร์ในระบบ' 
+    description: '• เติมแพ็กเกจ: **20 Zen Coins**\n• สำหรับ: ใช้ซื้อไอเทม / ปลดล็อกฟีเจอร์ในระบบ' 
   },
   { 
     id: 'buy_coins_30', 
