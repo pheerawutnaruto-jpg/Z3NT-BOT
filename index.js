@@ -378,29 +378,6 @@ client.on('interactionCreate', async interaction => {
     return await sendAutoroleDashboard(interaction);
   }
 
-  if (interaction.isStringSelectMenu()) {
-    const handledOrder = await handleOrderTicketSelect(interaction, serverConfigs);
-    if (handledOrder) return;
-
-    await interaction.deferUpdate().catch(() => {});
-    if (interaction.customId === 'act_invite_select') {
-      const vals = interaction.values;
-      config.security.actions.invite.timeout = vals.includes('timeout');
-      config.security.actions.invite.kick = vals.includes('kick');
-      config.security.actions.invite.ban = vals.includes('ban');
-      await saveConfigs(serverConfigs);
-      return await interaction.editReply(getSecurityDashboardContent(config));
-    }
-    if (interaction.customId === 'act_spam_select') {
-      const vals = interaction.values;
-      config.security.actions.spam.timeout = vals.includes('timeout');
-      config.security.actions.spam.kick = vals.includes('kick');
-      config.security.actions.spam.ban = vals.includes('ban');
-      await saveConfigs(serverConfigs);
-      return await interaction.editReply(getSecurityDashboardContent(config));
-    }
-  }
-
   if (interaction.isButton()) {
     const id = interaction.customId;
 
@@ -479,6 +456,7 @@ client.on('interactionCreate', async interaction => {
       const titleInput = new TextInputBuilder().setCustomId('cardTitle').setLabel('Title').setStyle(TextInputStyle.Short).setValue(config.levelConfig.cardTitle || '').setRequired(true);
       const descInput = new TextInputBuilder().setCustomId('cardDesc').setLabel('Description').setStyle(TextInputStyle.Paragraph).setValue(config.levelConfig.cardDescription || '').setRequired(true);
       const colorInput = new TextInputBuilder().setCustomId('embedColor').setLabel('Hex Color').setStyle(TextInputStyle.Short).setValue(config.levelConfig.embedColor || '#66FFFF').setRequired(true);
+      // แก้ไขจุดนี้: ดึงค่าจาก config มาแสดง แทนการใส่ข้อความยาวๆ เป็น value
       const imageInput = new TextInputBuilder().setCustomId('statsCardImg').setLabel('Image URL').setStyle(TextInputStyle.Short).setValue(config.levelConfig.statsCardImageUrl || '').setRequired(false);
       modal.addComponents(new ActionRowBuilder().addComponents(titleInput), new ActionRowBuilder().addComponents(descInput), new ActionRowBuilder().addComponents(colorInput), new ActionRowBuilder().addComponents(imageInput));
       return await interaction.showModal(modal);
