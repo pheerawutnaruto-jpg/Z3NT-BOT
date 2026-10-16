@@ -17,13 +17,13 @@ const {
   pendingRoleRewardImages 
 } = require('./level');
 const { setupQuestCommand, handleSetupQuestCommand, handleQuestButton } = require('./quest');
-const { setupShopCommand, handleShopButton } = require('./ingame'); // ร้านค้าในเกม (ใช้ Zen Coins ซื้อไอเทม)
-const { setupPremiumShopCommand, handleSetupPremiumShopCommand } = require('./order_ticket'); // แผงร้านค้าพรีเมียม (สร้างออร์เดอร์)
-const { topupCommand, setupTopupShopCommand, coinsCommand, handleSetupTopupShopCommand, handleTopupCommand, handleCoinsCommand, handleTopupShopButton } = require('./topup_shop'); // ศูนย์เติมเหรียญ & คำสั่ง /topup
+const { setupShopCommand, handleShopButton } = require('./ingame'); // เปลี่ยนจาก ./shop เป็น ./ingame
+const { premiumShopCommand, setupPremiumShopCommand, coinsCommand, handleSetupPremiumShopCommand, handleCoinsCommand, handlePremiumShopCommand, handlePremiumShopButton } = require('./premium_shop');
 const { setupArtistCommand, handleSetupArtistCommand, handleArtistButton, handleArtistModalSubmit } = require('./artist_card');
 const { setupMediaGuardCommand, handleSetupMediaGuardCommand, handleMediaGuardMessage } = require('./media_guard');
-const { handleOrderTicketSelect, handleOrderPaymentButton, handleCloseTicketButton } = require('./order_ticket'); // จัดการออร์เดอร์
-const { isServerPremium, boostStatusCommand, grantPremiumCommand, handleBoostStatusCommand, handleGrantPremiumCommand } = require('./status');
+const { setupOrderTicketCommand, handleSetupOrderTicketCommand, handleOrderTicketSelect, handleOrderPaymentButton, handleCloseTicketButton } = require('./order_ticket');
+const { topupCommand, setupTopupShopCommand, handleSetupTopupShopCommand, handleTopupCommand, handleTopupShopButton } = require('./topup_shop'); // เพิ่มคำสั่ง /topup สำหรับแอดมินเติมเหรียญ
+const { isServerPremium, boostStatusCommand, grantPremiumCommand, handleBoostStatusCommand, handleGrantPremiumCommand } = require('./status'); // เปลี่ยนจาก ./license เป็น ./status
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
@@ -85,11 +85,12 @@ client.once('ready', async () => {
     levelCommand,
     leaderboardCommand,
     setupQuestCommand,
-    setupShopCommand,         // /setup-in-game-shop
-    setupPremiumShopCommand,  // /setup-premium-shop (แผงออร์เดอร์พรีเมียม)
-    setupTopupShopCommand,    // /setup-topup-shop (แผงเติมเหรียญ)
-    topupCommand,             // /topup (แอดมินเติมเหรียญ)
-    coinsCommand,             // /coins (เช็กเหรียญ)
+    setupShopCommand,
+    setupPremiumShopCommand,
+    setupOrderTicketCommand,
+    setupTopupShopCommand,
+    topupCommand, // คำสั่ง /topup แทนแอดมินเติมเหรียญ
+    coinsCommand,
     grantPremiumCommand,
     boostStatusCommand,
     setupArtistCommand,
@@ -311,6 +312,9 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isChatInputCommand() && interaction.commandName === 'setup-premium-shop') {
     return await handleSetupPremiumShopCommand(interaction);
   }
+  if (interaction.isChatInputCommand() && interaction.commandName === 'setup-order-ticket') {
+    return await handleSetupOrderTicketCommand(interaction);
+  }
   if (interaction.isChatInputCommand() && interaction.commandName === 'setup-topup-shop') {
     return await handleSetupTopupShopCommand(interaction);
   }
@@ -421,6 +425,9 @@ client.on('interactionCreate', async interaction => {
 
     const handledShop = await handleShopButton(interaction, serverConfigs, saveConfigs);
     if (handledShop) return;
+
+    const handledPremShop = await handlePremiumShopButton(interaction, serverConfigs);
+    if (handledPremShop) return;
 
     const handledArtistBtn = await handleArtistButton(interaction, serverConfigs);
     if (handledArtistBtn) return;
