@@ -2,53 +2,70 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
 async function isServerPremium(guildId, serverConfigs) {
   const config = serverConfigs[guildId];
-  if (config && config.isPremium === true) {
-    return true;
-  }
+  if (!config || !config.premium) return false;
+
+  if (config.premium.isLifetime) return true;
+  if (config.premium.expiresAt && Date.now() < config.premium.expiresAt) return true;
+
   return false;
 }
 
-const boostStatusCommand = new SlashCommandBuilder()
-  .setName('boost-status')
-  .setDescription('💎 เช็กสถานะสิทธิ์พรีเมียมของเซิร์ฟเวอร์นี้');
+const grantPremiumCommand = new SlashCommandBuilder()
+  .setName('grant-premium')
+  .setDescription('💎 [PREMIUM] เปิดสิทธิ์พรีเมียมรายเซิร์ฟเวอร์ (สำหรับ Developer)')
+  .addStringOption(option =>
+    option.setName('guild_id')
+      .setDescription('ระบุ Guild ID ของเซิร์ฟเวอร์ที่ต้องการเปิดสิทธิ์')
+      .setRequired(true)
+  )
+  .addIntegerOption(option =>
+    option.setName('months')
+      .setDescription('จำนวนเดือนที่ต้องการให้ (ใส่ 999 สำหรับถาวร/Lifetime)')
+      .setRequired(true)
+  );
 
-async function handleBoostStatusCommand(interaction, serverConfigs) {
-  const guildId = interaction.guildId;
-  const isPrem = await isServerPremium(guildId, serverConfigs);
+async function handleGrantPremiumCommand(interaction, serverConfigs, saveConfigs) {
+  const DEVELOPER_ID = '795347337773580299'; 
+  if (interaction.user.id !== DEVELOPER_ID) {
+    return await interaction.reply({ content: '❌ เฉพาะผู้พัฒนาบอทเท่านั้นที่จะใช้คำสั่งนี้ได้ครับ!', ephemeral: true });
+  }
+
+  const targetGuildId = interaction.options.getString('guild_id').trim();
+  const months = interaction.options.getInteger('months');
+
+  if (!serverConfigs[targetGuildId]) {
+    serverConfigs[targetGuildId] = {};
+  }
+
+  const now = Date.now();
+  let expiresAt = now + (months * 30 * 24 * 60 * 60 * 1000);
+  let isLifetime = false;
+
+  if (months >= 999) {
+    isLifetime = true;
+    expiresAt = null;
+  }
+
+  serverConfigs[targetGuildId].premium = {
+    enabled: true,
+    isLifetime: isLifetime,
+    expiresAt: expiresAt,
+    grantedAt: now
+  };
+
+  await saveConfigs(serverConfigs);
 
   const embed = new EmbedBuilder()
-    .setTitle('💎 SERVER PREMIUM STATUS')
-    .setDescription(isPrem ? '✅ เซิร์ฟเวอร์นี้ **เปิดใช้งานสถานะพรีเมียม** เรียบร้อยแล้ว!' : '❌ เซิร์ฟเวอร์นี้ยังไม่ได้เปิดใช้งานสถานะพรีเมียม')
-    .setColor(isPrem ? '#00FF00' : '#FF0000')
+    .setTitle('💎 PREMIUM LICENSE ACTIVATED')
+    .setDescription(`เปิดสิทธิ์พรีเมียมสำเร็จเรียบร้อย!\n🌐 **Guild ID:** \`${targetGuildId}\`\n⏳ **ระยะเวลา:** ${isLifetime ? 'ตลอดชีพ (Lifetime)' : `${months} เดือน`}`)
+    .setColor('#00FF00')
     .setTimestamp();
 
   await interaction.reply({ embeds: [embed], ephemeral: true });
 }
 
-const grantPremiumCommand = new SlashCommandBuilder()
-  .setName('grant-premium')
-  .setDescription('💎 [ADMIN] เปิด/ปิดสถานะพรีเมียมให้เซิร์ฟเวอร์')
-  .addBooleanOption(option => option.setName('status').setDescription('True เพื่อเปิด / False เพื่อปิด').setRequired(true));
-
-async function handleGrantPremiumCommand(interaction, serverConfigs, saveConfigs) {
-  if (!interaction.member.permissions.has('Administrator')) {
-    return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
-  }
-
-  const status = interaction.options.getBoolean('status');
-  const guildId = interaction.guildId;
-
-  if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
-  serverConfigs[guildId].isPremium = status;
-  await saveConfigs(serverConfigs);
-
-  await interaction.reply({ content: `✅ อัปเดตสถานะพรีเมียมของเซิร์ฟเวอร์นี้เป็น: **${status ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}**`, ephemeral: true });
-}
-
 module.exports = {
   isServerPremium,
-  boostStatusCommand,
   grantPremiumCommand,
-  handleBoostStatusCommand,
   handleGrantPremiumCommand
 };
