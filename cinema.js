@@ -530,6 +530,7 @@ module.exports = {
   handleAutoCinemaCommand,
   handleCinemaBroadcastCommand,
   handleSetupCinemaCommand,
+  handleCommandLeveling,
   handleCinemaButton,
   handleAutoCinemaSelect,
   handleAutoCinemaModal,
