@@ -270,7 +270,7 @@ function handleCommandLeveling(interaction, serverConfigs, saveConfigs) {
 
 const levelCommand = new SlashCommandBuilder()
   .setName('level')
-  .setDescription('เช็กเลเวลและค่าประสบการณ์ (XP)')
+  .setDescription('📜 เช็กเลเวลและค่าประสบการณ์ (XP)')
   .addUserOption(option =>
     option.setName('user')
       .setDescription('เลือกสมาชิกที่ต้องการดูเลเวล')
@@ -322,7 +322,7 @@ async function handleLevelCommand(interaction, serverConfigs) {
 
 const leaderboardCommand = new SlashCommandBuilder()
   .setName('leaderboard')
-  .setDescription('ดู 10 อันดับผู้ที่มีเลเวลและ XP สูงสุดในเซิร์ฟเวอร์');
+  .setDescription('📊 ดูอันดับผู้ที่มีเลเวลและ XP สูงสุดในเซิร์ฟเวอร์');
 
 async function handleLeaderboardCommand(interaction, serverConfigs) {
   const guildId = interaction.guildId;
@@ -364,7 +364,7 @@ async function handleLeaderboardCommand(interaction, serverConfigs) {
 
 const setLevelCommand = new SlashCommandBuilder()
   .setName('set-level')
-  .setDescription('เปิดแผงควบคุมตั้งค่าระบบเลเวลและห้องเสียง');
+  .setDescription('⚙️ เปิดแผงควบคุมตั้งค่าเลเวลและเสียง');
 
 function getLevelDashboardContent(config) {
   if (!config.levelConfig) {
