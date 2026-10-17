@@ -81,7 +81,9 @@ async function handleCoinsCommand(interaction, serverConfigs) {
   const config = serverConfigs[guildId] || {};
   const userStat = config.levels?.[userId];
   const userCoins = userStat ? (userStat.orbs || 0) : 0;
-  const customWalletTheme = userStat && userStat.customWalletTheme ? userStat.customWalletTheme : null;
+  
+  // ตรวจสอบลิงก์รูปภาพกระเป๋าเงินส่วนตัวที่ตั้งค่าไว้ผ่านระบบ Artist Card
+  const customWalletTheme = userStat && userStat.customWalletTheme ? userStat.customWalletTheme.trim() : null;
 
   const embed = new EmbedBuilder()
     .setTitle('💰 WALLET • ยอดเหรียญของคุณ')
@@ -89,7 +91,8 @@ async function handleCoinsCommand(interaction, serverConfigs) {
     .setColor('#FFD700')
     .setTimestamp();
 
-  if (customWalletTheme) {
+  // ถ้ามีการตั้งค่าลิงก์รูปภาพกระเป๋าเงินส่วนตัว ให้แสดงภาพนั้นทันที
+  if (customWalletTheme && (customWalletTheme.startsWith('http://') || customWalletTheme.startsWith('https://'))) {
     embed.setImage(customWalletTheme);
   }
 
@@ -211,7 +214,7 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
       const payRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId(`pay_truemoney_${item.id}`)
-          .setLabel('TrueMoney')
+          .setLabel('TrueMemory')
           .setEmoji('1560403718153965618')
           .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
