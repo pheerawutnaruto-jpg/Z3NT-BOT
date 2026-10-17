@@ -59,7 +59,7 @@ async function handleSetupPremiumShopCommand(interaction) {
   }
 
   const embed = new EmbedBuilder()
-    .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • OFFICIAL TOPUP SHOP')
+    .setTitle('<a:emoji_93:1560417845903491112> 𝙕𝙀𝙉 𝘽𝙊𝙏 • OFFICIAL TOPUP SHOP')
     .setDescription('ศูนย์บริการเติม Zen Coins อัตโนมัติ รวดเร็ว ปลอดภัย\n\n📌 **วิธีใช้งาน:** คลิกปุ่มด้านล่างเพื่อเปิดหน้าต่างแพ็กเกจเติมเงินได้ทันทีครับ')
     .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1560424207702040647/1792104497426.jpg')
     .setColor('#FFD700');
@@ -81,12 +81,17 @@ async function handleCoinsCommand(interaction, serverConfigs) {
   const config = serverConfigs[guildId] || {};
   const userStat = config.levels?.[userId];
   const userCoins = userStat ? (userStat.orbs || 0) : 0;
+  const customWalletTheme = userStat && userStat.customWalletTheme ? userStat.customWalletTheme : null;
 
   const embed = new EmbedBuilder()
     .setTitle('💰 WALLET • ยอดเหรียญของคุณ')
     .setDescription(`ยอด Zen Coins คงเหลือในกระเป๋าของ <@${userId}>:\n**${userCoins} Zen Coins**`)
     .setColor('#FFD700')
     .setTimestamp();
+
+  if (customWalletTheme) {
+    embed.setImage(customWalletTheme);
+  }
 
   await interaction.reply({ embeds: [embed], ephemeral: true });
 }
@@ -104,7 +109,7 @@ async function handleAddCoinsCommand(interaction, serverConfigs, saveConfigs) {
   if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
   if (!serverConfigs[guildId].levels) serverConfigs[guildId].levels = {};
   if (!serverConfigs[guildId].levels[userId]) {
-    serverConfigs[guildId].levels[userId] = { xp: 0, level: 1, orbs: 0, lastDaily: 0, boostUntil: 0, artistUntil: 0, customTheme: '' };
+    serverConfigs[guildId].levels[userId] = { xp: 0, level: 1, orbs: 0, lastDaily: 0, boostUntil: 0, artistUntil: 0, customTheme: '', customWalletTheme: '' };
   }
 
   const userStat = serverConfigs[guildId].levels[userId];
