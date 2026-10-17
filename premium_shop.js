@@ -3,41 +3,41 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Butt
 const PREMIUM_ITEMS = [
   { 
     id: 'buy_coins_10', 
-    name: '🪙 เติม 10 Zen Coins', 
+    name: 'เติม 10 Zen Coins', 
     price: 10, 
     coins: 10, 
     type: 'topup',
     description: '• เติมแพ็กเกจ: **10 Zen Coins**\n• สำหรับ: ใช้ซื้อไอเทม / ปลดล็อกฟีเจอร์ในระบบ' 
   },
   { 
-    id: 'perm_artist', 
-    name: '👑 ยศ Artist ถาวร', 
-    price: 60, 
-    type: 'role',
-    roleId: '1560136361015513108',
-    description: '• สิทธิ์ถาวร: **ยศ Artist + แต่งการ์ด /level ส่วนตัว**\n• ระยะเวลา: **ถาวรตลอดชีพ (ไม่ต้องต่ออายุ)**' 
+    id: 'buy_coins_50', 
+    name: 'เติม 50 Zen Coins', 
+    price: 45, 
+    coins: 50, 
+    type: 'topup',
+    description: '• เติมแพ็กเกจ: **50 Zen Coins**\n• สำหรับ: คุ้มค่า ประหยัดกว่าเดิม' 
   },
   { 
-    id: 'perm_chilling', 
-    name: '☕ ยศพิเศษ สายชิลล์ ถาวร', 
-    price: 20, 
-    type: 'role',
-    roleId: '1560002494204084395',
-    description: '• สิทธิ์ถาวร: **ยศตกแต่งโปรไฟล์สุดชิลล์**\n• ระยะเวลา: **ถาวรตลอดชีพ**' 
+    id: 'buy_coins_100', 
+    name: 'เติม 100 Zen Coins', 
+    price: 89, 
+    coins: 100, 
+    type: 'topup',
+    description: '• เติมแพ็กเกจ: **100 Zen Coins**\n• สำหรับ: ยอดนิยม สำหรับสายสะสม' 
   },
   { 
-    id: 'perm_nightowl', 
-    name: '🌙 ยศพิเศษ คนนอนดึก ถาวร', 
-    price: 20, 
-    type: 'role',
-    roleId: '1560002616266854420',
-    description: '• สิทธิ์ถาวร: **ยศตกแต่งโปรไฟล์สายโต้รุ่ง**\n• ระยะเวลา: **ถาวรตลอดชีพ**' 
+    id: 'buy_coins_500', 
+    name: 'เติม 500 Zen Coins', 
+    price: 399, 
+    coins: 500, 
+    type: 'topup',
+    description: '• เติมแพ็กเกจ: **500 Zen Coins**\n• สำหรับ: VIP คุ้มสุดๆ จัดเต็ม' 
   }
 ];
 
 const premiumShopCommand = new SlashCommandBuilder()
   .setName('shop')
-  .setDescription('💎 [PREMIUM] เปิดร้านค้าพรีเมียม เติมเหรียญ และซื้อยศถาวร');
+  .setDescription('💎 [PREMIUM] เปิดร้านค้าพรีเมียม เติมเหรียญ และซื้อแพ็กเกจ');
 
 const setupPremiumShopCommand = new SlashCommandBuilder()
   .setName('setup-premium-shop')
@@ -84,7 +84,7 @@ async function handleCoinsCommand(interaction, serverConfigs) {
 
   const embed = new EmbedBuilder()
     .setTitle('💰 WALLET • ยอดเหรียญของคุณ')
-    .setDescription(`ยอด Zen Coins คงเหลือในกระเป๋าของ <@${userId}>:\n🪙 **${userCoins} Zen Coins**`)
+    .setDescription(`ยอด Zen Coins คงเหลือในกระเป๋าของ <@${userId}>:\n**${userCoins} Zen Coins**`)
     .setColor('#FFD700')
     .setTimestamp();
 
@@ -123,7 +123,7 @@ async function handlePremiumShopCommand(interaction, serverConfigs) {
 
   const embed = new EmbedBuilder()
     .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM STORE')
-    .setDescription(`<a:emoji_100:1560416789211516938> **ยอดเหรียญของคุณ:** \`${userCoins} Zen Coins\`\n\nเลือกรายการสินค้าที่คุณต้องการสั่งซื้อจากปุ่มด้านล่างระบบจะสร้างห้องส่วนตัวให้ทันที:`)
+    .setDescription(`<a:emoji_100:1560416789211516938> **ยอดเหรียญของคุณ:** \`${userCoins} Zen Coins\`\n\nเลือกแพ็กเกจเติมเงินที่คุณต้องการสั่งซื้อจากปุ่มด้านล่างระบบจะสร้างห้องส่วนตัวให้ทันที:`)
     .setColor('#FFD700');
 
   PREMIUM_ITEMS.forEach(item => {
