@@ -11,7 +11,7 @@ async function handleSetupOrderTicketCommand(interaction) {
 
   const embed = new EmbedBuilder()
     .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • SELECT STORE')
-    .setDescription('ศูนย์รวมการสั่งซื้อสินค้าผ่านเมนูดรอปดาวน์อัตโนมัติ สะดวก รวดเร็ว และเป็นส่วนตัว\n\n📌 **วิธีใช้งาน:** เลือกรายการสินค้าที่ต้องการจากกล่องตัวเลือกด้านล่างได้ทันที')
+    .setDescription('ศูนย์รวมการสั่งซื้อยศถาวรและแพ็กเกจพิเศษผ่านเมนูดรอปดาวน์ สะดวก รวดเร็ว และเป็นส่วนตัว\n\n📌 **วิธีใช้งาน:** เลือกรายการสินค้าที่ต้องการจากกล่องตัวเลือกด้านล่างได้ทันที')
     .setColor('#00FF00')
     .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg');
 
@@ -21,15 +21,27 @@ async function handleSetupOrderTicketCommand(interaction) {
     .addOptions([
       {
         label: 'BOT PREMIUM (รายเดือน)',
-        description: 'สต็อกไม่จำกัด • ฿299.00 / 1 เดือน • ยศ: Bot Premium',
+        description: 'สต็อกไม่จำกัด • ฿399.00 / 1 เดือน • ยศ: Bot Premium',
         value: 'product_bot_premium',
         emoji: '💎'
       },
       {
         label: 'ยศ Artist ถาวร',
-        description: 'สต็อกไม่จำกัด • ฿60.00 / ถาวร • สิทธิ์แต่งการ์ดส่วนตัว',
+        description: 'สต็อกไม่จำกัด • ฿69.00 / ถาวร • สิทธิ์แต่งการ์ดส่วนตัว',
         value: 'product_artist_role',
         emoji: '🎨'
+      },
+      {
+        label: 'ยศพิเศษ สายชิลล์ ถาวร',
+        description: 'สต็อกไม่จำกัด • ฿19.00 / ถาวร • ยศโปรไฟล์สุดชิลล์',
+        value: 'product_chilling_role',
+        emoji: '☕'
+      },
+      {
+        label: 'ยศพิเศษ คนนอนดึก ถาวร',
+        description: 'สต็อกไม่จำกัด • ฿9.00 / ถาวร • ยศโปรไฟล์สายโต้รุ่ง',
+        value: 'product_nightowl_role',
+        emoji: '🌙'
       },
       {
         label: 'ล้างตัวเลือก',
@@ -53,7 +65,7 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
   if (selectedValue === 'clear_selection') {
     const embed = new EmbedBuilder()
       .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • SELECT STORE')
-      .setDescription('ศูนย์รวมการสั่งซื้อสินค้าผ่านเมนูดรอปดาวน์อัตโนมัติ สะดวก รวดเร็ว และเป็นส่วนตัว\n\n📌 **วิธีใช้งาน:** เลือกรายการสินค้าที่ต้องการจากกล่องตัวเลือกด้านล่างได้ทันที')
+      .setDescription('ศูนย์รวมการสั่งซื้อยศถาวรและแพ็กเกจพิเศษผ่านเมนูดรอปดาวน์ สะดวก รวดเร็ว และเป็นส่วนตัว\n\n📌 **วิธีใช้งาน:** เลือกรายการสินค้าที่ต้องการจากกล่องตัวเลือกด้านล่างได้ทันที')
       .setColor('#00FF00')
       .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg');
 
@@ -63,15 +75,27 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
       .addOptions([
         {
           label: 'BOT PREMIUM (รายเดือน)',
-          description: 'สต็อกไม่จำกัด • ฿299.00 / 1 เดือน • ยศ: Bot Premium',
+          description: 'สต็อกไม่จำกัด • ฿399.00 / 1 เดือน • ยศ: Bot Premium',
           value: 'product_bot_premium',
           emoji: '💎'
         },
         {
           label: 'ยศ Artist ถาวร',
-          description: 'สต็อกไม่จำกัด • ฿60.00 / ถาวร • สิทธิ์แต่งการ์ดส่วนตัว',
+          description: 'สต็อกไม่จำกัด • ฿69.00 / ถาวร • สิทธิ์แต่งการ์ดส่วนตัว',
           value: 'product_artist_role',
           emoji: '🎨'
+        },
+        {
+          label: 'ยศพิเศษ สายชิลล์ ถาวร',
+          description: 'สต็อกไม่จำกัด • ฿19.00 / ถาวร • ยศโปรไฟล์สุดชิลล์',
+          value: 'product_chilling_role',
+          emoji: '☕'
+        },
+        {
+          label: 'ยศพิเศษ คนนอนดึก ถาวร',
+          description: 'สต็อกไม่จำกัด • ฿9.00 / ถาวร • ยศโปรไฟล์สายโต้รุ่ง',
+          value: 'product_nightowl_role',
+          emoji: '🌙'
         },
         {
           label: 'ล้างตัวเลือก',
@@ -95,10 +119,16 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
   let productPrice = '';
   if (selectedValue === 'product_bot_premium') {
     productName = 'BOT PREMIUM (รายเดือน)';
-    productPrice = '฿299.00';
+    productPrice = '฿399.00';
   } else if (selectedValue === 'product_artist_role') {
     productName = 'ยศ Artist ถาวร';
-    productPrice = '฿60.00';
+    productPrice = '฿69.00';
+  } else if (selectedValue === 'product_chilling_role') {
+    productName = 'ยศพิเศษ สายชิลล์ ถาวร';
+    productPrice = '฿19.00';
+  } else if (selectedValue === 'product_nightowl_role') {
+    productName = 'ยศพิเศษ คนนอนดึก ถาวร';
+    productPrice = '฿9.00';
   }
 
   const loadingEmbed = new EmbedBuilder()
@@ -171,12 +201,25 @@ async function handleOrderPaymentButton(interaction) {
   const isTrueMoney = interaction.customId.startsWith('pay_truemoney_');
   const selectedValue = interaction.customId.replace(isTrueMoney ? 'pay_truemoney_' : 'pay_promptpay_', '');
 
-  let productName = selectedValue === 'product_bot_premium' ? 'BOT PREMIUM (รายเดือน)' : 'ยศ Artist ถาวร';
-  let productPrice = selectedValue === 'product_bot_premium' ? '฿299.00' : '฿60.00';
+  let productName = '';
+  let productPrice = '';
+  if (selectedValue === 'product_bot_premium') {
+    productName = 'BOT PREMIUM (รายเดือน)';
+    productPrice = '฿399.00';
+  } else if (selectedValue === 'product_artist_role') {
+    productName = 'ยศ Artist ถาวร';
+    productPrice = '฿69.00';
+  } else if (selectedValue === 'product_chilling_role') {
+    productName = 'ยศพิเศษ สายชิลล์ ถาวร';
+    productPrice = '฿19.00';
+  } else if (selectedValue === 'product_nightowl_role') {
+    productName = 'ยศพิเศษ คนนอนดึก ถาวร';
+    productPrice = '฿9.00';
+  }
 
   const promptPayQr = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560193260293595176/ReceiveMoney_QR_2026-10-15_14.13.55.png';
   const trueMoneyQr = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560193259953717279/ReceiveMoney_QR_2026-10-15_14.14.01.png';
-  const truemoneyLink = 'https://tmn.app.link/57MAEZTBf7b';
+    const truemoneyLink = 'https://tmn.app.link/57MAEZTBf7b';
 
   const selectedQr = isTrueMoney ? trueMoneyQr : promptPayQr;
 
