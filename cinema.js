@@ -127,7 +127,22 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs, clien
 
     try {
       await member.roles.add(roleId);
-      return await interaction.reply({ content: `🎉 **จองตั๋วสำเร็จ!** ระบบได้มอบยศ <@&${roleId}> ให้คุณเรียบร้อยแล้ว เตรียมรับแจ้งเตือนล่วงหน้าได้เลยครับ!`, ephemeral: true });
+      
+      setTimeout(async () => {
+        try {
+          const guild = await client.guilds.fetch(member.guild.id).catch(() => null);
+          if (guild) {
+            const fetchedMember = await guild.members.fetch(member.id).catch(() => null);
+            if (fetchedMember && fetchedMember.roles.cache.has(roleId)) {
+              await fetchedMember.roles.remove(roleId);
+            }
+          }
+        } catch (e) {
+          console.error('Error removing 1-month permanent cinema role:', e);
+        }
+      }, 30 * 24 * 60 * 60 * 1000);
+
+      return await interaction.reply({ content: `🎉 **จองตั๋วสำเร็จ!** ระบบได้มอบยศ <@&${roleId}> ให้คุณเรียบร้อยแล้ว (ยศนี้จะถอดออกเองใน 1 เดือน)`, ephemeral: true });
     } catch (err) {
       console.error('Error assigning cinema role:', err);
       return await interaction.reply({ content: '❌ เกิดข้อผิดพลาดในการมอบยศ กรุณาตรวจสอบสิทธิ์ของบอท (Role Hierarchy)', ephemeral: true });
@@ -159,7 +174,7 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs, clien
         }
       }, 4 * 24 * 60 * 60 * 1000);
 
-      return await interaction.reply({ content: `🎉 **หยิบตั๋วเข้าชมสำเร็จ!** ระบบได้มอบยศให้คุณเรียบร้อยแล้ว (ยศนี้จะถอดออกเองใน4วันหลังจากได้รับ)`, ephemeral: true });
+      return await interaction.reply({ content: `🎉 **หยิบตั๋วเข้าชมสำเร็จ!** ระบบได้มอบยศให้คุณเรียบร้อยแล้ว (ยศนี้จะถอดออกเองใน 4 วันหลังจากได้รับ)`, ephemeral: true });
     } catch (err) {
       console.error('Error assigning temp cinema role:', err);
       return await interaction.reply({ content: '❌ เกิดข้อผิดพลาดในการมอบยศ กรุณาตรวจสอบสิทธิ์ของบอทครับ', ephemeral: true });
@@ -230,11 +245,11 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs, clien
             await sentMsg.delete().catch(() => {});
           }
         } catch (e) {
-          console.error('Error deleting broadcast message after 30 mins:', e);
+          console.error('Error deleting broadcast message after 20 mins:', e);
         }
-      }, 30 * 60 * 1000);
+      }, 20 * 60 * 1000);
 
-      return await interaction.reply({ content: `✅ ส่งประกาศไปยังห้อง <#${config.channelId}> เรียบร้อยแล้ว! (ข้อความจะหายไปเองใน 30 นาที)`, ephemeral: true });
+      return await interaction.reply({ content: `✅ ส่งประกาศไปยังห้อง <#${config.channelId}> เรียบร้อยแล้ว! (ข้อความจะหายไปเองใน 20 นาที)`, ephemeral: true });
     } catch (err) {
       console.error('Error sending cinema broadcast:', err);
       return await interaction.reply({ content: '❌ เกิดข้อผิดพลาดในการส่งประกาศ กรุณาตรวจสอบสิทธิ์ของบอทครับ', ephemeral: true });
