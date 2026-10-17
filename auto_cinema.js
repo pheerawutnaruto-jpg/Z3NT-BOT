@@ -35,7 +35,7 @@ function getAutoCinemaDashboard(config) {
   const embed = new EmbedBuilder()
     .setTitle('⏰ 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼 • NOW SHOWING CONTROL PANEL')
     .setDescription('แผงควบคุมรอบฉาย NOW SHOWING สามารถตั้งเวลาส่งอัตโนมัติ ชื่อเรื่อง เวลาฉาย รูปภาพ และทดลองส่งได้ที่นี่ครับ')
-    .setColor('#66FFFF')
+    .setColor('#FF0000')
     .addFields(
       { name: '📥 สถานะระบบ', value: statusText, inline: true },
       { name: '⏰ เวลาส่งอัตโนมัติ (Cron HH:MM)', value: `\`${config.timeStr || '20:00'}\``, inline: true },
@@ -108,7 +108,7 @@ function setupAutoCinemaCron(guildId, timeStr, channelId, client, serverConfigs)
           `🎬 **ชื่อเรื่อง:** ${config.title}\n` +
           `⏰ **เวลาฉาย:** ${config.showTimeStr || config.timeStr}`
         )
-        .setColor('#66FFFF')
+        .setColor('#FF0000')
         .setImage(imageUrl)
         .setFooter({ text: `วันที่ฉาย: ${new Date().toLocaleDateString('th-TH')}` });
 
@@ -201,11 +201,10 @@ async function handleAutoCinemaButton(interaction, serverConfigs, saveConfigs, c
           `🎬 **ชื่อเรื่อง:** ${config.title}\n` +
           `⏰ **เวลาฉาย:** ${config.showTimeStr || config.timeStr}`
         )
-        .setColor('#66FFFF')
+        .setColor('#FF0000')
         .setImage(imageUrl)
         .setFooter({ text: `วันที่ฉาย: ${new Date().toLocaleDateString('th-TH')}` });
 
-      // ส่งแบบให้เห็นคนเดียว (Ephemeral test)
       return await interaction.reply({ 
         content: `🧪 **[ทดลองแสดงผล]** (ข้อความนี้เห็นเฉพาะคุณ): <@&${config.roleId || '1560731553766707241'}>`, 
         embeds: [embed],
