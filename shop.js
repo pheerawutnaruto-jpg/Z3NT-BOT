@@ -1,8 +1,9 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, ChannelType } = require('discord.js');
+const { addZGenPointsSpent } = require('./zgen_shop');
 
 const userCooldowns = new Map();
 
-// รายการสินค้าทั้งหมดใน In-Game Shop (ใช้ระบบ Zen Coins / orbs ร่วมกับระบบเควสต์)
+// รายการสินค้าทั้งหมดใน In-Game Shop
 const IN_GAME_ITEMS = [
   { 
     id: 'gacha_box', 
@@ -13,7 +14,7 @@ const IN_GAME_ITEMS = [
   },
   { 
     id: 'xp_boost', 
-    name: '⚡ น้ำยาคูณ XP (1 ชม.)', 
+    name: '<a:emoji_103:1560417845903491112> น้ำยาคูณ XP (1 ชม.)', 
     price: 10, 
     type: 'buff',
     roleId: '1559992075095773184', 
@@ -21,7 +22,7 @@ const IN_GAME_ITEMS = [
   },
   { 
     id: 'role_artist_temp', 
-    name: '🎨 บัตรเช่า Artist (3 วัน)', 
+    name: '<a:emoji_103:1560417845903491112> บัตรเช่า Artist (3 วัน)', 
     price: 30, 
     type: 'role_temp',
     roleId: '1560136361015513108',
@@ -29,8 +30,8 @@ const IN_GAME_ITEMS = [
   },
   {
     id: 'cinema_perm',
-    name: '🎫 ตั๋วภาพยนตร์ถาวร (20 วัน)',
-    price: 15,
+    name: '<a:emoji_103:1560417845903491112> ตั๋วภาพยนตร์ถาวร (20 วัน)',
+    price: 20,
     type: 'cinema_role',
     roleId: '1560731553766707241',
     duration: 20 * 24 * 60 * 60 * 1000,
@@ -38,7 +39,7 @@ const IN_GAME_ITEMS = [
   },
   {
     id: 'cinema_temp',
-    name: '🎟️ ตั๋วภาพยนตร์รายวัน (1 วัน)',
+    name: '<a:emoji_103:1560417845903491112> ตั๋วภาพยนตร์รายวัน (1 วัน)',
     price: 1,
     type: 'cinema_role',
     roleId: '1551006184272560148',
@@ -47,12 +48,10 @@ const IN_GAME_ITEMS = [
   }
 ];
 
-// คำสั่งสำหรับส่งแผงป้ายหน้าร้านถาวร (สำหรับแอดมิน)
 const setupShopCommand = new SlashCommandBuilder()
   .setName('setup-in-game-shop')
   .setDescription('💎 [PREMIUM] ส่งแผงป้ายหน้าร้านค้าในเกมถาวร (Storefront) ไปยังห้องนี้ (สำหรับ Admin)');
 
-// คำสั่งเช็กสถานะบัฟคูณ XP
 const boostStatusCommand = new SlashCommandBuilder()
   .setName('boost-status')
   .setDescription('💎 [PREMIUM] เช็กสถานะและเวลาคงเหลือของน้ำยาคูณ XP');
@@ -65,7 +64,7 @@ async function handleSetupShopCommand(interaction) {
   const storefrontImageUrl = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560429209522806814/1792105478227.jpg';
 
   const embed = new EmbedBuilder()
-    .setTitle('<a:emoji_103:1560417845903491112> 𝙕𝙀𝙉 𝘽𝙊𝙏 • IN-GAME STOREFRONT')
+    .setTitle('🛒 𝙕𝙀𝙉 𝘽𝙊𝙏 • IN-GAME STOREFRONT')
     .setDescription(
       'ยินดีต้อนรับสู่ศูนย์รวมไอเทม บัฟ บัตรเช่า และตั๋วชมภาพยนตร์ประจำเซิร์ฟเวอร์!\n\n' +
       '📌 **วิธีใช้งาน:** คลิกปุ่มด้านล่างเพื่อเปิดหน้าต่างร้านค้าและใช้ Zen Coins เลือกซื้อสินค้าได้ทันทีครับ'
@@ -77,7 +76,6 @@ async function handleSetupShopCommand(interaction) {
     new ButtonBuilder()
       .setCustomId('open_in_game_shop_panel')
       .setLabel('🛒 เปิดแผงร้านค้าในเกม')
-      .setEmoji('1560417845903491112')
       .setStyle(ButtonStyle.Success)
   );
 
@@ -135,7 +133,7 @@ async function handleInGameShopPanel(interaction, serverConfigs) {
     row.addComponents(
       new ButtonBuilder()
         .setCustomId(`buy_item_${item.id}`)
-        .setLabel(item.name.split(' (')[0])
+        .setLabel(item.name.replace(/<a:[^>]+>\s*/, '').split(' (')[0])
         .setEmoji('1560417845903491112')
         .setStyle(ButtonStyle.Primary)
     );
@@ -196,6 +194,9 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs, client)
   }
 
   userStat.orbs -= item.price;
+
+  // 💎 คำนวณสะสมแต้ม Z Gen Points อัตโนมัติ (ทุก 50 coins = 1 แต้ม)
+  addZGenPointsSpent(userStat, item.price);
 
   if (item.type === 'gacha') {
     const outcomes = [
