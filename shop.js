@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
 
 const userCooldowns = new Map();
 
@@ -8,7 +8,6 @@ const IN_GAME_ITEMS = [
     name: '🎁 กล่องสุ่มกาชาปอง (Gacha Box)', 
     price: 5, 
     type: 'gacha',
-    buttonLabel: 'ซื้อ กล่องสุ่ม (5c)',
     description: 'เสี่ยงโชคสุ่มรับ Zen Coins ก้อนโตหรือเกลือ! (ลุ้นรับสูงสุด 50 Coins)' 
   },
   { 
@@ -17,7 +16,6 @@ const IN_GAME_ITEMS = [
     price: 10, 
     type: 'buff',
     roleId: '1559992075095773184', 
-    buttonLabel: 'ซื้อ น้ำยาคูณ (10c)',
     description: 'คูณ XP 2 เท่า พร้อมรับยศพิเศษ Xp Booster นาน 1 ชั่วโมง!' 
   },
   { 
@@ -26,14 +24,31 @@ const IN_GAME_ITEMS = [
     price: 30, 
     type: 'role_temp',
     roleId: '1560136361015513108',
-    buttonLabel: 'ซื้อ บัตร Artist 3 วัน (30c)',
     description: 'รับยศ Artist และสิทธิ์เปลี่ยนรูปการ์ด /level ส่วนตัว นาน 3 วัน!' 
+  },
+  {
+    id: 'cinema_perm',
+    name: '🎫 ตั๋วภาพยนตร์ถาวร (20 วัน)',
+    price: 15,
+    type: 'cinema_role',
+    roleId: '1560731553766707241',
+    duration: 20 * 24 * 60 * 60 * 1000,
+    description: 'รับยศโรงหนังถาวร นาน 20 วัน (ใช้ 15 Zen Coins)'
+  },
+  {
+    id: 'cinema_temp',
+    name: '🎟️ ตั๋วภาพยนตร์รายวัน (1 วัน)',
+    price: 1,
+    type: 'cinema_role',
+    roleId: '1551006184272560148',
+    duration: 1 * 24 * 60 * 60 * 1000,
+    description: 'รับยศโรงหนังพิเศษ นาน 1 วัน (ใช้ 1 Zen Coins)'
   }
 ];
 
 const setupShopCommand = new SlashCommandBuilder()
   .setName('setup-in-game-shop')
-  .setDescription('💎 [PREMIUM] ส่งแผงร้านค้าในเกม (ใช้ Zen Coins ซื้อ) ไปยังห้องนี้ (for Admin)');
+  .setDescription('💎 [PREMIUM] ส่งแผงร้านค้าในเกม (ระบบเมนูดรอปดาวน์) ไปยังห้องนี้ (สำหรับ Admin)');
 
 const boostStatusCommand = new SlashCommandBuilder()
   .setName('boost-status')
@@ -46,7 +61,7 @@ async function handleSetupShopCommand(interaction) {
 
   const embed = new EmbedBuilder()
     .setTitle('🛒 𝙕𝙀𝙉 𝘽𝙊𝙏 • IN-GAME SHOP')
-    .setDescription('ใช้ Zen Coins ซื้อไอเทม บัฟ และบัตรเช่าใช้งานได้จากปุ่มด้านล่างนี้เลย:\n──────────────────────')
+    .setDescription('ใช้ Zen Coins ซื้อไอเทม บัฟ บัตรเช่า และตั๋วชมภาพยนตร์ได้จากเมนูดรอปดาวน์ด้านล่างนี้เลย:\n──────────────────────')
     .setColor('#FFD700');
 
   IN_GAME_ITEMS.forEach(item => {
@@ -57,15 +72,19 @@ async function handleSetupShopCommand(interaction) {
     });
   });
 
-  const row = new ActionRowBuilder();
+  const selectMenu = new StringSelectMenuBuilder()
+    .setCustomId('shop_item_select')
+    .setPlaceholder('📂 กรุณาเลือกสินค้าที่ต้องการซื้อ...');
+
   IN_GAME_ITEMS.forEach(item => {
-    row.addComponents(
-      new ButtonBuilder()
-        .setCustomId(`buy_ingame_${item.id}`)
-        .setLabel(item.buttonLabel)
-        .setStyle(ButtonStyle.Primary)
-    );
+    selectMenu.addOptions({
+      label: item.name.replace(/[^\w\s\u0E00-\u0E7F]/gi, '').trim(),
+      description: `ราคา ${item.price} Coins`,
+      value: item.id
+    });
   });
+
+  const row = new ActionRowBuilder().addComponents(selectMenu);
 
   await interaction.channel.send({ embeds: [embed], components: [row] });
   await interaction.reply({ content: '✅ ส่งแผงร้านค้าในเกมไปยังห้องนี้สำเร็จแล้ว!', ephemeral: true });
@@ -93,8 +112,8 @@ async function handleBoostStatusCommand(interaction, serverConfigs) {
   await interaction.reply({ embeds: [embed], ephemeral: true });
 }
 
-async function handleShopButton(interaction, serverConfigs, saveConfigs) {
-  if (!interaction.customId.startsWith('buy_ingame_')) return false;
+async function handleShopButton(interaction, serverConfigs, saveConfigs, client) {
+  if (!interaction.isStringSelectMenu() || interaction.customId !== 'shop_item_select') return false;
 
   const userId = interaction.user.id;
   const now = Date.now();
@@ -108,7 +127,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
   userCooldowns.set(userId, now);
 
   const guildId = interaction.guildId;
-  const itemId = interaction.customId.replace('buy_ingame_', '');
+  const itemId = interaction.values[0];
 
   const item = IN_GAME_ITEMS.find(i => i.id === itemId);
   if (!item) return true;
@@ -126,6 +145,13 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
     const remainingDays = Math.ceil((userStat.artistUntil - now) / (1000 * 60 * 60 * 24));
     return await interaction.reply({ content: `⚠️ คุณยังมีสิทธิ์ Artist ใช้งานอยู่ (เหลือเวลาอีกประมาณ ${remainingDays} วัน) ไม่สามารถซื้อซ้ำซ้อนได้ครับ!`, ephemeral: true });
   }
+
+  try {
+    const member = await interaction.guild.members.fetch(userId);
+    if (item.type === 'cinema_role' && member.roles.cache.has(item.roleId)) {
+      return await interaction.reply({ content: `❤️ คุณมีตั๋วอยู่แล้ว ขอให้สนุกกับการรับชมนะครับ!`, ephemeral: true });
+    }
+  } catch (e) {}
 
   if (userCoins < item.price) {
     return await interaction.reply({ content: `❌ Zen Coins ของคุณไม่พอ! (คุณมี ${userCoins} Coins แต่สินค้าราคา ${item.price} Coins)`, ephemeral: true });
@@ -172,6 +198,33 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
     } catch (err) {}
 
     return await interaction.reply({ content: `🎉 เช่าสำเร็จ! คุณได้รับยศ Artist และสิทธิ์แต่งการ์ดส่วนตัวเป็นเวลา 3 วันเต็ม!`, ephemeral: true });
+  }
+
+  else if (item.type === 'cinema_role') {
+    await saveConfigs(serverConfigs);
+
+    try {
+      const member = await interaction.guild.members.fetch(userId);
+      await member.roles.add(item.roleId);
+
+      setTimeout(async () => {
+        try {
+          const guild = await client.guilds.fetch(member.guild.id).catch(() => null);
+          if (guild) {
+            const fetchedMember = await guild.members.fetch(member.id).catch(() => null);
+            if (fetchedMember && fetchedMember.roles.cache.has(item.roleId)) {
+              await fetchedMember.roles.remove(item.roleId);
+            }
+          }
+        } catch (e) {
+          console.error('Error removing cinema role from shop:', e);
+        }
+      }, item.duration);
+    } catch (err) {
+      console.error('Error assigning cinema role from shop:', err);
+    }
+
+    return await interaction.reply({ content: `🎉 **ซื้อตั๋วสำเร็จ!** ระบบได้หัก ${item.price} C และมอบยศ <@&${item.roleId}> ให้คุณเรียบร้อยแล้วครับ!`, ephemeral: true });
   }
 
   return true;
