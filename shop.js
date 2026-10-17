@@ -6,26 +6,26 @@ const userCooldowns = new Map();
 const IN_GAME_ITEMS = [
   { 
     id: 'gacha_box', 
-    name: '🎁 กล่องสุ่มกาชาปอง (Gacha Box)', 
+    name: '🎁 กล่องสุ่มกาชาปอง', 
     price: 5, 
     type: 'gacha',
-    description: '• เสี่ยงโชคสุ่มรับ Zen Coins ก้อนโตหรือเกลือ! (ลุ้นรับสูงสุด 50 Coins)' 
+    description: '• ลุ้นรับ Zen Coins สูงสุด 50 Coins!' 
   },
   { 
     id: 'xp_boost', 
-    name: '⚡ น้ำยาคูณ XP (1 ชั่วโมง + ยศ Booster)', 
+    name: '⚡ น้ำยาคูณ XP (1 ชม.)', 
     price: 10, 
     type: 'buff',
     roleId: '1559992075095773184', 
-    description: '• คูณ XP 2 เท่า พร้อมรับยศพิเศษ Xp Booster นาน 1 ชั่วโมง!' 
+    description: '• คูณ XP 2 เท่า พร้อมรับยศ Xp Booster' 
   },
   { 
     id: 'role_artist_temp', 
-    name: '🎨 บัตรปลดล็อกยศ Artist (เช่า 3 วัน)', 
+    name: '🎨 บัตรเช่า Artist (3 วัน)', 
     price: 30, 
     type: 'role_temp',
     roleId: '1560136361015513108',
-    description: '• รับยศ Artist และสิทธิ์เปลี่ยนรูปการ์ด /level ส่วนตัว นาน 3 วัน!' 
+    description: '• รับยศ Artist และสิทธิ์เปลี่ยนการ์ด /level' 
   },
   {
     id: 'cinema_perm',
@@ -34,7 +34,7 @@ const IN_GAME_ITEMS = [
     type: 'cinema_role',
     roleId: '1560731553766707241',
     duration: 20 * 24 * 60 * 60 * 1000,
-    description: '• รับยศโรงหนังถาวร นาน 20 วัน (หัก 15 Zen Coins)'
+    description: '• รับยศโรงหนังยาวๆ 20 วันเต็ม'
   },
   {
     id: 'cinema_temp',
@@ -43,7 +43,7 @@ const IN_GAME_ITEMS = [
     type: 'cinema_role',
     roleId: '1551006184272560148',
     duration: 1 * 24 * 60 * 60 * 1000,
-    description: '• รับยศโรงหนังพิเศษ นาน 1 วัน (หัก 1 Zen Coin)'
+    description: '• รับยศโรงหนังพิเศษ 1 วัน'
   }
 ];
 
@@ -65,10 +65,10 @@ async function handleSetupShopCommand(interaction) {
   const storefrontImageUrl = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560429209522806814/1792105478227.jpg';
 
   const embed = new EmbedBuilder()
-    .setTitle('🛒 𝙕𝙀𝙉 𝘽𝙊𝙏 • IN-GAME STOREFRONT')
+    .setTitle('<a:emoji_103:1560417845903491112> 𝙕𝙀𝙉 𝘽𝙊𝙏 • IN-GAME STOREFRONT')
     .setDescription(
       'ยินดีต้อนรับสู่ศูนย์รวมไอเทม บัฟ บัตรเช่า และตั๋วชมภาพยนตร์ประจำเซิร์ฟเวอร์!\n\n' +
-      '📌 **คำแนะนำ:** คลิกปุ่มด้านล่างเพื่อเปิดหน้าต่างร้านค้า และใช้ Zen Coins ของคุณเลือกซื้อสินค้าได้ทันที'
+      '📌 **วิธีใช้งาน:** คลิกปุ่มด้านล่างเพื่อเปิดหน้าต่างร้านค้าและใช้ Zen Coins เลือกซื้อสินค้าได้ทันทีครับ'
     )
     .setImage(storefrontImageUrl)
     .setColor('#FFD700');
@@ -77,6 +77,7 @@ async function handleSetupShopCommand(interaction) {
     new ButtonBuilder()
       .setCustomId('open_in_game_shop_panel')
       .setLabel('🛒 เปิดแผงร้านค้าในเกม')
+      .setEmoji('1560417845903491112')
       .setStyle(ButtonStyle.Success)
   );
 
@@ -117,13 +118,13 @@ async function handleInGameShopPanel(interaction, serverConfigs) {
     .setTitle('🛒 𝙕𝙀𝙉 𝘽𝙊𝙏 • IN-GAME SHOP')
     .setDescription(
       `<a:emoji_100:1560416789211516938> **ยอดเหรียญของคุณ:** \`${userCoins} Zen Coins\`\n\n` +
-      'เลือกซื้อไอเทม บัฟ บัตรเช่า และตั๋วชมภาพยนตร์ด้วย Zen Coins ของคุณได้จากปุ่มด้านล่างนี้เลยครับ:\n──────────────────────'
+      'เลือกซื้อไอเทมหรือบัฟที่คุณต้องการได้จากรายการด้านล่างนี้เลยครับ:\n──────────────────────'
     )
     .setColor('#FFD700');
 
   IN_GAME_ITEMS.forEach(item => {
     embed.addFields({
-      name: `${item.name} ➔ ${item.price} Zen Coins`,
+      name: `${item.name} ➔ \`${item.price} Coins\``,
       value: `${item.description}\n──────────────────────`,
       inline: false
     });
@@ -135,6 +136,7 @@ async function handleInGameShopPanel(interaction, serverConfigs) {
       new ButtonBuilder()
         .setCustomId(`buy_item_${item.id}`)
         .setLabel(item.name.split(' (')[0])
+        .setEmoji('1560417845903491112')
         .setStyle(ButtonStyle.Primary)
     );
   });
