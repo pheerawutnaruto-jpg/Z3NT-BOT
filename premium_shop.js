@@ -3,45 +3,45 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Butt
 const PREMIUM_ITEMS = [
   { 
     id: 'buy_coins_10', 
-    name: 'เติม 10 Zen Coins', 
+    name: '<a:emoji_103:1560417845903491112> เติม 10 Zen Coins', 
     price: 10, 
     coins: 10, 
     type: 'topup',
-    description: '• เติมแพ็กเกจ: **10 Zen Coins**\n• สำหรับ: ใช้ซื้อไอเทม / ปลดล็อกฟีเจอร์ในระบบ' 
+    description: '• สำหรับ: ใช้ซื้อไอเทม / ปลดล็อกฟีเจอร์ต่างๆ' 
   },
   { 
     id: 'buy_coins_50', 
-    name: 'เติม 50 Zen Coins', 
+    name: '<a:emoji_103:1560417845903491112> เติม 50 Zen Coins', 
     price: 45, 
     coins: 50, 
     type: 'topup',
-    description: '• เติมแพ็กเกจ: **50 Zen Coins**\n• สำหรับ: คุ้มค่า ประหยัดกว่าเดิม' 
+    description: '• สำหรับ: แพ็กเกจสุดคุ้ม ประหยัดกว่าเดิม' 
   },
   { 
     id: 'buy_coins_100', 
-    name: 'เติม 100 Zen Coins', 
+    name: '<a:emoji_103:1560417845903491112> เติม 100 Zen Coins', 
     price: 89, 
     coins: 100, 
     type: 'topup',
-    description: '• เติมแพ็กเกจ: **100 Zen Coins**\n• สำหรับ: ยอดนิยม สำหรับสายสะสม' 
+    description: '• สำหรับ: ยอดนิยม สำหรับสายสะสมไอเทม' 
   },
   { 
     id: 'buy_coins_500', 
-    name: 'เติม 500 Zen Coins', 
+    name: '<a:emoji_103:1560417845903491112> เติม 500 Zen Coins', 
     price: 399, 
     coins: 500, 
     type: 'topup',
-    description: '• เติมแพ็กเกจ: **500 Zen Coins**\n• สำหรับ: VIP คุ้มสุดๆ จัดเต็ม' 
+    description: '• สำหรับ: สาย VIP จัดเต็มความคุ้มค่าสูงสุด' 
   }
 ];
 
 const premiumShopCommand = new SlashCommandBuilder()
   .setName('shop')
-  .setDescription('💎 [PREMIUM] เปิดร้านค้าพรีเมียม เติมเหรียญ และซื้อแพ็กเกจ');
+  .setDescription('💎 [PREMIUM] เปิดร้านค้าเติมเงิน Topup Shop');
 
 const setupPremiumShopCommand = new SlashCommandBuilder()
   .setName('setup-premium-shop')
-  .setDescription('💎 [PREMIUM] ส่งแผงป้ายร้านค้าพรีเมียมถาวรไปยังห้องนี้ (สำหรับ Admin)');
+  .setDescription('💎 [PREMIUM] ส่งแผงป้ายร้านค้าเติมเงินถาวรไปยังห้องนี้ (สำหรับ Admin)');
 
 const coinsCommand = new SlashCommandBuilder()
   .setName('coins')
@@ -59,8 +59,8 @@ async function handleSetupPremiumShopCommand(interaction) {
   }
 
   const embed = new EmbedBuilder()
-    .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • OFFICIAL PREMIUM STORE')
-    .setDescription('ยินดีต้อนรับสู่ศูนย์รวมบริการพรีเมียมและระบบเติม Zen Coins อัตโนมัติ\n\n📌 **คำแนะนำ:** คลิกปุ่มด้านล่างเพื่อเปิดหน้าต่างร้านค้าหลัก หรือใช้คำสั่ง `/shop` ได้ทันที')
+    .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • OFFICIAL TOPUP SHOP')
+    .setDescription('ศูนย์บริการเติม Zen Coins อัตโนมัติ รวดเร็ว ปลอดภัย\n\n📌 **วิธีใช้งาน:** คลิกปุ่มด้านล่างเพื่อเปิดหน้าต่างแพ็กเกจเติมเงินได้ทันทีครับ')
     .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1560424207702040647/1792104497426.jpg')
     .setColor('#FFD700');
 
@@ -72,7 +72,7 @@ async function handleSetupPremiumShopCommand(interaction) {
   );
 
   await interaction.channel.send({ embeds: [embed], components: [row] });
-  await interaction.reply({ content: '✅ ส่งแผงป้ายร้านค้าพรีเมียมไปยังห้องนี้สำเร็จแล้ว!', ephemeral: true });
+  await interaction.reply({ content: '✅ ส่งแผงป้าย Topup Shop ไปยังห้องนี้สำเร็จแล้ว!', ephemeral: true });
 }
 
 async function handleCoinsCommand(interaction, serverConfigs) {
@@ -122,13 +122,16 @@ async function handlePremiumShopCommand(interaction, serverConfigs) {
   const userCoins = userStat ? (userStat.orbs || 0) : 0;
 
   const embed = new EmbedBuilder()
-    .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM STORE')
-    .setDescription(`<a:emoji_100:1560416789211516938> **ยอดเหรียญของคุณ:** \`${userCoins} Zen Coins\`\n\nเลือกแพ็กเกจเติมเงินที่คุณต้องการสั่งซื้อจากปุ่มด้านล่างระบบจะสร้างห้องส่วนตัวให้ทันที:`)
+    .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • TOPUP SHOP')
+    .setDescription(
+      `<a:emoji_100:1560416789211516938> **ยอดเหรียญของคุณ:** \`${userCoins} Zen Coins\`\n\n` +
+      'เลือกแพ็กเกจเติมเงินที่คุณต้องการจากรายการด้านล่างนี้ได้เลยครับ:\n──────────────────────'
+    )
     .setColor('#FFD700');
 
   PREMIUM_ITEMS.forEach(item => {
     embed.addFields({
-      name: `${item.name} ➔ ฿${item.price}.00`,
+      name: `${item.name} ➔ \`฿${item.price}.00\``,
       value: `${item.description}\n──────────────────────`,
       inline: false
     });
@@ -139,8 +142,8 @@ async function handlePremiumShopCommand(interaction, serverConfigs) {
     row.addComponents(
       new ButtonBuilder()
         .setCustomId(`create_order_${item.id}`)
-        .setLabel(item.name)
-        .setEmoji('1560416845322920067')
+        .setLabel(item.name.replace(/<a:[^>]+>\s*/, ''))
+        .setEmoji('1560417845903491112')
         .setStyle(ButtonStyle.Primary)
     );
   });
@@ -192,9 +195,10 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
 
       const newOrderGif = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560415906281300059/image0.gif';
 
+      const cleanItemName = item.name.replace(/<a:[^>]+>\s*/, '');
       const embed = new EmbedBuilder()
-        .setTitle(`<a:emoji_103:1560417845903491112> รายละเอียดออร์เดอร์: ${item.name}`)
-        .setDescription(`• **ผู้สั่งซื้อ:** <@${user.id}>\n• **สินค้า:** ${item.name}\n• **ยอดที่ต้องชำระ:** \`${item.price} บาท\`\n\n──────────────────────\nเลือกช่องทางการชำระเงินจากปุ่มด้านล่างได้เลยครับ:`)
+        .setTitle(`<a:emoji_103:1560417845903491112> รายละเอียดออร์เดอร์: ${cleanItemName}`)
+        .setDescription(`• **ผู้สั่งซื้อ:** <@${user.id}>\n• **สินค้า:** ${cleanItemName}\n• **ยอดที่ต้องชำระ:** \`${item.price} บาท\`\n\n──────────────────────\nเลือกช่องทางการชำระเงินจากปุ่มด้านล่างได้เลยครับ:`)
         .setImage(newOrderGif)
         .setColor('#FFD700')
         .setFooter({ text: 'ช่องทางชำระ' });
@@ -237,10 +241,11 @@ async function handlePremiumShopButton(interaction, serverConfigs) {
     const truemoneyLink = 'https://tmn.app.link/57MAEZTBf7b';
 
     const selectedQr = isTrueMoney ? trueMoneyQr : promptPayQr;
+    const cleanItemName = item.name.replace(/<a:[^>]+>\s*/, '');
 
     const embed = new EmbedBuilder()
       .setTitle('💳 ยืนยันช่องทางชำระเงิน')
-      .setDescription(`• **สินค้า:** ${item.name}\n• **ยอดชำระ:** \`${item.price} บาท\`\n\n──────────────────────\n📌 **${isTrueMoney ? 'สแกน QR Code ทรูมันนี่ หรือกดลิงก์ซองของขวัญ:' : 'สแกน QR Code PromptPay ด้านล่างเพื่อโอนเงิน:'}**\n${isTrueMoney ? `🔗 [เปิดแอป TrueMoney Wallet](${truemoneyLink})` : ''}\n\n*เมื่อทำรายการเรียบร้อยแล้ว ส่งสลิปหลักฐานในห้องนี้เพื่อให้แอดมินตรวจสอบและมอบสินค้าให้ได้เลยครับ!*`)
+      .setDescription(`• **สินค้า:** ${cleanItemName}\n• **ยอดชำระ:** \`${item.price} บาท\`\n\n──────────────────────\n📌 **${isTrueMoney ? 'สแกน QR Code ทรูมันนี่ หรือกดลิงก์ซองของขวัญ:' : 'สแกน QR Code PromptPay ด้านล่างเพื่อโอนเงิน:'}**\n${isTrueMoney ? `🔗 [เปิดแอป TrueMoney Wallet](${truemoneyLink})` : ''}\n\n*เมื่อทำรายการเรียบร้อยแล้ว ส่งสลิปหลักฐานในห้องนี้เพื่อให้แอดมินตรวจสอบและมอบสินค้าให้ได้เลยครับ!*`)
       .setImage(selectedQr)
       .setColor('#00FF00')
       .setFooter({ text: 'ช่องทางชำระ' });
