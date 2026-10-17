@@ -2,7 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Butt
 
 const setupArtistCommand = new SlashCommandBuilder()
   .setName('setup-artist-card')
-  .setDescription('💎 [PREMIUM] ส่งแผงปุ่มตั้งค่ารูปการ์ดส่วนตัวสำหรับคนมียศ Artist (สำหรับ Admin)');
+  .setDescription('💎 [PREMIUM] ส่งแผงปุ่มตั้งค่ารูปการ์ดส่วนตัว (Level & Wallet) สำหรับคนมียศ Artist (สำหรับ Admin)');
 
 async function handleSetupArtistCommand(interaction) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
@@ -11,14 +11,18 @@ async function handleSetupArtistCommand(interaction) {
 
   const embed = new EmbedBuilder()
     .setTitle('🎨 𝙕𝙀𝙉 𝘽𝙊𝙏 • ARTIST CARD CUSTOMIZER')
-    .setDescription('สำหรับสมาชิกที่มียศ **Artist** หรือ **Aritist | 3d** กดปุ่มด้านล่างเพื่อกรอกลิงก์รูปภาพสำหรับเปลี่ยนพื้นหลังการ์ด `/level` ส่วนตัวของคุณได้ทันที!\n──────────────────────')
+    .setDescription('สำหรับสมาชิกที่มียศ **Artist** หรือ **Aritist | 3d** กดปุ่มด้านล่างเพื่อกรอกลิงก์รูปภาพสำหรับเปลี่ยนพื้นหลังการ์ด `/level` และการ์ดกระเป๋าเงิน `/coins` ส่วนตัวของคุณได้ทันที!\n──────────────────────')
     .setColor('#FF69B4');
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('open_artist_card_modal')
-      .setLabel('🎨 เปลี่ยนรูปการ์ดส่วนตัว')
-      .setStyle(ButtonStyle.Primary)
+      .setLabel('🎨 เปลี่ยนรูปการ์ดเลเวล')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId('open_artist_wallet_modal')
+      .setLabel('💰 เปลี่ยนรูปการ์ดกระเป๋า')
+      .setStyle(ButtonStyle.Success)
   );
 
   await interaction.channel.send({ embeds: [embed], components: [row] });
@@ -26,7 +30,8 @@ async function handleSetupArtistCommand(interaction) {
 }
 
 async function handleArtistButton(interaction, serverConfigs) {
-  if (interaction.customId !== 'open_artist_card_modal') return false;
+  const customId = interaction.customId;
+  if (customId !== 'open_artist_card_modal' && customId !== 'open_artist_wallet_modal') return false;
 
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
@@ -55,29 +60,52 @@ async function handleArtistButton(interaction, serverConfigs) {
     });
   }
 
-  const modal = new ModalBuilder()
-    .setCustomId('artistCardModal')
-    .setTitle('🎨 ปรับแต่งรูปการ์ด /level ส่วนตัว');
+  if (customId === 'open_artist_card_modal') {
+    const modal = new ModalBuilder()
+      .setCustomId('artistCardModal')
+      .setTitle('🎨 ปรับแต่งรูปการ์ด /level ส่วนตัว');
 
-  const imageUrlInput = new TextInputBuilder()
-    .setCustomId('cardImageUrl')
-    .setLabel('ลิงก์รูปภาพพื้นหลังการ์ด (Image URL)')
-    .setStyle(TextInputStyle.Short)
-    .setPlaceholder('https://example.com/my-image.png')
-    .setValue(userStat.customTheme || '')
-    .setRequired(true);
+    const imageUrlInput = new TextInputBuilder()
+      .setCustomId('cardImageUrl')
+      .setLabel('ลิงก์รูปภาพพื้นหลังการ์ด Level (Image URL)')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('https://example.com/my-level-image.png')
+      .setValue(userStat.customTheme || '')
+      .setRequired(true);
 
-  modal.addComponents(new ActionRowBuilder().addComponents(imageUrlInput));
-  await interaction.showModal(modal);
-  return true;
+    modal.addComponents(new ActionRowBuilder().addComponents(imageUrlInput));
+    await interaction.showModal(modal);
+    return true;
+  }
+
+  if (customId === 'open_artist_wallet_modal') {
+    const modal = new ModalBuilder()
+      .setCustomId('artistWalletModal')
+      .setTitle('💰 ปรับแต่งรูปการ์ด /coins ส่วนตัว');
+
+    const walletImageUrlInput = new TextInputBuilder()
+      .setCustomId('walletImageUrl')
+      .setLabel('ลิงก์รูปภาพพื้นหลังการ์ด Wallet (Image URL)')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('https://example.com/my-wallet-image.png')
+      .setValue(userStat.customWalletTheme || '')
+      .setRequired(true);
+
+    modal.addComponents(new ActionRowBuilder().addComponents(walletImageUrlInput));
+    await interaction.showModal(modal);
+    return true;
+  }
+
+  return false;
 }
 
 async function handleArtistModalSubmit(interaction, serverConfigs, saveConfigs) {
-  if (interaction.customId !== 'artistCardModal') return false;
+  const customId = interaction.customId;
+  if (customId !== 'artistCardModal' && customId !== 'artistWalletModal') return false;
 
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
-  const imageUrl = interaction.fields.getTextInputValue('cardImageUrl').trim();
+  const imageUrl = interaction.fields.getTextInputValue(customId === 'artistCardModal' ? 'cardImageUrl' : 'walletImageUrl').trim();
 
   if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
     return await interaction.reply({ content: '❌ ลิงก์ไม่ถูกต้อง! กรุณาระบุลิงก์รูปภาพที่ขึ้นต้นด้วย http:// หรือ https://', ephemeral: true });
@@ -86,13 +114,19 @@ async function handleArtistModalSubmit(interaction, serverConfigs, saveConfigs) 
   if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
   if (!serverConfigs[guildId].levels) serverConfigs[guildId].levels = {};
   if (!serverConfigs[guildId].levels[userId]) {
-    serverConfigs[guildId].levels[userId] = { xp: 0, level: 1, orbs: 0, lastDaily: 0, boostUntil: 0, artistUntil: 0, customTheme: '' };
+    serverConfigs[guildId].levels[userId] = { xp: 0, level: 1, orbs: 0, lastDaily: 0, boostUntil: 0, artistUntil: 0, customTheme: '', customWalletTheme: '' };
   }
 
-  serverConfigs[guildId].levels[userId].customTheme = imageUrl;
-  await saveConfigs(serverConfigs);
+  if (customId === 'artistCardModal') {
+    serverConfigs[guildId].levels[userId].customTheme = imageUrl;
+    await saveConfigs(serverConfigs);
+    await interaction.reply({ content: `✅ บันทึกรูปภาพพื้นหลังการ์ด Level สำเร็จ! ลองพิมพ์ \`/level\` ดูการเปลี่ยนแปลงได้เลย`, ephemeral: true });
+  } else {
+    serverConfigs[guildId].levels[userId].customWalletTheme = imageUrl;
+    await saveConfigs(serverConfigs);
+    await interaction.reply({ content: `✅ บันทึกรูปภาพพื้นหลังการ์ด Wallet สำเร็จ! ลองพิมพ์คำสั่งเช็กเหรียญดูการเปลี่ยนแปลงได้เลย`, ephemeral: true });
+  }
 
-  await interaction.reply({ content: `✅ บันทึกรูปภาพพื้นหลังการ์ดส่วนตัวสำเร็จ! ลองพิมพ์ \`/level\` ดูการเปลี่ยนแปลงได้เลย`, ephemeral: true });
   return true;
 }
 
