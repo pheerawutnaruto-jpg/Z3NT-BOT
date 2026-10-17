@@ -30,7 +30,7 @@ async function handleSetupCinemaCommand(interaction) {
   const tempRoleId = '1551006184272560148';
 
   const embed = new EmbedBuilder()
-    .setTitle('🎟️ 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼 • 𝘽𝙊X 𝙊𝙁𝙁𝙄𝘾𝙀')
+    .setTitle('🎟️ 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼 • BOX OFFICE')
     .setDescription(
       '✨ **บริการจำหน่ายตั๋วรับชมภาพยนตร์** ✨\n\n' +
       `> <@&${permRoleId}> (15c / 20 day)\n` +
