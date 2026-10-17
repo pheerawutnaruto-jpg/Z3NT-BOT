@@ -30,7 +30,7 @@ async function handleSetupCinemaCommand(interaction) {
   const tempRoleId = '1551006184272560148';
 
   const embed = new EmbedBuilder()
-    .setTitle('🎟️ 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼 • 𝘽𝙊𝚇 𝙊𝙁𝙁𝙄𝘾𝙀')
+    .setTitle('🎟️ 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼 • 𝘽𝙊X 𝙊𝙁𝙁𝙄𝘾𝙀')
     .setDescription(
       '✨ **บริการจำหน่ายตั๋วรับชมภาพยนตร์** ✨\n\n' +
       `> <@&${permRoleId}> (15c / 20 day)\n` +
@@ -205,32 +205,36 @@ function loadAllCinemaBroadcastCrons(client, serverConfigs) {
   }
 }
 
-// ตัวจัดการปุ่มและการทำงานของ Manual & Box Office Cinema (พร้อมระบบหัก Zen Coins)
+// ตัวจัดการปุ่มและการทำงานของ Manual & Box Office Cinema (ดึงเหรียญจากระบบ orbs เลเวล/เควสต์)
 async function handleCinemaButton(interaction, serverConfigs, saveConfigs, client) {
   const id = interaction.customId;
   const guildId = interaction.guildId;
   if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
-  if (!serverConfigs[guildId].economy) serverConfigs[guildId].economy = {};
+  if (!serverConfigs[guildId].levels) serverConfigs[guildId].levels = {};
+
+  const userId = interaction.user.id;
+  if (!serverConfigs[guildId].levels[userId]) {
+    serverConfigs[guildId].levels[userId] = { xp: 0, level: 1, orbs: 0, lastDaily: 0, boostUntil: 0, artistUntil: 0, customTheme: '' };
+  }
+  const userStat = serverConfigs[guildId].levels[userId];
 
   if (id === 'cinema_perm_ticket') {
     const roleId = '1560731553766707241';
     const member = interaction.member;
-    const userId = member.id;
     const cost = 15;
 
     if (member.roles.cache.has(roleId)) {
       return await interaction.reply({ content: `❤️ คุณมีตั๋วอยู่แล้ว ขอให้สนุกกับการรับชมนะครับ!`, ephemeral: true });
     }
 
-    if (!serverConfigs[guildId].economy[userId]) serverConfigs[guildId].economy[userId] = { coins: 0 };
-    const userCoins = serverConfigs[guildId].economy[userId].coins || 0;
+    const userCoins = userStat.orbs || 0;
 
     if (userCoins < cost) {
-      return await interaction.reply({ content: `❌ เหรียญ Zen Coins ของคุณไม่เพียงพอ! ต้องการ ${cost} C แต่คุณมี ${userCoins} C`, ephemeral: true });
+      return await interaction.reply({ content: `❌ Zen Coins ของคุณไม่เพียงพอ! ต้องการ ${cost} Coins แต่คุณมี ${userCoins} Coins`, ephemeral: true });
     }
 
     try {
-      serverConfigs[guildId].economy[userId].coins -= cost;
+      userStat.orbs -= cost;
       await saveConfigs(serverConfigs);
 
       await member.roles.add(roleId);
@@ -249,7 +253,7 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs, clien
         }
       }, 20 * 24 * 60 * 60 * 1000);
 
-      return await interaction.reply({ content: `🎉 **ซื้อตั๋วสำเร็จ!** ระบบได้หัก ${cost} C และมอบยศ <@&${roleId}> ให้คุณเรียบร้อยแล้ว (ยศนี้จะถอดออกเองใน 20 วัน)`, ephemeral: true });
+      return await interaction.reply({ content: `🎉 **ซื้อตั๋วสำเร็จ!** ระบบได้หัก ${cost} Zen Coins (คงเหลือ ${userStat.orbs} Coins) และมอบยศ <@&${roleId}> ให้คุณเรียบร้อยแล้ว (ยศนี้จะถอดออกเองใน 20 วัน)`, ephemeral: true });
     } catch (err) {
       console.error('Error assigning permanent cinema role:', err);
       return await interaction.reply({ content: '❌ เกิดข้อผิดพลาดในการมอบยศ กรุณาตรวจสอบสิทธิ์ของบอทครับ', ephemeral: true });
@@ -259,22 +263,20 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs, clien
   if (id === 'cinema_temp_ticket') {
     const roleId = '1551006184272560148';
     const member = interaction.member;
-    const userId = member.id;
     const cost = 1;
 
     if (member.roles.cache.has(roleId)) {
       return await interaction.reply({ content: `❤️ คุณมีตั๋วอยู่แล้ว ขอให้สนุกกับการรับชมนะครับ!`, ephemeral: true });
     }
 
-    if (!serverConfigs[guildId].economy[userId]) serverConfigs[guildId].economy[userId] = { coins: 0 };
-    const userCoins = serverConfigs[guildId].economy[userId].coins || 0;
+    const userCoins = userStat.orbs || 0;
 
     if (userCoins < cost) {
-      return await interaction.reply({ content: `❌ เหรียญ Zen Coins ของคุณไม่เพียงพอ! ต้องการ ${cost} C แต่คุณมี ${userCoins} C`, ephemeral: true });
+      return await interaction.reply({ content: `❌ Zen Coins ของคุณไม่เพียงพอ! ต้องการ ${cost} Coins แต่คุณมี ${userCoins} Coins`, ephemeral: true });
     }
 
     try {
-      serverConfigs[guildId].economy[userId].coins -= cost;
+      userStat.orbs -= cost;
       await saveConfigs(serverConfigs);
 
       await member.roles.add(roleId);
@@ -293,7 +295,7 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs, clien
         }
       }, 1 * 24 * 60 * 60 * 1000);
 
-      return await interaction.reply({ content: `🎉 **ซื้อตั๋วสำเร็จ!** ระบบได้หัก ${cost} C และมอบยศให้คุณเรียบร้อยแล้ว (ยศนี้จะถอดออกเองใน 1 วัน)`, ephemeral: true });
+      return await interaction.reply({ content: `🎉 **ซื้อตั๋วสำเร็จ!** ระบบได้หัก ${cost} Zen Coin (คงเหลือ ${userStat.orbs} Coins) และมอบยศให้คุณเรียบร้อยแล้ว (ยศนี้จะถอดออกเองใน 1 วัน)`, ephemeral: true });
     } catch (err) {
       console.error('Error assigning temp cinema role:', err);
       return await interaction.reply({ content: '❌ เกิดข้อผิดพลาดในการมอบยศ กรุณาตรวจสอบสิทธิ์ของบอทครับ', ephemeral: true });
