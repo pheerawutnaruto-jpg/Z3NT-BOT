@@ -11,7 +11,7 @@ async function handleSetupQuestCommand(interaction) {
 
   const embed = new EmbedBuilder()
     .setTitle('🎁 𝙕𝙀𝙉 𝘽𝙊𝙏 • DAILY QUEST')
-    .setDescription('กดปุ่มด้านล่างเพื่อสุ่มรับ **Zen Coins** ฟรีประจำวัน (รีเซ็ตทุกๆ 24 ชั่วโมง) ลุ้นรับ 10 ถึง 20 Coins ทุกวัน!')
+    .setDescription('กดปุ่มด้านล่างเพื่อสุ่มรับ **Zen Coins** ฟรีประจำวัน (รีเซ็ตทุกๆ 19 ชั่วโมง) ลุ้นรับถึง 50 coins ทุกวัน!')
     .setColor('#66FFFF');
 
   const row = new ActionRowBuilder().addComponents(
@@ -39,14 +39,16 @@ async function handleQuestButton(interaction, serverConfigs, saveConfigs) {
 
   const userStat = serverConfigs[guildId].levels[userId];
   const now = Date.now();
-  const cooldownTime = 24 * 60 * 60 * 1000;
+  const cooldownTime = 19 * 60 * 60 * 1000; // เปลี่ยนเป็น 19 ชั่วโมง
 
   if (userStat.lastDaily && (now - userStat.lastDaily < cooldownTime)) {
-    const remainingHours = Math.ceil((cooldownTime - (now - userStat.lastDaily)) / (1000 * 60 * 60));
-    return await interaction.reply({ content: `⏳ คุณรับรางวัลประจำวันไปแล้ว! กรุณารออีกประมาณ **${remainingHours} ชั่วโมง** ถึงจะกดรับใหม่ได้ครับ`, ephemeral: true });
+    const remainingMs = cooldownTime - (now - userStat.lastDaily);
+    const remainingHours = Math.floor(remainingMs / (1000 * 60 * 60));
+    const remainingMinutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
+    return await interaction.reply({ content: `⏳ คุณรับรางวัลประจำวันไปแล้ว! กรุณารออีกประมาณ **${remainingHours} ชั่วโมง ${remainingMinutes} นาที** ถึงจะกดรับใหม่ได้ครับ`, ephemeral: true });
   }
 
-  const rewardCoins = Math.floor(Math.random() * (20 - 10 + 1)) + 10;
+  const rewardCoins = Math.floor(Math.random() * (50 - 10 + 1)) + 10; // สุ่ม 10 ถึง 50 Coins
   
   userStat.orbs = (userStat.orbs || 0) + rewardCoins;
   userStat.lastDaily = now;
