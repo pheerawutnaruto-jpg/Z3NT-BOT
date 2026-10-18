@@ -50,7 +50,7 @@ async function handleArtistButton(interaction, serverConfigs) {
   // ถ้าไม่มีทั้งยศถาวร ยศ 3 วัน และไม่มีสิทธิ์ในระบบ ถึงจะบล็อก
   if (!hasArtistRole && !hasArtist3dRole && !hasTempAccess) {
     return await interaction.reply({ 
-      content: '❌ คุณไม่มีสิทธิ์ใช้งาน! เฉพาะผู้ที่มี **ยศ Artist**, **Aritist | 3d** หรือมีบัตรเช่า 3 วันเท่านั้นที่จะเปลี่ยนพื้นหลังการ์ดได้', 
+      content: '❌ คุณไม่มีสิทธิ์ใช้งาน! เฉพาะผู้ที่มี **ยศ Artist** หรือ **Aritist | 3d** ท่านั้นที่จะเปลี่ยนพื้นหลังการ์ดได้', 
       ephemeral: true 
     });
   }
