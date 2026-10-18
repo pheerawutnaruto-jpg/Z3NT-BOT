@@ -79,7 +79,7 @@ async function handleCinemaBroadcastCommand(interaction, serverConfigs) {
     };
   }
 
-  return await interaction.reply({ ...getCinemaBroadcastDashboard(serverConfigs[guildId].cinemaBroadcast), ephemeral: true });
+  return await interaction.reply({ ...getCinemaBroadcastDashboard(serverConfigs[guildId].cinemaBroadcast), ephemeral: false });
 }
 
 function getCinemaBroadcastDashboard(config) {
