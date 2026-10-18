@@ -33,8 +33,8 @@ async function handleSetupCinemaCommand(interaction) {
     .setTitle('🎟️ 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼 • BOX OFFICE')
     .setDescription(
       '✨ **บริการจำหน่ายตั๋วรับชมภาพยนตร์** ✨\n\n' +
-      `> <@&${permRoleId}> (350c / 1 เดือน)\n` +
-      `> <@&${tempRoleId}> (250c / 1 วัน)\n\n` +
+      `> <@&${permRoleId}> (350c / เดือน)\n` +
+      `> <@&${tempRoleId}> (250c / วัน)\n\n` +
       '📌 *กรุณาตรวจสอบเหรียญในกระเป๋าของคุณก่อนกดซื้อตั๋ว*'
     )
     .setColor('#FF0000')
