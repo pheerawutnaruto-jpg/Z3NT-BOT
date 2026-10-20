@@ -32,7 +32,7 @@ async function handleArtistButton(interaction, serverConfigs) {
   const userId = interaction.user.id;
   
   // 📌 ID ของยศ Artist และยศเช่า 3 วัน
-  const artistRoleId = '1560224726868295740';     // ยศ Artist ถาวร
+  const artistRoleId = '1560224726868295740';    // ยศ Artist ถาวร
   const artist3dRoleId = '1560136361015513108';  // ยศ Aritist | 3d (เช่า 3 วัน)
 
   const member = interaction.member;
@@ -49,10 +49,11 @@ async function handleArtistButton(interaction, serverConfigs) {
 
   // ถ้าไม่มีทั้งยศถาวร ยศ 3 วัน และไม่มีสิทธิ์ในระบบ ถึงจะบล็อก
   if (!hasArtistRole && !hasArtist3dRole && !hasTempAccess) {
-    return await interaction.reply({ 
-      content: '❌ คุณไม่มีสิทธิ์ใช้งาน! เฉพาะผู้ที่มี **ยศ Artist** หรือ **Aritist | 3d** ท่านั้นที่จะเปลี่ยนพื้นหลังการ์ดได้', 
+    await interaction.reply({ 
+      content: '❌ คุณไม่มีสิทธิ์ใช้งาน! เฉพาะผู้ที่มี **ยศ Artist** หรือ **Aritist | 3d** เท่านั้นที่จะเปลี่ยนพื้นหลังการ์ดได้', 
       ephemeral: true 
     });
+    return true;
   }
 
   const modal = new ModalBuilder()
@@ -80,7 +81,8 @@ async function handleArtistModalSubmit(interaction, serverConfigs, saveConfigs) 
   const imageUrl = interaction.fields.getTextInputValue('cardImageUrl').trim();
 
   if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
-    return await interaction.reply({ content: '❌ ลิงก์ไม่ถูกต้อง! กรุณาระบุลิงก์รูปภาพที่ขึ้นต้นด้วย http:// หรือ https://', ephemeral: true });
+    await interaction.reply({ content: '❌ ลิงก์ไม่ถูกต้อง! กรุณาระบุลิงก์รูปภาพที่ขึ้นต้นด้วย http:// หรือ https://', ephemeral: true });
+    return true;
   }
 
   if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
