@@ -50,6 +50,12 @@ const {
   handleAutoCinemaModal,
   loadAllAutoCinemaCrons 
 } = require('./auto_cinema');
+const { 
+  setupShowcaseCommand, 
+  handleSetupShowcaseCommand, 
+  handleShowcaseMessage, 
+  handleShowcaseButton 
+} = require('./media_showcase');
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
@@ -121,6 +127,7 @@ client.once('ready', async () => {
     boostStatusCommand,
     setupArtistCommand,
     setupMediaGuardCommand,
+    setupShowcaseCommand,
     setLevelCommand,
     setupCinemaCommand,
     cinemaBroadcastCommand,
@@ -191,6 +198,9 @@ client.on('messageCreate', async message => {
   const isBlocked = await handleSecurityMessage(message, config, spamTracker);
   if (isBlocked) return;
 
+  const isShowcaseHandled = await handleShowcaseMessage(message, serverConfigs);
+  if (isShowcaseHandled) return;
+
   handleLeveling(message, serverConfigs, saveConfigs);
 });
 
@@ -260,7 +270,8 @@ client.on('interactionCreate', async interaction => {
       },
       embed: { description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!' },
       autoClear: { enabled: false, time: '06:00', channelId: null },
-      mediaGuardChannels: []
+      mediaGuardChannels: [],
+      showcaseChannelId: null
     };
   }
   const config = serverConfigs[guildId];
@@ -276,7 +287,7 @@ client.on('interactionCreate', async interaction => {
   }
   if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
 
-  const premiumCommands = ['setup-quest', 'setup-in-game-shop', 'coins', 'setup-order-ticket', 'add-coins', 'setup-media-guard', 'set-autoclear', 'setup-artist-card', 'boost-status', 'cinema-setup', 'cinema-broadcast', 'auto-cinema'];
+  const premiumCommands = ['setup-quest', 'setup-in-game-shop', 'coins', 'setup-order-ticket', 'add-coins', 'setup-media-guard', 'setup-showcase', 'set-autoclear', 'setup-artist-card', 'boost-status', 'cinema-setup', 'cinema-broadcast', 'auto-cinema'];
   if (interaction.isChatInputCommand() && premiumCommands.includes(interaction.commandName)) {
     const hasPremium = await isServerPremium(guildId, serverConfigs);
     if (!hasPremium) {
@@ -311,8 +322,9 @@ client.on('interactionCreate', async interaction => {
         '> 🛡️ **Advanced Security:** ระบบป้องกันลิงก์สแปม และบอทหลอกลวงพร้อมบทลงโทษอัตโนมัติ\n' +
         '> 📊 **Leveling & Voice XP:** ระบบเก็บเลเวลทั้งแชทและห้องเสียง พร้อมการ์ดโปรไฟล์ Canvas สุดพรีเมียม\n' +
         '> 🎬 **Zen Cinema:** ระบบจัดการรอบฉายหนังอัตโนมัติ (Coming Soon & Now Showing) พร้อมระบบขายตั๋วหักเหรียญ\n' +
-        '> 🛒 **Automated Store:** ระบบร้านค้าสกิน/ยศ และระบบตรวจซองอั่งเปา TrueMoney เติมของมอบยศอัติโนมัติ\n' +
-        '> 🎁 **Daily Quest:** เควสต์สุ่มแจก Zen Coins ฟรีทุก 19 ชั่วโมง\n\n' +
+        '> 🛒 **Automated Store:** ระบบร้านค้าสกิน/ยศ และระบบห้องออร์เดอร์พร้อมใบเสร็จอัตโนมัติ\n' +
+        '> 🎨 **Artist Showcase:** ระบบห้องโชว์ผลงานพร้อมรีแอคชันและปุ่มให้คะแนนอัตโนมัติ\n' +
+        '> 🎁 **Daily Quest:** เควสต์สุ่มแจก Zen Coins ฟรีทุก 19 ชั่วโมง (แบบ 50/50)\n\n' +
         '💎 สนใจใช้งานระบบพรีเมียมติดต่อผู้พัฒนาบอทได้เลยครับ!'
       )
       .setColor('#66FFFF')
@@ -354,6 +366,9 @@ client.on('interactionCreate', async interaction => {
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'setup-media-guard') {
     return await handleSetupMediaGuardCommand(interaction, serverConfigs, saveConfigs);
+  }
+  if (interaction.isChatInputCommand() && interaction.commandName === 'setup-showcase') {
+    return await handleSetupShowcaseCommand(interaction, serverConfigs, saveConfigs);
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'cinema-setup') {
     return await handleSetupCinemaCommand(interaction);
@@ -409,6 +424,9 @@ client.on('interactionCreate', async interaction => {
 
   if (interaction.isButton()) {
     const id = interaction.customId;
+
+    const handledShowcaseBtn = await handleShowcaseButton(interaction);
+    if (handledShowcaseBtn) return;
 
     const handledCinemaBtn = await handleCinemaButton(interaction, serverConfigs, saveConfigs, client);
     if (handledCinemaBtn) return;
@@ -520,7 +538,7 @@ client.on('interactionCreate', async interaction => {
         .setCustomId('welcomeDesc')
         .setLabel('ข้อความต้อนรับ (ใช้ {user} และ {server} ได้)')
         .setStyle(TextInputStyle.Paragraph)
-        .setValue(config.embed?.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!')
+        .setValue(config.embed?.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢-ber!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!')
         .setRequired(true);
       modal.addComponents(new ActionRowBuilder().addComponents(descInput));
       return await interaction.showModal(modal);
