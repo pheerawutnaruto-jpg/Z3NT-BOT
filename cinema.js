@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder } = require('discord.js');
 
+// 1. /cinema-setup (Box Office ถาวร รองรับระบบเหรียญ)
 const setupCinemaCommand = new SlashCommandBuilder()
   .setName('cinema-setup')
   .setDescription('🎬 [CINEMA] ส่งแผงป้าย Box Office จุดจำหน่ายตั๋ว (สำหรับ Admin)')
@@ -55,6 +56,7 @@ async function handleSetupCinemaCommand(interaction) {
   return true;
 }
 
+// 2. /cinema-broadcast (ระบบประกาศ COMING SOON แบบกดส่งเอง)
 const cinemaBroadcastCommand = new SlashCommandBuilder()
   .setName('cinema-broadcast')
   .setDescription('🎥 [CINEMA] แผงควบคุมและส่งประกาศ COMING SOON (สำหรับ Admin)');
@@ -121,6 +123,7 @@ function getCinemaBroadcastDashboard(config) {
   return { embeds: [embed], components: [row1, channelRow] };
 }
 
+// ตัวจัดการปุ่มและการทำงานของ Manual & Box Office Cinema
 async function handleCinemaButton(interaction, serverConfigs, saveConfigs, client) {
   const id = interaction.customId;
   const guildId = interaction.guildId;
@@ -155,7 +158,7 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs, clien
       userStat.orbs -= cost;
       await saveConfigs(serverConfigs);
       
-      // ถ้ามีตั๋ว 1 วันอยู่ ให้ถอดออกก่อนแล้วค่อยเพิ่มตั๋ว 21 วัน
+      // หากผู้ใช้มียศ 1 วันอยู่ ให้ถอดออกแล้วแทนที่ด้วยยศ 21 วันทันที
       if (member.roles.cache.has(tempRoleId)) {
         await member.roles.remove(tempRoleId).catch(() => {});
       }
@@ -191,7 +194,7 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs, clien
     const member = interaction.member;
     const cost = 250;
 
-    // 🔒 ข้อ 5: เงื่อนไขห้ามคนมีตั๋ว 21 วันซื้อตั๋ว 1 วันซ้ำซ้อน
+    // บล็อกไม่ให้คนที่มีตั๋ว 21 วันซื้อตั๋ว 1 วันซ้ำซ้อน
     if (member.roles.cache.has(permRoleId)) {
       await interaction.reply({ content: `❌ คุณมียศตั๋ว 21 วัน (ถาวร/ระยะยาว) อยู่แล้วครับ! ไม่สามารถซื้อตั๋ว 1 วันทับซ้อนได้จนกว่ายศเดิมจะหมดอายุ`, ephemeral: true });
       return true;
