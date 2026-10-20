@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, ChannelType } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
 
 const userCooldowns = new Map();
 
@@ -47,15 +47,67 @@ const IN_GAME_ITEMS = [
   }
 ];
 
-// คำสั่งสำหรับส่งแผงป้ายหน้าร้านถาวร (สำหรับแอดมิน)
 const setupShopCommand = new SlashCommandBuilder()
   .setName('setup-in-game-shop')
   .setDescription('💎 [PREMIUM] ส่งแผงป้ายหน้าร้านค้าในเกมถาวร (Storefront) ไปยังห้องนี้ (สำหรับ Admin)');
 
-// คำสั่งเช็กสถานะบัฟคูณ XP
 const boostStatusCommand = new SlashCommandBuilder()
   .setName('boost-status')
   .setDescription('💎 [PREMIUM] เช็กสถานะและเวลาคงเหลือของน้ำยาคูณ XP');
+
+const coinsCommand = new SlashCommandBuilder()
+  .setName('coins')
+  .setDescription('💎 [PREMIUM] เช็กยอด Zen Coins และเหรียญคงเหลือในกระเป๋าของคุณ');
+
+const addCoinsCommand = new SlashCommandBuilder()
+  .setName('add-coins')
+  .setDescription('💎 [PREMIUM] เติม Zen Coins ให้กับสมาชิก (สำหรับ Admin)')
+  .addUserOption(option => option.setName('user').setDescription('เลือกสมาชิกที่ต้องการเติมเหรียญ').setRequired(true))
+  .addIntegerOption(option => option.setName('amount').setDescription('จำนวน Zen Coins ที่ต้องการเติม').setRequired(true));
+
+async function handleCoinsCommand(interaction, serverConfigs) {
+  const guildId = interaction.guildId;
+  const userId = interaction.user.id;
+  const config = serverConfigs[guildId] || {};
+  const userStat = config.levels?.[userId];
+  const userCoins = userStat ? (userStat.orbs || 0) : 0;
+  const customWalletTheme = userStat && userStat.customWalletTheme ? userStat.customWalletTheme : null;
+
+  const embed = new EmbedBuilder()
+    .setTitle('💰 WALLET • ยอดเหรียญของคุณ')
+    .setDescription(`ยอด Zen Coins คงเหลือในกระเป๋าของ <@${userId}>:\n**${userCoins} Zen Coins**`)
+    .setColor('#FFD700')
+    .setTimestamp();
+
+  if (customWalletTheme) {
+    embed.setImage(customWalletTheme);
+  }
+
+  await interaction.reply({ embeds: [embed], ephemeral: true });
+}
+
+async function handleAddCoinsCommand(interaction, serverConfigs, saveConfigs) {
+  if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+    return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
+  }
+
+  const targetUser = interaction.options.getUser('user');
+  const amount = interaction.options.getInteger('amount');
+  const guildId = interaction.guildId;
+  const userId = targetUser.id;
+
+  if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
+  if (!serverConfigs[guildId].levels) serverConfigs[guildId].levels = {};
+  if (!serverConfigs[guildId].levels[userId]) {
+    serverConfigs[guildId].levels[userId] = { xp: 0, level: 1, orbs: 0, lastDaily: 0, boostUntil: 0, artistUntil: 0, customTheme: '', customWalletTheme: '' };
+  }
+
+  const userStat = serverConfigs[guildId].levels[userId];
+  userStat.orbs = (userStat.orbs || 0) + amount;
+  await saveConfigs(serverConfigs);
+
+  await interaction.reply({ content: `✅ เติม Zen Coins จำนวน **+${amount} Coins** ให้กับคุณ <@${userId}> สำเร็จแล้ว! (ยอดรวม: ${userStat.orbs} Coins)`, ephemeral: true });
+}
 
 async function handleSetupShopCommand(interaction) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
@@ -251,11 +303,13 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs, client)
 
       setTimeout(async () => {
         try {
-          const guild = await client.guilds.fetch(member.guild.id).catch(() => null);
-          if (guild) {
-            const fetchedMember = await guild.members.fetch(member.id).catch(() => null);
-            if (fetchedMember && fetchedMember.roles.cache.has(item.roleId)) {
-              await fetchedMember.roles.remove(item.roleId);
+          if (client) {
+            const guild = await client.guilds.fetch(member.guild.id).catch(() => null);
+            if (guild) {
+              const fetchedMember = await guild.members.fetch(member.id).catch(() => null);
+              if (fetchedMember && fetchedMember.roles.cache.has(item.roleId)) {
+                await fetchedMember.roles.remove(item.roleId);
+              }
             }
           }
         } catch (e) {
@@ -278,6 +332,10 @@ module.exports = {
   handleSetupShopCommand,
   boostStatusCommand,
   handleBoostStatusCommand,
+  coinsCommand,
+  addCoinsCommand,
+  handleCoinsCommand,
+  handleAddCoinsCommand,
   handleShopButton,
   SHOP_ITEMS: IN_GAME_ITEMS
 };
