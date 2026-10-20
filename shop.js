@@ -221,7 +221,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
   const userStat = serverConfigs[guildId].levels[userId];
   const userCoins = userStat.orbs || 0;
 
-  // 🔒 ระบบบล็อกไม่ให้คนมียศ Artist ถาวร ไปซื้อยศ Artist 3 วัน
+  // 🔒 บล็อกไม่ให้คนมียศ Artist ถาวร (1560224726868295740) ไปซื้อยศ Artist 3 วัน
   const permArtistRoleId = '1560224726868295740';
   if (item.id === 'role_artist_temp') {
     try {
