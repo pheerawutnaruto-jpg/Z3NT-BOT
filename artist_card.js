@@ -12,7 +12,7 @@ async function handleSetupArtistCommand(interaction) {
 
   const embed = new EmbedBuilder()
     .setTitle('🎨 𝙕𝙀𝙉 𝘽𝙊𝙏 • ARTIST CARD CUSTOMIZER')
-    .setDescription('สำหรับสมาชิกที่มียศ **Artist** หรือ **Aritist | 3d** กดปุ่มด้านล่างเพื่อเลือกเปลี่ยนพื้นหลังการ์ด `/level` หรือกระเป๋าเงิน Wallet ส่วนตัวของคุณได้ทันที!\n──────────────────────')
+    .setDescription('สำหรับสมาชิกที่มียศ **Artist** หรือ **Aritist | 3d** กดปุ่มด้านล่างเพื่อเลือกเปลี่ยนพื้นหลังการ์ด `/level` หรือกระเป๋าเงิน `/coins` ส่วนตัวของคุณได้ทันที!\n──────────────────────')
     .setColor('#FF69B4')
     .setImage('https://cdn.discordapp.com/attachments/1550576199829430382/1559721936588636220/IMG_7335.jpg?ex=6ad8ad7f&is=6ad75bff&hm=7abc72dc7a21ce57c299d6c88eeca6073cf0e33aac005569262c706a3e8a0e88&');
 
