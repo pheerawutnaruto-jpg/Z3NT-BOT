@@ -109,6 +109,7 @@ client.once('ready', async () => {
     new SlashCommandBuilder().setName('set-welcome').setDescription('เปิดแผงควบคุมระบบต้อนรับ (Welcome Dashboard)'),
     new SlashCommandBuilder().setName('set-autorole').setDescription('ตั้งค่าระบบแจกยศอัตโนมัติสำหรับสมาชิกใหม่'),
     new SlashCommandBuilder().setName('set-security').setDescription('เปิดแผงควบคุมระบบป้องกันความปลอดภัยขั้นสูง'),
+    new SlashCommandBuilder().setName('bot-info').setDescription('✨ แสดงข้อมูลและหน้าพรีเซนต์แนะนำตัวของ Zen Bot'),
     levelCommand,
     leaderboardCommand,
     setupQuestCommand,
@@ -301,6 +302,26 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isChatInputCommand() && interaction.commandName === 'ping') {
     return await interaction.reply({ content: 'Pong! 🏓 บอททำงานระบบ Slash Command ปกติบน Render ครับ 🚀', ephemeral: true });
   }
+  if (interaction.isChatInputCommand() && interaction.commandName === 'bot-info') {
+    const embed = new EmbedBuilder()
+      .setTitle('🤖 𝙕𝙀𝙉 𝘽𝙊𝙏 • OFFICIAL PRESENTATION')
+      .setDescription(
+        '**ระบบจัดการและปกป้องเซิร์ฟเวอร์แบบครบวงจร** ✨\n\n' +
+        '🚀 **ฟีเจอร์เด่นภายในบอท:**\n' +
+        '> 🛡️ **Advanced Security:** ระบบป้องกันลิงก์สแปม และบอทหลอกลวงพร้อมบทลงโทษอัตโนมัติ\n' +
+        '> 📊 **Leveling & Voice XP:** ระบบเก็บเลเวลทั้งแชทและห้องเสียง พร้อมการ์ดโปรไฟล์ Canvas สุดพรีเมียม\n' +
+        '> 🎬 **Zen Cinema:** ระบบจัดการรอบฉายหนังอัตโนมัติ (Coming Soon & Now Showing) พร้อมระบบขายตั๋วหักเหรียญ\n' +
+        '> 🛒 **Automated Store:** ระบบร้านค้าสกิน/ยศ และระบบตรวจซองอั่งเปา TrueMoney เติมของมอบยศอัติโนมัติ\n' +
+        '> 🎁 **Daily Quest:** เควสต์สุ่มแจก Zen Coins ฟรีทุก 19 ชั่วโมง\n\n' +
+        '💎 สนใจใช้งานระบบพรีเมียมติดต่อผู้พัฒนาบอทได้เลยครับ!'
+      )
+      .setColor('#66FFFF')
+      .setImage('https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg')
+      .setTimestamp()
+      .setFooter({ text: 'Powered by Zen Bot Technology' });
+
+    return await interaction.reply({ embeds: [embed], ephemeral: true });
+  }
   if (interaction.isChatInputCommand() && interaction.commandName === 'level') {
     return await handleLevelCommand(interaction, serverConfigs);
   }
@@ -396,7 +417,7 @@ client.on('interactionCreate', async interaction => {
     if (handledAutoCinemaBtn) return;
 
     const hasPremiumBtn = await isServerPremium(guildId, serverConfigs);
-    const premiumButtons = ['open_artist_card_modal', 'open_in_game_shop_panel'];
+    const premiumButtons = ['open_artist_level_card_modal', 'open_artist_wallet_card_modal', 'open_in_game_shop_panel'];
     if (premiumButtons.includes(id) && !hasPremiumBtn) {
       return await interaction.reply({ content: '❌ คำสั่งนี้ใช้ได้เฉพาะเซิร์ฟเวอร์พรีเมียมเท่านั้น', ephemeral: true });
     }
@@ -416,11 +437,11 @@ client.on('interactionCreate', async interaction => {
     const handledArtistBtn = await handleArtistButton(interaction, serverConfigs);
     if (handledArtistBtn) return;
     
-const modalButtons = [
+    const modalButtons = [
       'edit_voice_amount', 'edit_level_rate', 'edit_level_card', 
       'edit_level_messages', 'set_role_reward', 'delete_role_reward', 
       'sec_config_time', 'edit_welcome_msg',
-      'open_artist_card_modal',
+      'open_artist_level_card_modal', 'open_artist_wallet_card_modal',
       'cinemabc_edit_info', 'cinemabc_edit_role',
       'autocinema_edit_info', 'autocinema_edit_role'
     ];
@@ -602,7 +623,7 @@ const modalButtons = [
     await interaction.deferUpdate().catch(() => {});
     if (interaction.customId === 'select_autorole') {
       config.autoroleId = interaction.values[0];
-      config.autoroleEnabled = true; // เปิดใช้งานอัตโนมัติทันทีที่เลือกยศ
+      config.autoroleEnabled = true;
       await saveConfigs(serverConfigs);
       return await interaction.editReply(getAutoroleDashboardContent(config));
     }
