@@ -1,6 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder } = require('discord.js');
 
-// 1. /cinema-setup (Box Office ถาวร รองรับระบบเหรียญ)
 const setupCinemaCommand = new SlashCommandBuilder()
   .setName('cinema-setup')
   .setDescription('🎬 [CINEMA] ส่งแผงป้าย Box Office จุดจำหน่ายตั๋ว (สำหรับ Admin)')
@@ -56,7 +55,6 @@ async function handleSetupCinemaCommand(interaction) {
   return true;
 }
 
-// 2. /cinema-broadcast (ระบบประกาศ COMING SOON แบบกดส่งเอง)
 const cinemaBroadcastCommand = new SlashCommandBuilder()
   .setName('cinema-broadcast')
   .setDescription('🎥 [CINEMA] แผงควบคุมและส่งประกาศ COMING SOON (สำหรับ Admin)');
@@ -72,7 +70,7 @@ async function handleCinemaBroadcastCommand(interaction, serverConfigs) {
   if (!serverConfigs[guildId].cinemaBroadcast) {
     serverConfigs[guildId].cinemaBroadcast = {
       title: 'ภาพยนตร์ฟอร์มยักษ์เรื่องใหม่',
-      dateStr: '01/01/1999', // ตั้งค่าเริ่มต้นเป็น 01/01/1999
+      dateStr: '01/01/1999',
       channelId: null,
       roleId: '1551183125076508713',
       imageUrl: 'https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg'
@@ -123,7 +121,6 @@ function getCinemaBroadcastDashboard(config) {
   return { embeds: [embed], components: [row1, channelRow] };
 }
 
-// ตัวจัดการปุ่มและการทำงานของ Manual & Box Office Cinema
 async function handleCinemaButton(interaction, serverConfigs, saveConfigs, client) {
   const id = interaction.customId;
   const guildId = interaction.guildId;
@@ -138,12 +135,13 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs, clien
 
   // 🎫 ตั๋ว 21 วัน (350 Coins / 21 วัน)
   if (id === 'cinema_perm_ticket') {
-    const roleId = '1560731553766707241';
+    const permRoleId = '1560731553766707241';
+    const tempRoleId = '1551006184272560148';
     const member = interaction.member;
     const cost = 350;
 
-    if (member.roles.cache.has(roleId)) {
-      await interaction.reply({ content: `❤️ คุณมีตั๋วอยู่แล้ว ขอให้สนุกกับการรับชมนะครับ!`, ephemeral: true });
+    if (member.roles.cache.has(permRoleId)) {
+      await interaction.reply({ content: `❤️ คุณมีตั๋ว 21 วันอยู่แล้ว ขอให้สนุกกับการรับชมนะครับ!`, ephemeral: true });
       return true;
     }
 
@@ -156,15 +154,20 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs, clien
     try {
       userStat.orbs -= cost;
       await saveConfigs(serverConfigs);
-      await member.roles.add(roleId);
+      
+      // ถ้ามีตั๋ว 1 วันอยู่ ให้ถอดออกก่อนแล้วค่อยเพิ่มตั๋ว 21 วัน
+      if (member.roles.cache.has(tempRoleId)) {
+        await member.roles.remove(tempRoleId).catch(() => {});
+      }
+      await member.roles.add(permRoleId);
 
       setTimeout(async () => {
         try {
           const guild = await client.guilds.fetch(member.guild.id).catch(() => null);
           if (guild) {
             const fetchedMember = await guild.members.fetch(member.id).catch(() => null);
-            if (fetchedMember && fetchedMember.roles.cache.has(roleId)) {
-              await fetchedMember.roles.remove(roleId);
+            if (fetchedMember && fetchedMember.roles.cache.has(permRoleId)) {
+              await fetchedMember.roles.remove(permRoleId);
             }
           }
         } catch (e) {
@@ -172,7 +175,7 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs, clien
         }
       }, 21 * 24 * 60 * 60 * 1000);
 
-      await interaction.reply({ content: `🎉 **ซื้อตั๋วสำเร็จ!** ระบบได้หัก ${cost} Zen Coins (คงเหลือ ${userStat.orbs} Coins) และมอบยศ <@&${roleId}> ให้คุณเรียบร้อยแล้ว (ยศนี้จะถอดออกเองใน 21 วัน)`, ephemeral: true });
+      await interaction.reply({ content: `🎉 **ซื้อตั๋วสำเร็จ!** ระบบได้หัก ${cost} Zen Coins (คงเหลือ ${userStat.orbs} Coins) และมอบยศ <@&${permRoleId}> ให้คุณเรียบร้อยแล้ว (ยศนี้จะถอดออกเองใน 21 วัน)`, ephemeral: true });
       return true;
     } catch (err) {
       console.error('Error assigning 21-day cinema role:', err);
@@ -183,12 +186,19 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs, clien
 
   // 🎟️ ตั๋วรายวัน (250 Coins / 1 วัน)
   if (id === 'cinema_temp_ticket') {
-    const roleId = '1551006184272560148';
+    const permRoleId = '1560731553766707241';
+    const tempRoleId = '1551006184272560148';
     const member = interaction.member;
     const cost = 250;
 
-    if (member.roles.cache.has(roleId)) {
-      await interaction.reply({ content: `❤️ คุณมีตั๋วอยู่แล้ว ขอให้สนุกกับการรับชมนะครับ!`, ephemeral: true });
+    // 🔒 ข้อ 5: เงื่อนไขห้ามคนมีตั๋ว 21 วันซื้อตั๋ว 1 วันซ้ำซ้อน
+    if (member.roles.cache.has(permRoleId)) {
+      await interaction.reply({ content: `❌ คุณมียศตั๋ว 21 วัน (ถาวร/ระยะยาว) อยู่แล้วครับ! ไม่สามารถซื้อตั๋ว 1 วันทับซ้อนได้จนกว่ายศเดิมจะหมดอายุ`, ephemeral: true });
+      return true;
+    }
+
+    if (member.roles.cache.has(tempRoleId)) {
+      await interaction.reply({ content: `❤️ คุณมีตั๋ว 1 วันอยู่แล้ว ขอให้สนุกกับการรับชมนะครับ!`, ephemeral: true });
       return true;
     }
 
@@ -201,15 +211,15 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs, clien
     try {
       userStat.orbs -= cost;
       await saveConfigs(serverConfigs);
-      await member.roles.add(roleId);
+      await member.roles.add(tempRoleId);
 
       setTimeout(async () => {
         try {
           const guild = await client.guilds.fetch(member.guild.id).catch(() => null);
           if (guild) {
             const fetchedMember = await guild.members.fetch(member.id).catch(() => null);
-            if (fetchedMember && fetchedMember.roles.cache.has(roleId)) {
-              await fetchedMember.roles.remove(roleId);
+            if (fetchedMember && fetchedMember.roles.cache.has(tempRoleId)) {
+              await fetchedMember.roles.remove(tempRoleId);
             }
           }
         } catch (e) {
