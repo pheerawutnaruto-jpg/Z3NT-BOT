@@ -416,10 +416,10 @@ client.on('interactionCreate', async interaction => {
     const handledArtistBtn = await handleArtistButton(interaction, serverConfigs);
     if (handledArtistBtn) return;
     
-    const modalButtons = [
+const modalButtons = [
       'edit_voice_amount', 'edit_level_rate', 'edit_level_card', 
       'edit_level_messages', 'set_role_reward', 'delete_role_reward', 
-      'sec_config_time', 'edit_welcome_msg', 'test_welcome',
+      'sec_config_time', 'edit_welcome_msg',
       'open_artist_card_modal',
       'cinemabc_edit_info', 'cinemabc_edit_role',
       'autocinema_edit_info', 'autocinema_edit_role'
