@@ -39,13 +39,14 @@ async function handleQuestButton(interaction, serverConfigs, saveConfigs) {
 
   const userStat = serverConfigs[guildId].levels[userId];
   const now = Date.now();
-  const cooldownTime = 19 * 60 * 60 * 1000; // เปลี่ยนเป็น 19 ชั่วโมง
+  const cooldownTime = 19 * 60 * 60 * 1000; // รีเซ็ตทุก 19 ชั่วโมง
 
   if (userStat.lastDaily && (now - userStat.lastDaily < cooldownTime)) {
     const remainingMs = cooldownTime - (now - userStat.lastDaily);
     const remainingHours = Math.floor(remainingMs / (1000 * 60 * 60));
     const remainingMinutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
-    return await interaction.reply({ content: `⏳ คุณรับรางวัลประจำวันไปแล้ว! กรุณารออีกประมาณ **${remainingHours} ชั่วโมง ${remainingMinutes} นาที** ถึงจะกดรับใหม่ได้ครับ`, ephemeral: true });
+    await interaction.reply({ content: `⏳ คุณรับรางวัลประจำวันไปแล้ว! กรุณารออีกประมาณ **${remainingHours} ชั่วโมง ${remainingMinutes} นาที** ถึงจะกดรับใหม่ได้ครับ`, ephemeral: true });
+    return true;
   }
 
   const rewardCoins = Math.floor(Math.random() * (50 - 10 + 1)) + 10; // สุ่ม 10 ถึง 50 Coins
