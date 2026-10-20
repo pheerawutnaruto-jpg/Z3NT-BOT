@@ -6,13 +6,15 @@ const setupQuestCommand = new SlashCommandBuilder()
 
 async function handleSetupQuestCommand(interaction) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-    return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้นที่จะใช้คำสั่งนี้ได้ครับ!', ephemeral: true });
+    await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้นที่จะใช้คำสั่งนี้ได้ครับ!', ephemeral: true });
+    return true;
   }
 
   const embed = new EmbedBuilder()
     .setTitle('🎁 𝙕𝙀𝙉 𝘽𝙊𝙏 • DAILY QUEST')
-    .setDescription('กดปุ่มด้านล่างเพื่อสุ่มรับ **Zen Coins** ฟรีประจำวัน (รีเซ็ตทุกๆ 19 ชั่วโมง) ลุ้นรับถึง 50 coins ทุกวัน!')
-    .setColor('#66FFFF');
+    .setDescription('กดปุ่มด้านล่างเพื่อสุ่มรับ **Zen Coins** ฟรีประจำวัน (รีเซ็ตทุกๆ 19 ชั่วโมง) ลุ้นรับสูงสุดถึง 100 Zen Coins ทุกวัน!')
+    .setColor('#66FFFF')
+    .setImage('https://cdn.discordapp.com/attachments/1550576199829430382/1560524247216955432/IMG_7329.jpg?ex=6ad8f5b5&is=6ad7a435&hm=368998fdee4b3a8b5e2a4bb7fe808e4470b24faab8581314d9d7a8f3a43235a8&');
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -23,6 +25,7 @@ async function handleSetupQuestCommand(interaction) {
 
   await interaction.channel.send({ embeds: [embed], components: [row] });
   await interaction.reply({ content: '✅ ส่งแผงปุ่มเควสต์ประจำวันถาวรไปยังห้องนี้สำเร็จแล้ว!', ephemeral: true });
+  return true;
 }
 
 async function handleQuestButton(interaction, serverConfigs, saveConfigs) {
@@ -39,7 +42,7 @@ async function handleQuestButton(interaction, serverConfigs, saveConfigs) {
 
   const userStat = serverConfigs[guildId].levels[userId];
   const now = Date.now();
-  const cooldownTime = 19 * 60 * 60 * 1000; // รีเซ็ตทุก 19 ชั่วโมง
+  const cooldownTime = 19 * 60 * 60 * 1000;
 
   if (userStat.lastDaily && (now - userStat.lastDaily < cooldownTime)) {
     const remainingMs = cooldownTime - (now - userStat.lastDaily);
@@ -49,7 +52,8 @@ async function handleQuestButton(interaction, serverConfigs, saveConfigs) {
     return true;
   }
 
-  const rewardCoins = Math.floor(Math.random() * (50 - 10 + 1)) + 10; // สุ่ม 10 ถึง 50 Coins
+  // ปรับอัตราการสุ่มรางวัลให้กว้างขึ้น (20 ถึง 100 Coins)
+  const rewardCoins = Math.floor(Math.random() * (100 - 20 + 1)) + 20;
   
   userStat.orbs = (userStat.orbs || 0) + rewardCoins;
   userStat.lastDaily = now;
