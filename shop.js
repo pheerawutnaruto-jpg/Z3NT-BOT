@@ -2,7 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Butt
 
 const userCooldowns = new Map();
 
-// รายการสินค้าทั้งหมดใน In-Game Shop (ใช้ระบบ Zen Coins / orbs ร่วมกับระบบเควสต์)
+// รายการสินค้าใน In-Game Shop (ตัดตั๋วภาพยนตร์ออกเพื่อให้ซื้อผ่าน Box Office ใน cinema.js ที่เดียว)
 const IN_GAME_ITEMS = [
   { 
     id: 'gacha_box', 
@@ -16,7 +16,7 @@ const IN_GAME_ITEMS = [
     name: '⚡ น้ำยาคูณ XP (1 ชม.)', 
     price: 10, 
     type: 'buff',
-    roleId: '1559992075095773184', 
+    roleId: '1559992075095773184', // ยศ XP Booster
     description: '• คูณ XP 2 เท่า พร้อมรับยศ Xp Booster' 
   },
   { 
@@ -24,37 +24,22 @@ const IN_GAME_ITEMS = [
     name: '🎨 บัตรเช่า Artist (3 วัน)', 
     price: 30, 
     type: 'role_temp',
-    roleId: '1560136361015513108',
+    roleId: '1560136361015513108', // ยศ Artist | 3d (เช่า 3 วัน)
     description: '• รับยศ Artist และสิทธิ์เปลี่ยนการ์ด /level' 
-  },
-  {
-    id: 'cinema_perm',
-    name: '🎫 ตั๋วภาพยนตร์ถาวร (20 วัน)',
-    price: 15,
-    type: 'cinema_role',
-    roleId: '1560731553766707241',
-    duration: 20 * 24 * 60 * 60 * 1000,
-    description: '• รับยศโรงหนังยาวๆ 20 วันเต็ม'
-  },
-  {
-    id: 'cinema_temp',
-    name: '🎟️ ตั๋วภาพยนตร์รายวัน (1 วัน)',
-    price: 1,
-    type: 'cinema_role',
-    roleId: '1551006184272560148',
-    duration: 1 * 24 * 60 * 60 * 1000,
-    description: '• รับยศโรงหนังพิเศษ 1 วัน'
   }
 ];
 
+// คำสั่งสำหรับส่งแผงป้ายหน้าร้านถาวร (สำหรับแอดมิน)
 const setupShopCommand = new SlashCommandBuilder()
   .setName('setup-in-game-shop')
   .setDescription('💎 [PREMIUM] ส่งแผงป้ายหน้าร้านค้าในเกมถาวร (Storefront) ไปยังห้องนี้ (สำหรับ Admin)');
 
+// คำสั่งเช็กสถานะบัฟคูณ XP
 const boostStatusCommand = new SlashCommandBuilder()
   .setName('boost-status')
   .setDescription('💎 [PREMIUM] เช็กสถานะและเวลาคงเหลือของน้ำยาคูณ XP');
 
+// คำสั่งเช็กยอดเหรียญและเติมเหรียญ
 const coinsCommand = new SlashCommandBuilder()
   .setName('coins')
   .setDescription('💎 [PREMIUM] เช็กยอด Zen Coins และเหรียญคงเหลือในกระเป๋าของคุณ');
@@ -119,7 +104,7 @@ async function handleSetupShopCommand(interaction) {
   const embed = new EmbedBuilder()
     .setTitle('<a:emoji_103:1560417845903491112> 𝙕𝙀𝙉 𝘽𝙊𝙏 • IN-GAME STOREFRONT')
     .setDescription(
-      'ยินดีต้อนรับสู่ศูนย์รวมไอเทม บัฟ บัตรเช่า และตั๋วชมภาพยนตร์ประจำเซิร์ฟเวอร์!\n\n' +
+      'ยินดีต้อนรับสู่ศูนย์รวมไอเทม บัฟ และบัตรเช่ายศพิเศษประจำเซิร์ฟเวอร์!\n\n' +
       '📌 **วิธีใช้งาน:** คลิกปุ่มด้านล่างเพื่อเปิดหน้าต่างร้านค้าและใช้ Zen Coins เลือกซื้อสินค้าได้ทันทีครับ'
     )
     .setImage(storefrontImageUrl)
@@ -196,7 +181,7 @@ async function handleInGameShopPanel(interaction, serverConfigs) {
   await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
 }
 
-async function handleShopButton(interaction, serverConfigs, saveConfigs, client) {
+async function handleShopButton(interaction, serverConfigs, saveConfigs) {
   if (interaction.customId === 'open_in_game_shop_panel') {
     return await handleInGameShopPanel(interaction, serverConfigs);
   }
@@ -233,14 +218,6 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs, client)
     await interaction.reply({ content: `⚠️ คุณยังมีสิทธิ์ Artist ใช้งานอยู่ (เหลือเวลาอีกประมาณ ${Math.ceil((userStat.artistUntil - now) / (1000 * 60 * 60 * 24))} วัน) ไม่สามารถซื้อซ้ำซ้อนได้ครับ!`, ephemeral: true });
     return true;
   }
-
-  try {
-    const member = await interaction.guild.members.fetch(userId);
-    if (item.type === 'cinema_role' && member.roles.cache.has(item.roleId)) {
-      await interaction.reply({ content: `❤️ คุณมีตั๋วอยู่แล้ว ขอให้สนุกกับการรับชมนะครับ!`, ephemeral: true });
-      return true;
-    }
-  } catch (e) {}
 
   if (userCoins < item.price) {
     await interaction.reply({ content: `❌ Zen Coins ของคุณไม่พอ! (คุณมี ${userCoins} Coins แต่สินค้าราคา ${item.price} Coins)`, ephemeral: true });
@@ -291,36 +268,6 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs, client)
     } catch (err) {}
 
     await interaction.reply({ content: `🎉 เช่าสำเร็จ! คุณได้รับยศ Artist และสิทธิ์แต่งการ์ดส่วนตัวเป็นเวลา 3 วันเต็ม! (คงเหลือ ${userStat.orbs} Coins)`, ephemeral: true });
-    return true;
-  }
-
-  else if (item.type === 'cinema_role') {
-    await saveConfigs(serverConfigs);
-
-    try {
-      const member = await interaction.guild.members.fetch(userId);
-      await member.roles.add(item.roleId);
-
-      setTimeout(async () => {
-        try {
-          if (client) {
-            const guild = await client.guilds.fetch(member.guild.id).catch(() => null);
-            if (guild) {
-              const fetchedMember = await guild.members.fetch(member.id).catch(() => null);
-              if (fetchedMember && fetchedMember.roles.cache.has(item.roleId)) {
-                await fetchedMember.roles.remove(item.roleId);
-              }
-            }
-          }
-        } catch (e) {
-          console.error('Error removing cinema role from shop:', e);
-        }
-      }, item.duration);
-    } catch (err) {
-      console.error('Error assigning cinema role from shop:', err);
-    }
-
-    await interaction.reply({ content: `🎉 **ซื้อตั๋วสำเร็จ!** ระบบได้หัก ${item.price} Zen Coins (คงเหลือ ${userStat.orbs} Coins) และมอบยศ <@&${item.roleId}> ให้คุณเรียบร้อยแล้วครับ!`, ephemeral: true });
     return true;
   }
 
