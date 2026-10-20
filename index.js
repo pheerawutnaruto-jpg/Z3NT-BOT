@@ -158,7 +158,7 @@ function setupCronJob(guildId, timeStr, channelId) {
   const [hour, minute] = timeStr.split(':');
   if (!hour || !minute) return;
 
-  const cronExpression = `${minute} ${hour} * * *`;
+  const cronExpression = `${minute}${hour} * * *`;
 
   activeCronJobs[guildId] = cron.schedule(cronExpression, async () => {
     try {
@@ -202,6 +202,7 @@ client.on('guildMemberAdd', async member => {
 
   if (!config) return;
 
+  // 1. ระบบ Autorole แจกยศอัตโนมัติ
   if (config.autoroleEnabled && config.autoroleId) {
     try {
       const role = await member.guild.roles.fetch(config.autoroleId);
@@ -214,6 +215,16 @@ client.on('guildMemberAdd', async member => {
     }
   }
 
+  // 2. ระบบส่งการ์ดต้อนรับเข้าห้องแชทส่วนตัว (Welcome DM)
+  try {
+    const dmAttachment = await generateWelcomeCard(member);
+    const dmDesc = `🎉 ยินดีต้อนรับคุณ **${member.user.username}** สู่เซิร์ฟเวอร์ **${member.guild.name}** ครับ!\nขอให้สนุกและมีความสุขกับการอยู่ในคอมมูนิตี้ของเรานะ! ✨`;
+    await member.send({ content: dmDesc, files: [dmAttachment] }).catch(() => {});
+  } catch (dmErr) {
+    console.error('Could not send welcome DM to member:', dmErr);
+  }
+
+  // 3. ระบบส่งการ์ดต้อนรับเข้าห้องสาธารณะของเซิร์ฟเวอร์ตามที่ตั้งค่า
   if (!config.welcomeEnabled || !config.channelId) return;
 
   try {
@@ -221,7 +232,6 @@ client.on('guildMemberAdd', async member => {
     if (!channel) return;
 
     const attachment = await generateWelcomeCard(member);
-
     const embedConfig = config.embed || {
       description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!'
     };
