@@ -12,7 +12,7 @@ async function handleSetupQuestCommand(interaction) {
 
   const embed = new EmbedBuilder()
     .setTitle('🎁 𝙕𝙀𝙉 𝘽𝙊𝙏 • DAILY QUEST')
-    .setDescription('กดปุ่มด้านล่างเพื่อสุ่มรับ **Zen Coins** ฟรีประจำวัน (รีเซ็ตทุกๆ 19 ชั่วโมง) ลุ้นรับสูงสุดถึง 100 Zen Coins ทุกวัน!')
+    .setDescription('กดปุ่มด้านล่างเพื่อสุ่มรับ **Zen Coins** ฟรีประจำวัน (รีเซ็ตทุกๆ 19 ชั่วโมง) อัตราลุ้นโชคแบบ 50/50 ลุ้นรับสูงสุดถึง 100 Zen Coins!')
     .setColor('#66FFFF')
     .setImage('https://cdn.discordapp.com/attachments/1550576199829430382/1560524247216955432/IMG_7329.jpg?ex=6ad8f5b5&is=6ad7a435&hm=368998fdee4b3a8b5e2a4bb7fe808e4470b24faab8581314d9d7a8f3a43235a8&');
 
@@ -24,7 +24,7 @@ async function handleSetupQuestCommand(interaction) {
   );
 
   await interaction.channel.send({ embeds: [embed], components: [row] });
-  await interaction.reply({ content: '✅ ส่งแผงปุ่มเควสต์ประจำวันถาวรไปยังห้องนี้สำเร็จแล้ว!', ephemeral: true });
+  await interaction.reply({ content: '✅ ส่งแผงป้ายเควสต์ประจำวันถาวรไปยังห้องนี้สำเร็จแล้ว!', ephemeral: true });
   return true;
 }
 
@@ -52,14 +52,27 @@ async function handleQuestButton(interaction, serverConfigs, saveConfigs) {
     return true;
   }
 
-  // ปรับอัตราการสุ่มรางวัลให้กว้างขึ้น (20 ถึง 100 Coins)
-  const rewardCoins = Math.floor(Math.random() * (100 - 20 + 1)) + 20;
+  // 🎲 ระบบสุ่มแบบ 50/50 (50% แรกได้น้อย/เกลือ, 50% หลังได้ลุ้นเยอะ)
+  let rewardCoins = 0;
+  const isLuckyHalf = Math.random() < 0.5;
+
+  if (isLuckyHalf) {
+    // 50% ครึ่งบน: สุ่มได้ 50 ถึง 100 Coins
+    rewardCoins = Math.floor(Math.random() * (100 - 50 + 1)) + 50;
+  } else {
+    // 50% ครึ่งล่าง: สุ่มได้น้อยหรือไม่ได้เลย (0 ถึง 20 Coins)
+    rewardCoins = Math.floor(Math.random() * 21);
+  }
   
   userStat.orbs = (userStat.orbs || 0) + rewardCoins;
   userStat.lastDaily = now;
   await saveConfigs(serverConfigs);
 
-  await interaction.reply({ content: `🎉 ยินดีด้วย! คุณสุ่มรับ **${rewardCoins} Zen Coins** ประจำวันสำเร็จแล้ว! (ยอดสะสมปัจจุบัน: ${userStat.orbs} Zen Coins)`, ephemeral: true });
+  if (rewardCoins === 0) {
+    await interaction.reply({ content: `😢 น่าเสียดาย! รอบนี้ดวงไม่ดี สุ่มได้ **0 Zen Coins** (พยายามใหม่พรุ่งนี้เสี่ยงดวงใหม่นะ!)`, ephemeral: true });
+  } else {
+    await interaction.reply({ content: `🎉 ยินดีด้วย! คุณสุ่มรับ **${rewardCoins} Zen Coins** ประจำวันสำเร็จแล้ว! (ยอดสะสมปัจจุบัน: ${userStat.orbs} Zen Coins)`, ephemeral: true });
+  }
   return true;
 }
 
