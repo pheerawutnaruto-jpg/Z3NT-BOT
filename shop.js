@@ -1,52 +1,51 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
+const { generateWalletCard } = require('./canvas_card');
+const { isServerPremium } = require('./license');
 
 const userCooldowns = new Map();
 
-// รายการสินค้าใน In-Game Shop (ตัดตั๋วภาพยนตร์ออกเพื่อให้ซื้อผ่าน Box Office ใน cinema.js ที่เดียว)
+// ปรับขึ้นราคาสินค้าใน In-Game Shop และเปลี่ยนชื่อเป็น "กาชาปอง"
 const IN_GAME_ITEMS = [
   { 
     id: 'gacha_box', 
-    name: '🎁 กล่องสุ่มกาชาปอง', 
-    price: 5, 
+    name: '🎁 กาชาปอง', 
+    price: 15, 
     type: 'gacha',
-    description: '• ลุ้นรับ Zen Coins สูงสุด 50 Coins!' 
+    description: '• ลุ้นรับ Zen Coins สูงสุด 150 Coins!' 
   },
   { 
     id: 'xp_boost', 
     name: '⚡ น้ำยาคูณ XP (1 ชม.)', 
-    price: 10, 
+    price: 30, 
     type: 'buff',
-    roleId: '1559992075095773184', // ยศ XP Booster
+    roleId: '1559992075095773184', 
     description: '• คูณ XP 2 เท่า พร้อมรับยศ Xp Booster' 
   },
   { 
     id: 'role_artist_temp', 
     name: '🎨 บัตรเช่า Artist (3 วัน)', 
-    price: 30, 
+    price: 75, 
     type: 'role_temp',
-    roleId: '1560136361015513108', // ยศ Artist | 3d (เช่า 3 วัน)
-    description: '• รับยศ Artist และสิทธิ์เปลี่ยนการ์ด /level' 
+    roleId: '1560136361015513108',
+    description: '• รับยศ Artist และสิทธิ์เปลี่ยนการ์ด /level & /coins' 
   }
 ];
 
-// คำสั่งสำหรับส่งแผงป้ายหน้าร้านถาวร (สำหรับแอดมิน)
 const setupShopCommand = new SlashCommandBuilder()
   .setName('setup-in-game-shop')
-  .setDescription('💎 [PREMIUM] ส่งแผงป้ายหน้าร้านค้าในเกมถาวร (Storefront) ไปยังห้องนี้ (สำหรับ Admin)');
+  .setDescription('💎 [PREMIUM] ส่งแผงป้ายหน้าร้านค้าในเกมถาวร (Storefront) ไปยังห้องนี้ (for Admin)');
 
-// คำสั่งเช็กสถานะบัฟคูณ XP
 const boostStatusCommand = new SlashCommandBuilder()
   .setName('boost-status')
   .setDescription('💎 [PREMIUM] เช็กสถานะและเวลาคงเหลือของน้ำยาคูณ XP');
 
-// คำสั่งเช็กยอดเหรียญและเติมเหรียญ
 const coinsCommand = new SlashCommandBuilder()
   .setName('coins')
-  .setDescription('💎 [PREMIUM] เช็กยอด Zen Coins และเหรียญคงเหลือในกระเป๋าของคุณ');
+  .setDescription('💎 [PREMIUM] เช็กยอด Zen Coins และกระเป๋าเงินของคุณ');
 
 const addCoinsCommand = new SlashCommandBuilder()
   .setName('add-coins')
-  .setDescription('💎 [PREMIUM] เติม Zen Coins ให้กับสมาชิก (สำหรับ Admin)')
+  .setDescription('💎 [PREMIUM] เติม Zen Coins ให้กับสมาชิก (for Admin)')
   .addUserOption(option => option.setName('user').setDescription('เลือกสมาชิกที่ต้องการเติมเหรียญ').setRequired(true))
   .addIntegerOption(option => option.setName('amount').setDescription('จำนวน Zen Coins ที่ต้องการเติม').setRequired(true));
 
@@ -54,26 +53,29 @@ async function handleCoinsCommand(interaction, serverConfigs) {
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
   const config = serverConfigs[guildId] || {};
-  const userStat = config.levels?.[userId];
-  const userCoins = userStat ? (userStat.orbs || 0) : 0;
-  const customWalletTheme = userStat && userStat.customWalletTheme ? userStat.customWalletTheme : null;
+  const userStat = config.levels?.[userId] || { xp: 0, level: 1, orbs: 0 };
+  const hasPremium = await isServerPremium(guildId, serverConfigs);
 
+  if (hasPremium) {
+    await interaction.deferReply({ ephemeral: true });
+    const attachment = await generateWalletCard(interaction.user, userStat);
+    return await interaction.editReply({ files: [attachment] });
+  }
+
+  const userCoins = userStat.orbs || 0;
   const embed = new EmbedBuilder()
     .setTitle('💰 WALLET • ยอดเหรียญของคุณ')
     .setDescription(`ยอด Zen Coins คงเหลือในกระเป๋าของ <@${userId}>:\n**${userCoins} Zen Coins**`)
     .setColor('#FFD700')
     .setTimestamp();
 
-  if (customWalletTheme) {
-    embed.setImage(customWalletTheme);
-  }
-
   await interaction.reply({ embeds: [embed], ephemeral: true });
 }
 
 async function handleAddCoinsCommand(interaction, serverConfigs, saveConfigs) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-    return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
+    await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
+    return true;
   }
 
   const targetUser = interaction.options.getUser('user');
@@ -92,17 +94,19 @@ async function handleAddCoinsCommand(interaction, serverConfigs, saveConfigs) {
   await saveConfigs(serverConfigs);
 
   await interaction.reply({ content: `✅ เติม Zen Coins จำนวน **+${amount} Coins** ให้กับคุณ <@${userId}> สำเร็จแล้ว! (ยอดรวม: ${userStat.orbs} Coins)`, ephemeral: true });
+  return true;
 }
 
 async function handleSetupShopCommand(interaction) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-    return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้นที่จะใช้คำสั่งนี้ได้ครับ!', ephemeral: true });
+    await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้นที่จะใช้คำสั่งนี้ได้ครับ!', ephemeral: true });
+    return true;
   }
 
   const storefrontImageUrl = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560429209522806814/1792105478227.jpg';
 
   const embed = new EmbedBuilder()
-    .setTitle('<a:emoji_103:1560417845903491112> 𝙕𝙀𝙉 𝘽𝙊𝙏 • IN-GAME SHOP')
+    .setTitle('<a:emoji_103:1560417845903491112> 𝙕𝙀𝙉 𝘽𝙊𝙏 • IN-GAME STOREFRONT')
     .setDescription(
       'ยินดีต้อนรับสู่ศูนย์รวมไอเทม บัฟ และบัตรเช่ายศพิเศษประจำเซิร์ฟเวอร์!\n\n' +
       '📌 **วิธีใช้งาน:** คลิกปุ่มด้านล่างเพื่อเปิดหน้าต่างร้านค้าและใช้ Zen Coins เลือกซื้อสินค้าได้ทันทีครับ'
@@ -120,6 +124,7 @@ async function handleSetupShopCommand(interaction) {
 
   await interaction.channel.send({ embeds: [embed], components: [row] });
   await interaction.reply({ content: '✅ ส่งแผงป้ายหน้าร้านค้าในเกมไปยังห้องนี้สำเร็จแล้ว!', ephemeral: true });
+  return true;
 }
 
 async function handleBoostStatusCommand(interaction, serverConfigs) {
@@ -130,7 +135,8 @@ async function handleBoostStatusCommand(interaction, serverConfigs) {
   const now = Date.now();
 
   if (!userStat || !userStat.boostUntil || userStat.boostUntil <= now) {
-    return await interaction.reply({ content: '❌ คุณยังไม่ได้เปิดใช้งานน้ำยาคูณ XP หรือบัฟหมดอายุไปแล้วครับ!', ephemeral: true });
+    await interaction.reply({ content: '❌ คุณยังไม่ได้เปิดใช้งานน้ำยาคูณ XP หรือบัฟหมดอายุไปแล้วครับ!', ephemeral: true });
+    return true;
   }
 
   const remainingMs = userStat.boostUntil - now;
@@ -142,6 +148,7 @@ async function handleBoostStatusCommand(interaction, serverConfigs) {
     .setColor('#00FF00');
 
   await interaction.reply({ embeds: [embed], ephemeral: true });
+  return true;
 }
 
 async function handleInGameShopPanel(interaction, serverConfigs) {
@@ -179,6 +186,7 @@ async function handleInGameShopPanel(interaction, serverConfigs) {
   });
 
   await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
+  return true;
 }
 
 async function handleShopButton(interaction, serverConfigs, saveConfigs) {
@@ -229,9 +237,9 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
   if (item.type === 'gacha') {
     const outcomes = [
       { reward: 0, text: 'เกลือ! รอบนี้ไม่ได้อะไรเลย เสียใจด้วยนะ 😢' },
-      { reward: 5, text: 'ได้ทุนคืน! รับไป 5 Zen Coins' },
-      { reward: 15, text: 'โชคดี! ได้กำไรรับไป 15 Zen Coins 🎉' },
-      { reward: 50, text: 'แจ็กพอตแตก! รับไปเต็มๆ 50 Zen Coins 🏆✨' }
+      { reward: 10, text: 'ได้ทุนคืน! รับไป 10 Zen Coins' },
+      { reward: 40, text: 'โชคดี! ได้กำไรรับไป 40 Zen Coins 🎉' },
+      { reward: 150, text: 'แจ็กพอตแตก! รับไปเต็มๆ 150 Zen Coins 🏆✨' }
     ];
     const roll = outcomes[Math.floor(Math.random() * outcomes.length)];
     userStat.orbs += roll.reward;
