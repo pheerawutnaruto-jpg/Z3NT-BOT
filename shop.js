@@ -234,12 +234,13 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
 
   userStat.orbs -= item.price;
 
-  if (item.type === 'gacha') {
+if (item.type === 'gacha') {
     const outcomes = [
-      { reward: 0, text: 'เกลือ! รอบนี้ไม่ได้อะไรเลย เสียใจด้วยนะ 😢' },
-      { reward: 10, text: 'ได้ทุนคืน! รับไป 10 Zen Coins' },
-      { reward: 40, text: 'โชคดี! ได้กำไรรับไป 40 Zen Coins 🎉' },
-      { reward: 150, text: 'แจ็กพอตแตก! รับไปเต็มๆ 150 Zen Coins 🏆✨' }
+      { reward: 0, text: 'เกลือสนิมเกาะ! รอบนี้ไม่ได้อะไรเลย เสียใจด้วยนะ 😢' },
+      { reward: 0, text: 'พลาดเป้า! ศูนย์เหรียญ ลองใหม่อีกครั้งนะ 💨' },
+      { reward: 5, text: 'ได้เศษเหรียญปลอบใจ! รับไป 5 Zen Coins' },
+      { reward: 20, text: 'พอมีโชค! รับไป 20 Zen Coins 🎉' },
+      { reward: 150, text: 'แจ็กพอตแตกกระจาย! รับไปเต็มๆ 150 Zen Coins 🏆✨' }
     ];
     const roll = outcomes[Math.floor(Math.random() * outcomes.length)];
     userStat.orbs += roll.reward;
@@ -247,8 +248,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
 
     await interaction.reply({ content: `🎁 **ผลการสุ่มกาชาปอง:**\n${roll.text}\n(ยอด Zen Coins ปัจจุบันของคุณ: ${userStat.orbs} Coins)`, ephemeral: true });
     return true;
-  } 
-  
+  }
   else if (item.type === 'buff') {
     const oneHour = 60 * 60 * 1000;
     userStat.boostUntil = (userStat.boostUntil && userStat.boostUntil > now ? userStat.boostUntil : now) + oneHour;
