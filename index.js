@@ -17,8 +17,17 @@ const {
   pendingRoleRewardImages 
 } = require('./level');
 const { setupQuestCommand, handleSetupQuestCommand, handleQuestButton } = require('./quest');
-const { setupShopCommand, handleSetupShopCommand, boostStatusCommand, handleBoostStatusCommand, handleShopButton } = require('./shop');
-const { premiumShopCommand, setupPremiumShopCommand, coinsCommand, addCoinsCommand, handleSetupPremiumShopCommand, handleCoinsCommand, handleAddCoinsCommand, handlePremiumShopCommand, handlePremiumShopButton } = require('./premium_shop');
+const { 
+  setupShopCommand, 
+  handleSetupShopCommand, 
+  boostStatusCommand, 
+  handleBoostStatusCommand, 
+  coinsCommand, 
+  addCoinsCommand, 
+  handleCoinsCommand, 
+  handleAddCoinsCommand, 
+  handleShopButton 
+} = require('./shop');
 const { setupArtistCommand, handleSetupArtistCommand, handleArtistButton, handleArtistModalSubmit } = require('./artist_card');
 const { setupMediaGuardCommand, handleSetupMediaGuardCommand, handleMediaGuardMessage } = require('./media_guard');
 const { setupOrderTicketCommand, handleSetupOrderTicketCommand, handleOrderTicketSelect, handleOrderPaymentButton, handleCloseTicketButton } = require('./order_ticket');
@@ -97,16 +106,14 @@ client.once('ready', async () => {
 
   const commands = [
     new SlashCommandBuilder().setName('ping').setDescription('เช็กความเร็วและสถานะของบอท'),
-    new SlashCommandBuilder().setName('set-welcom').setDescription('เปิดแผงควบคุมระบบต้อนรับ (Welcome Dashboard)'),
+    new SlashCommandBuilder().setName('set-welcome').setDescription('เปิดแผงควบคุมระบบต้อนรับ (Welcome Dashboard)'),
     new SlashCommandBuilder().setName('set-autorole').setDescription('ตั้งค่าระบบแจกยศอัตโนมัติสำหรับสมาชิกใหม่'),
     new SlashCommandBuilder().setName('set-security').setDescription('เปิดแผงควบคุมระบบป้องกันความปลอดภัยขั้นสูง'),
     levelCommand,
     leaderboardCommand,
     setupQuestCommand,
     setupShopCommand,
-    setupPremiumShopCommand,
     setupOrderTicketCommand,
-    premiumShopCommand,
     coinsCommand,
     addCoinsCommand,
     grantPremiumCommand,
@@ -180,7 +187,7 @@ client.on('messageCreate', async message => {
     if (isMediaBlocked) return;
   }
 
-  const isBlocked = handleSecurityMessage(message, config, spamTracker);
+  const isBlocked = await handleSecurityMessage(message, config, spamTracker);
   if (isBlocked) return;
 
   handleLeveling(message, serverConfigs, saveConfigs);
@@ -218,7 +225,9 @@ client.on('guildMemberAdd', async member => {
       description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!'
     };
 
-    const finalDesc = embedConfig.description.replace('{user}', `${member}`).replace('{server}', member.guild.name);
+    const finalDesc = (embedConfig.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!')
+      .replace('{user}', `${member}`)
+      .replace('{server}', member.guild.name);
 
     await channel.send({ content: finalDesc, files: [attachment] });
   } catch (err) {
@@ -235,8 +244,8 @@ client.on('interactionCreate', async interaction => {
       welcomeEnabled: false, channelId: null, autoroleEnabled: false, autoroleId: null,
       security: {
         enabled: false, antiLink: true, antiSpam: true, antiMrBeast: true,
-        spamCount: 3, spamSeconds: 6, timeoutSeconds: 3000,
-        actions: { invite: { timeout: true, kick: true, ban: false }, spam: { timeout: true, kick: true, ban: false }, mrbeast: { timeout: true, kick: true, ban: false } },
+        spamCount: 3, spamSeconds: 6, timeoutSeconds: 60,
+        actions: { invite: { timeout: true, kick: false, ban: false }, spam: { timeout: true, kick: false, ban: false }, mrbeast: { timeout: true, kick: false, ban: false } },
         ignoredChannels: []
       },
       levels: {},
@@ -248,14 +257,14 @@ client.on('interactionCreate', async interaction => {
         embedColor: '#66FFFF', statsCardImageUrl: '',
         voiceXpEnabled: false, voiceXpAmount: 10, roleRewards: {}
       },
-      embed: { title: '', description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!', color: '#66FFFF', image: '', footerText: '', footerIcon: '', timestamp: 'no' },
+      embed: { description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!' },
       autoClear: { enabled: false, time: '06:00', channelId: null },
       mediaGuardChannels: []
     };
   }
   const config = serverConfigs[guildId];
   if (!config.security) {
-    config.security = { enabled: false, antiLink: true, antiSpam: true, antiMrBeast: true, spamCount: 3, spamSeconds: 6, timeoutSeconds: 3000, actions: { invite: { timeout: true, kick: true, ban: false }, spam: { timeout: true, kick: true, ban: false }, mrbeast: { timeout: true, kick: true, ban: false } }, ignoredChannels: [] };
+    config.security = { enabled: false, antiLink: true, antiSpam: true, antiMrBeast: true, spamCount: 3, spamSeconds: 6, timeoutSeconds: 60, actions: { invite: { timeout: true, kick: false, ban: false }, spam: { timeout: true, kick: false, ban: false }, mrbeast: { timeout: true, kick: false, ban: false } }, ignoredChannels: [] };
   }
   if (!config.levels) config.levels = {};
   if (!config.levelConfig) {
@@ -266,7 +275,7 @@ client.on('interactionCreate', async interaction => {
   }
   if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
 
-  const premiumCommands = ['shop', 'setup-quest', 'setup-in-game-shop', 'coins', 'setup-premium-shop', 'setup-order-ticket', 'add-coins', 'setup-media-guard', 'set-autoclear', 'setup-artist-card', 'boost-status', 'cinema-setup', 'cinema-broadcast', 'auto-cinema'];
+  const premiumCommands = ['setup-quest', 'setup-in-game-shop', 'coins', 'setup-order-ticket', 'add-coins', 'setup-media-guard', 'set-autoclear', 'setup-artist-card', 'boost-status', 'cinema-setup', 'cinema-broadcast', 'auto-cinema'];
   if (interaction.isChatInputCommand() && premiumCommands.includes(interaction.commandName)) {
     const hasPremium = await isServerPremium(guildId, serverConfigs);
     if (!hasPremium) {
@@ -304,14 +313,8 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isChatInputCommand() && interaction.commandName === 'setup-in-game-shop') {
     return await handleSetupShopCommand(interaction);
   }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'setup-premium-shop') {
-    return await handleSetupPremiumShopCommand(interaction);
-  }
   if (interaction.isChatInputCommand() && interaction.commandName === 'setup-order-ticket') {
     return await handleSetupOrderTicketCommand(interaction);
-  }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'shop') {
-    return await handlePremiumShopCommand(interaction, serverConfigs);
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'coins') {
     return await handleCoinsCommand(interaction, serverConfigs);
@@ -344,7 +347,7 @@ client.on('interactionCreate', async interaction => {
     return await handleSetLevelCommand(interaction, serverConfigs);
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'set-security') {
-    if (!interaction.member.permissions.has('Administrator')) return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
+    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
     return await interaction.reply({ ...getSecurityDashboardContent(config), ephemeral: true });
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'clear') {
@@ -374,12 +377,12 @@ client.on('interactionCreate', async interaction => {
     setupCronJob(guildId, timeInput, channelInput.id);
     return await interaction.reply({ content: `✅ ตั้งค่า Auto-Clear สำเร็จ (${timeInput})`, ephemeral: true });
   }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'set-welcom') {
-    if (!interaction.member.permissions.has('Administrator')) return await interaction.reply({ content: '❌ เฉพาะ Administrator', ephemeral: true });
+  if (interaction.isChatInputCommand() && (interaction.commandName === 'set-welcome' || interaction.commandName === 'set-welcom')) {
+    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return await interaction.reply({ content: '❌ เฉพาะ Administrator', ephemeral: true });
     return await sendDashboard(interaction);
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'set-autorole') {
-    if (!interaction.member.permissions.has('Administrator')) return await interaction.reply({ content: '❌ เฉพาะ Administrator', ephemeral: true });
+    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return await interaction.reply({ content: '❌ เฉพาะ Administrator', ephemeral: true });
     return await sendAutoroleDashboard(interaction);
   }
 
@@ -393,7 +396,7 @@ client.on('interactionCreate', async interaction => {
     if (handledAutoCinemaBtn) return;
 
     const hasPremiumBtn = await isServerPremium(guildId, serverConfigs);
-    const premiumButtons = ['open_premium_shop_panel', 'open_artist_card_modal'];
+    const premiumButtons = ['open_artist_card_modal', 'open_in_game_shop_panel'];
     if (premiumButtons.includes(id) && !hasPremiumBtn) {
       return await interaction.reply({ content: '❌ คำสั่งนี้ใช้ได้เฉพาะเซิร์ฟเวอร์พรีเมียมเท่านั้น', ephemeral: true });
     }
@@ -407,11 +410,8 @@ client.on('interactionCreate', async interaction => {
     const handledQuest = await handleQuestButton(interaction, serverConfigs, saveConfigs);
     if (handledQuest) return;
 
-    const handledShop = await handleShopButton(interaction, serverConfigs, saveConfigs);
+    const handledShop = await handleShopButton(interaction, serverConfigs, saveConfigs, client);
     if (handledShop) return;
-
-    const handledPremShop = await handlePremiumShopButton(interaction, serverConfigs);
-    if (handledPremShop) return;
 
     const handledArtistBtn = await handleArtistButton(interaction, serverConfigs);
     if (handledArtistBtn) return;
@@ -419,10 +419,10 @@ client.on('interactionCreate', async interaction => {
     const modalButtons = [
       'edit_voice_amount', 'edit_level_rate', 'edit_level_card', 
       'edit_level_messages', 'set_role_reward', 'delete_role_reward', 
-      'sec_config_time', 'edit_embed', 'edit_footer', 'test_welcome',
-      'open_artist_card_modal', 'open_premium_shop_panel',
+      'sec_config_time', 'edit_welcome_msg', 'test_welcome',
+      'open_artist_card_modal',
       'cinemabc_edit_info', 'cinemabc_edit_role',
-      'autocinema_edit_info'
+      'autocinema_edit_info', 'autocinema_edit_role'
     ];
 
     if (!modalButtons.includes(id)) {
@@ -493,21 +493,15 @@ client.on('interactionCreate', async interaction => {
       modal.addComponents(new ActionRowBuilder().addComponents(levelInput));
       return await interaction.showModal(modal);
     }
-    if (id === 'edit_embed') {
-      const modal = new ModalBuilder().setCustomId('editEmbedModal').setTitle('Editing: welcome embed');
-      const titleInput = new TextInputBuilder().setCustomId('embedTitle').setLabel('Title').setStyle(TextInputStyle.Short).setValue(config.embed.title || '').setRequired(false);
-      const descInput = new TextInputBuilder().setCustomId('embedDesc').setLabel('Description').setStyle(TextInputStyle.Paragraph).setValue(config.embed.description || '').setRequired(true);
-      const colorInput = new TextInputBuilder().setCustomId('embedColor').setLabel('Hex Color').setStyle(TextInputStyle.Short).setValue(config.embed.color || '#66FFFF').setRequired(true);
-      const imageInput = new TextInputBuilder().setCustomId('embedImage').setLabel('Image URL').setStyle(TextInputStyle.Short).setValue(config.embed.image || '').setRequired(false);
-      modal.addComponents(new ActionRowBuilder().addComponents(titleInput), new ActionRowBuilder().addComponents(descInput), new ActionRowBuilder().addComponents(colorInput), new ActionRowBuilder().addComponents(imageInput));
-      return await interaction.showModal(modal);
-    }
-    if (id === 'edit_footer') {
-      const modal = new ModalBuilder().setCustomId('editFooterModal').setTitle('Editing: welcome footer');
-      const footerTextInput = new TextInputBuilder().setCustomId('embedFooterText').setLabel('Footer Text').setStyle(TextInputStyle.Short).setValue(config.embed.footerText || '').setRequired(false);
-      const footerIconInput = new TextInputBuilder().setCustomId('embedFooterIcon').setLabel('Footer Image').setStyle(TextInputStyle.Short).setValue(config.embed.footerIcon || '').setRequired(false);
-      const timestampInput = new TextInputBuilder().setCustomId('embedTimestamp').setLabel('Timestamp? (yes/no)').setStyle(TextInputStyle.Short).setValue(config.embed.timestamp || 'no').setRequired(false);
-      modal.addComponents(new ActionRowBuilder().addComponents(footerTextInput), new ActionRowBuilder().addComponents(footerIconInput), new ActionRowBuilder().addComponents(timestampInput));
+    if (id === 'edit_welcome_msg') {
+      const modal = new ModalBuilder().setCustomId('editWelcomeMsgModal').setTitle('แก้ไขข้อความต้อนรับ');
+      const descInput = new TextInputBuilder()
+        .setCustomId('welcomeDesc')
+        .setLabel('ข้อความต้อนรับ (ใช้ {user} และ {server} ได้)')
+        .setStyle(TextInputStyle.Paragraph)
+        .setValue(config.embed?.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!')
+        .setRequired(true);
+      modal.addComponents(new ActionRowBuilder().addComponents(descInput));
       return await interaction.showModal(modal);
     }
     if (id === 'test_welcome') {
@@ -522,7 +516,9 @@ client.on('interactionCreate', async interaction => {
           const embedConfig = config.embed || {
             description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!'
           };
-          const finalDesc = embedConfig.description.replace('{user}', `${interaction.user}`).replace('{server}', interaction.guild.name);
+          const finalDesc = (embedConfig.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!')
+            .replace('{user}', `${interaction.user}`)
+            .replace('{server}', interaction.guild.name);
           await channel.send({ content: finalDesc, files: [attachment] });
         }
       } catch (err) {
@@ -539,13 +535,13 @@ client.on('interactionCreate', async interaction => {
       const modal = new ModalBuilder().setCustomId('secTimeModal').setTitle('ตั้งค่าเวลาสแปม');
       const countInput = new TextInputBuilder().setCustomId('spamCount').setLabel('จำนวนข้อความ').setStyle(TextInputStyle.Short).setValue(config.security.spamCount.toString()).setRequired(true);
       const secInput = new TextInputBuilder().setCustomId('spamSec').setLabel('ภายในกี่วินาที').setStyle(TextInputStyle.Short).setValue(config.security.spamSeconds.toString()).setRequired(true);
-      const timeoutInput = new TextInputBuilder().setCustomId('timeoutSec').setLabel('ระงับกี่วินาที').setStyle(TextInputStyle.Short).setValue(config.security.timeoutSeconds.toString()).setRequired(true);
+      const timeoutInput = new TextInputBuilder().setCustomId('timeoutSec').setLabel('ระงับกี่วินาที (เช่น 60)').setStyle(TextInputStyle.Short).setValue(config.security.timeoutSeconds.toString()).setRequired(true);
       modal.addComponents(new ActionRowBuilder().addComponents(countInput), new ActionRowBuilder().addComponents(secInput), new ActionRowBuilder().addComponents(timeoutInput));
       return await interaction.showModal(modal);
     } else if (id === 'sec_reset') {
       config.security = {
-        enabled: false, antiLink: true, antiSpam: true, antiMrBeast: true, spamCount: 3, spamSeconds: 6, timeoutSeconds: 3000,
-        actions: { invite: { timeout: true, kick: true, ban: false }, spam: { timeout: true, kick: true, ban: false }, mrbeast: { timeout: true, kick: true, ban: false } },
+        enabled: false, antiLink: true, antiSpam: true, antiMrBeast: true, spamCount: 3, spamSeconds: 6, timeoutSeconds: 60,
+        actions: { invite: { timeout: true, kick: false, ban: false }, spam: { timeout: true, kick: false, ban: false }, mrbeast: { timeout: true, kick: false, ban: false } },
         ignoredChannels: []
       };
     }
@@ -578,7 +574,7 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.isChannelSelectMenu()) {
-    const handledCinemaSelect = await handleCinemaSelect(interaction, serverConfigs, saveConfigs);
+    const handledCinemaSelect = await handleCinemaSelect(interaction, serverConfigs, saveConfigs, client);
     if (handledCinemaSelect) return;
 
     const handledAutoCinemaSelect = await handleAutoCinemaSelect(interaction, serverConfigs, saveConfigs, client);
@@ -606,6 +602,7 @@ client.on('interactionCreate', async interaction => {
     await interaction.deferUpdate().catch(() => {});
     if (interaction.customId === 'select_autorole') {
       config.autoroleId = interaction.values[0];
+      config.autoroleEnabled = true; // เปิดใช้งานอัตโนมัติทันทีที่เลือกยศ
       await saveConfigs(serverConfigs);
       return await interaction.editReply(getAutoroleDashboardContent(config));
     }
@@ -635,7 +632,7 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.isModalSubmit()) {
-    const handledCinemaModal = await handleCinemaModal(interaction, serverConfigs, saveConfigs);
+    const handledCinemaModal = await handleCinemaModal(interaction, serverConfigs, saveConfigs, client);
     if (handledCinemaModal) return;
 
     const handledAutoCinemaModal = await handleAutoCinemaModal(interaction, serverConfigs, saveConfigs, client);
@@ -644,27 +641,16 @@ client.on('interactionCreate', async interaction => {
     const handledArtistModal = await handleArtistModalSubmit(interaction, serverConfigs, saveConfigs);
     if (handledArtistModal) return;
 
-    if (interaction.customId === 'editEmbedModal') {
-      config.embed.title = interaction.fields.getTextInputValue('embedTitle');
-      config.embed.description = interaction.fields.getTextInputValue('embedDesc');
-      let colorVal = interaction.fields.getTextInputValue('embedColor').trim();
-      if (!colorVal.startsWith('#')) colorVal = '#' + colorVal;
-      config.embed.color = colorVal;
-      config.embed.image = interaction.fields.getTextInputValue('embedImage');
+    if (interaction.customId === 'editWelcomeMsgModal') {
+      if (!config.embed) config.embed = {};
+      config.embed.description = interaction.fields.getTextInputValue('welcomeDesc');
       await saveConfigs(serverConfigs);
-      return await interaction.reply({ content: '✅ บันทึกรูปแบบ Embed เรียบร้อยแล้ว!', ephemeral: true });
-    }
-    if (interaction.customId === 'editFooterModal') {
-      config.embed.footerText = interaction.fields.getTextInputValue('embedFooterText');
-      config.embed.footerIcon = interaction.fields.getTextInputValue('embedFooterIcon');
-      config.embed.timestamp = interaction.fields.getTextInputValue('embedTimestamp');
-      await saveConfigs(serverConfigs);
-      return await interaction.reply({ content: '✅ บันทึกรูปแบบ Footer เรียบร้อยแล้ว!', ephemeral: true });
+      return await interaction.reply({ content: '✅ บันทึกข้อความต้อนรับเรียบร้อยแล้ว!', ephemeral: true });
     }
     if (interaction.customId === 'secTimeModal') {
       config.security.spamCount = parseInt(interaction.fields.getTextInputValue('spamCount')) || 3;
       config.security.spamSeconds = parseInt(interaction.fields.getTextInputValue('spamSec')) || 6;
-      config.security.timeoutSeconds = parseInt(interaction.fields.getTextInputValue('timeoutSec')) || 3000;
+      config.security.timeoutSeconds = parseInt(interaction.fields.getTextInputValue('timeoutSec')) || 60;
       await saveConfigs(serverConfigs);
       return await interaction.reply({ content: '✅ บันทึกค่าเวลาความปลอดภัยเรียบร้อยแล้ว!', ephemeral: true });
     }
@@ -707,13 +693,13 @@ client.on('interactionCreate', async interaction => {
       return await interaction.reply({ content: `📌 กรุณาเลือกยศสำหรับ Level ${targetLevel}:`, components: [row], ephemeral: true });
     }
     if (interaction.customId === 'deleteRoleRewardModal') {
-      const targetLevel = interaction.fields.getTextInputValue('deleteRoleRewardModal') || interaction.fields.getTextInputValue('targetLevel');
-      if (!config.levelConfig.roleRewards || !config.levelConfig.roleRewards[targetLevel.trim()]) {
+      const targetLevel = interaction.fields.getTextInputValue('targetLevel').trim();
+      if (!config.levelConfig.roleRewards || !config.levelConfig.roleRewards[targetLevel]) {
         return await interaction.reply({ content: `❌ ไม่พบข้อมูลยศรางวัลสำหรับ Level ${targetLevel} ครับ!`, ephemeral: true });
       }
-      delete config.levelConfig.roleRewards[targetLevel.trim()];
+      delete config.levelConfig.roleRewards[targetLevel];
       await saveConfigs(serverConfigs);
-      return await interaction.reply({ content: `✅ ลบยศรางวัลของของ **Level ${targetLevel}** เรียบร้อยแล้ว!`, ephemeral: true });
+      return await interaction.reply({ content: `✅ ลบยศรางวัลของ **Level ${targetLevel}** เรียบร้อยแล้ว!`, ephemeral: true });
     }
   }
 });
@@ -721,25 +707,47 @@ client.on('interactionCreate', async interaction => {
 function getDashboardContent(config) {
   const channelName = config.channelId ? `<#${config.channelId}>` : 'ยังไม่ได้เลือกช่อง';
   const statusText = config.welcomeEnabled ? '✅ เปิดอยู่' : '❌ ปิดอยู่';
-  const embed = new EmbedBuilder().setTitle('⚙️ ตั้งค่าระบบ Welcome').setDescription('เลือกช่อง เปิด/ปิดระบบ').setColor('#5865F2')
-    .addFields({ name: '📥 Status', value: statusText, inline: true }, { name: '📢 ห้องต้อนรับ', value: channelName, inline: true });
+  const msgPreview = config.embed?.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!';
+
+  const embed = new EmbedBuilder()
+    .setTitle('⚙️ ตั้งค่าระบบต้อนรับ (Welcome Canvas)')
+    .setDescription('ระบบจะส่งข้อความต้อนรับพร้อมรูปการ์ด Canvas อัตโนมัติเมื่อมีสมาชิกใหม่เข้าเซิร์ฟเวอร์')
+    .setColor('#5865F2')
+    .addFields(
+      { name: '📥 สถานะ', value: statusText, inline: true },
+      { name: '📢 ห้องต้อนรับ', value: channelName, inline: true },
+      { name: '💬 ข้อความต้อนรับ', value: msgPreview, inline: false }
+    );
+
   const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('toggle_welcome').setLabel(config.welcomeEnabled ? 'ปิด' : 'เปิด').setStyle(config.welcomeEnabled ? ButtonStyle.Danger : ButtonStyle.Success),
-    new ButtonBuilder().setCustomId('edit_embed').setLabel('ตั้งค่า Embed').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('test_welcome').setLabel('ทดสอบ').setStyle(ButtonStyle.Secondary)
+    new ButtonBuilder().setCustomId('toggle_welcome').setLabel(config.welcomeEnabled ? 'ปิดระบบ' : 'เปิดระบบ').setStyle(config.welcomeEnabled ? ButtonStyle.Danger : ButtonStyle.Success),
+    new ButtonBuilder().setCustomId('edit_welcome_msg').setLabel('✏️ แก้ไขข้อความต้อนรับ').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('test_welcome').setLabel('🚀 ทดสอบส่งการ์ด').setStyle(ButtonStyle.Secondary)
   );
-  const channelRow = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('select_channel').setPlaceholder('📂 เลือกห้องต้อนรับ').addChannelTypes(ChannelType.GuildText));
+  const channelRow = new ActionRowBuilder().addComponents(
+    new ChannelSelectMenuBuilder().setCustomId('select_channel').setPlaceholder('📂 เลือกห้องต้อนรับ').addChannelTypes(ChannelType.GuildText)
+  );
   return { embeds: [embed], components: [row1, channelRow] };
 }
 
 function getAutoroleDashboardContent(config) {
   const roleName = config.autoroleId ? `<@&${config.autoroleId}>` : 'ยังไม่ได้เลือกยศ';
   const statusText = config.autoroleEnabled ? '✅ เปิดอยู่' : '❌ ปิดอยู่';
-  const embed = new EmbedBuilder().setTitle('🛡️ ตั้งค่าระบบ Autorole').setDescription('เลือกยศแจกสมาชิกใหม่').setColor('#5865F2')
-    .addFields({ name: '📥 Status', value: statusText, inline: true }, { name: '👑 ยศที่จะได้รับ', value: roleName, inline: true });
-  const row1 = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('toggle_autorole').setLabel(config.autoroleEnabled ? 'ปิด' : 'เปิด').setStyle(config.autoroleEnabled ? ButtonStyle.Danger : ButtonStyle.Success));
-  const roleRow = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('select_autorole').setPlaceholder('👑 เลือกยศแจกใหม่'));
-  return { embeds: [embed], components: [roleRow] };
+  const embed = new EmbedBuilder()
+    .setTitle('🛡️ ตั้งค่าระบบ Autorole')
+    .setDescription('เมื่อเลือกยศด้านล่าง ระบบจะเปิดใช้งานการแจกยศอัตโนมัติให้ทันที (หรือกดปุ่มเพื่อปิดชั่วคราว)')
+    .setColor('#5865F2')
+    .addFields(
+      { name: '📥 สถานะ', value: statusText, inline: true },
+      { name: '👑 ยศที่จะได้รับ', value: roleName, inline: true }
+    );
+  const row1 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('toggle_autorole').setLabel(config.autoroleEnabled ? '🔴 ปิดระบบชั่วคราว' : '🟢 เปิดระบบ').setStyle(config.autoroleEnabled ? ButtonStyle.Danger : ButtonStyle.Success)
+  );
+  const roleRow = new ActionRowBuilder().addComponents(
+    new RoleSelectMenuBuilder().setCustomId('select_autorole').setPlaceholder('👑 เลือกยศแจกสมาชิกใหม่ (เลือกแล้วเปิดระบบทันที)')
+  );
+  return { embeds: [embed], components: [row1, roleRow] };
 }
 
 async function sendDashboard(target) {
