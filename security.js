@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelSelectMenuBuilder, StringSelectMenuBuilder, PermissionFlagsBits } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelSelectMenuBuilder, StringSelectMenuBuilder, PermissionFlagsBits } = require('discord.js');
 
 function getSecurityDashboardContent(config) {
   const sec = config.security;
@@ -7,16 +7,28 @@ function getSecurityDashboardContent(config) {
   const spamStatus = sec.antiSpam ? '✅ เปิด' : '❌ ปิด';
   const beastStatus = sec.antiMrBeast ? '✅ เปิด' : '❌ ปิด';
 
+  // รองรับกรณีค่าเก่าในฐานข้อมูลเป็น 3000 ให้แสดงผลอย่างถูกต้อง
+  const timeoutSecDisplay = sec.timeoutSeconds >= 1000 ? Math.floor(sec.timeoutSeconds / 1000) : (sec.timeoutSeconds || 60);
+
+  const formatActions = (act) => {
+    if (!act) return 'Timeout';
+    const list = [];
+    if (act.timeout) list.push('Timeout');
+    if (act.kick) list.push('Kick');
+    if (act.ban) list.push('Ban');
+    return list.length > 0 ? list.join(' + ') : 'ลบข้อความอย่างเดียว';
+  };
+
   const embed = new EmbedBuilder()
     .setTitle('🛡️ แผงควบคุมระบบป้องกันความปลอดภัย (Security Dashboard)')
     .setDescription('จัดการระบบป้องกันลิงก์ปลอม สแปม และบอทอันตรายได้จากปุ่มด้านล่าง')
     .setColor('#FF0000')
     .addFields(
       { name: '📥 สถานะระบบหลัก', value: status, inline: true },
-      { name: '🔗 Anti-Link', value: linkStatus, inline: true },
-      { name: '⚡ Anti-Spam', value: spamStatus, inline: true },
+      { name: '🔗 Anti-Link', value: `${linkStatus} (${formatActions(sec.actions?.invite)})`, inline: true },
+      { name: '⚡ Anti-Spam', value: `${spamStatus} (${formatActions(sec.actions?.spam)})`, inline: true },
       { name: '🤖 Anti-MrBeast', value: beastStatus, inline: true },
-      { name: '⚙️ ตั้งค่าสแปม', value: `${sec.spamCount} ข้อความ / ${sec.spamSeconds} วินาที (ระงับ ${sec.timeoutSeconds/1000} วิ)`, inline: false }
+      { name: '⚙️ ตั้งค่าสแปม', value: `${sec.spamCount} ข้อความ / ${sec.spamSeconds} วินาที (ระงับ ${timeoutSecDisplay} วินาที)`, inline: false }
     );
 
   const row1 = new ActionRowBuilder().addComponents(
@@ -31,18 +43,62 @@ function getSecurityDashboardContent(config) {
     new ButtonBuilder().setCustomId('sec_reset').setLabel('🔄 รีเซ็ตค่าเริ่มต้น').setStyle(ButtonStyle.Secondary)
   );
 
+  const inviteActionMenu = new StringSelectMenuBuilder()
+    .setCustomId('act_invite_select')
+    .setPlaceholder('🔗 เลือกบทลงโทษ Anti-Link (เลือกได้หลายข้อ)')
+    .setMinValues(0)
+    .setMaxValues(3)
+    .addOptions([
+      { label: 'ระงับการพิมพ์ (Timeout)', value: 'timeout', emoji: '⏳' },
+      { label: 'เตะออกจากเซิร์ฟเวอร์ (Kick)', value: 'kick', emoji: '👢' },
+      { label: 'แบนถาวร (Ban)', value: 'ban', emoji: '🔨' }
+    ]);
+
+  const spamActionMenu = new StringSelectMenuBuilder()
+    .setCustomId('act_spam_select')
+    .setPlaceholder('⚡ เลือกบทลงโทษ Anti-Spam (เลือกได้หลายข้อ)')
+    .setMinValues(0)
+    .setMaxValues(3)
+    .addOptions([
+      { label: 'ระงับการพิมพ์ (Timeout)', value: 'timeout', emoji: '⏳' },
+      { label: 'เตะออกจากเซิร์ฟเวอร์ (Kick)', value: 'kick', emoji: '👢' },
+      { label: 'แบนถาวร (Ban)', value: 'ban', emoji: '🔨' }
+    ]);
+
   const channelMenu = new ChannelSelectMenuBuilder()
     .setCustomId('sec_select_ignored')
     .setPlaceholder('📂 เลือกห้องที่ไม่ต้องการให้ระบบความปลอดภัยทำงาน (ยกเว้น)')
     .setMinValues(0)
     .setMaxValues(5);
 
-  const channelRow = new ActionRowBuilder().addComponents(channelMenu);
-
-  return { embeds: [embed], components: [row1, row2, channelRow] };
+  return {
+    embeds: [embed],
+    components: [
+      row1,
+      row2,
+      new ActionRowBuilder().addComponents(inviteActionMenu),
+      new ActionRowBuilder().addComponents(spamActionMenu),
+      new ActionRowBuilder().addComponents(channelMenu)
+    ]
+  };
 }
 
-function handleSecurityMessage(message, config, spamTracker) {
+async function applyPunishment(member, actionConfig, timeoutMs, reason) {
+  if (!member) return;
+  try {
+    if (actionConfig?.ban && member.bannable) {
+      await member.ban({ reason });
+    } else if (actionConfig?.kick && member.kickable) {
+      await member.kick(reason);
+    } else if (actionConfig?.timeout && member.moderatable) {
+      await member.timeout(timeoutMs, reason);
+    }
+  } catch (err) {
+    console.error(`Error applying security punishment (${reason}):`, err);
+  }
+}
+
+async function handleSecurityMessage(message, config, spamTracker) {
   if (!message.guild || message.author.bot) return false;
   if (!config || !config.security || !config.security.enabled) return false;
 
@@ -51,13 +107,17 @@ function handleSecurityMessage(message, config, spamTracker) {
   if (message.member && message.member.permissions.has(PermissionFlagsBits.ManageMessages)) return false;
 
   const content = message.content;
+  const rawTimeout = sec.timeoutSeconds || 60;
+  // แปลงวินาทีเป็นมิลลิวินาที (หากค่าเดิมในระบบ >= 1000 ให้ถือว่าเป็น ms อยู่แล้วเพื่อป้องกันบั๊กข้อมูลเก่า)
+  const timeoutMs = rawTimeout >= 1000 ? rawTimeout : rawTimeout * 1000;
 
-  // 1. ตรวจสอบ Anti-Link (ลิงก์เชิญ Discord หรือลิงก์อันตราย)
+  // 1. ตรวจสอบ Anti-Link
   if (sec.antiLink) {
     const inviteRegex = /(discord\.(gg|io|me|li)|discordapp\.com\/invite|discord\.com\/invite)\/[a-zA-Z0-9]+/i;
     const urlRegex = /https?:\/\/[^\s]+/i;
     if (inviteRegex.test(content) || urlRegex.test(content)) {
-      message.delete().catch(() => {});
+      await message.delete().catch(() => {});
+      await applyPunishment(message.member, sec.actions?.invite, timeoutMs, 'Anti-Link Protection');
       message.channel.send({ content: `⚠️ <@${message.author.id}> ห้ามส่งลิงก์ในห้องนี้ครับ!` }).then(msg => {
         setTimeout(() => msg.delete().catch(() => {}), 4000);
       });
@@ -70,9 +130,9 @@ function handleSecurityMessage(message, config, spamTracker) {
     const beastKeywords = ['mrbeast', 'giveaway free nitro', 'claim free nitro', 'steam gift card free'];
     const lowerContent = content.toLowerCase();
     if (beastKeywords.some(keyword => lowerContent.includes(keyword))) {
-      message.delete().catch(() => {});
-      message.member.timeout(sec.timeoutSeconds || 30000, 'Anti-MrBeast Auto-Timeout').catch(() => {});
-      message.channel.send({ content: `🚨 ตรวจพบบอทสแปมหลอกลวง (<@${message.author.id}>) ทำการลบข้อความและระงับการใช้งานเรียบร้อย!` });
+      await message.delete().catch(() => {});
+      await applyPunishment(message.member, sec.actions?.mrbeast || { timeout: true }, timeoutMs, 'Anti-MrBeast Auto-Punish');
+      message.channel.send({ content: `🚨 ตรวจพบบอทสแปมหลอกลวง (<@${message.author.id}>) ทำการลบข้อความและลงโทษเรียบร้อย!` });
       return true;
     }
   }
@@ -92,10 +152,10 @@ function handleSecurityMessage(message, config, spamTracker) {
     spamTracker.set(userId, recentMessages);
 
     if (recentMessages.length >= (sec.spamCount || 3)) {
-      message.delete().catch(() => {});
-      message.member.timeout(sec.timeoutSeconds || 30000, 'Anti-Spam Auto-Timeout').catch(() => {});
+      await message.delete().catch(() => {});
       spamTracker.set(userId, []);
-      message.channel.send({ content: `⚠️ <@${userId}> คุณพิมพ์ข้อความเร็วเกินไป (สแปม) จึงถูกระงับการพิมพ์ชั่วคราว!` }).then(msg => {
+      await applyPunishment(message.member, sec.actions?.spam || { timeout: true }, timeoutMs, 'Anti-Spam Auto-Punish');
+      message.channel.send({ content: `⚠️ <@${userId}> คุณพิมพ์ข้อความเร็วเกินไป (สแปม) จึงถูกลงโทษตามกฎของเซิร์ฟเวอร์!` }).then(msg => {
         setTimeout(() => msg.delete().catch(() => {}), 5000);
       });
       return true;
