@@ -1,5 +1,5 @@
 {
-  "name": "my-disord-bot",
+  "name": "my-discord-bot",
   "version": "1.0.0",
   "description": "Discord Bot on Render",
   "main": "index.js",
