@@ -21,36 +21,11 @@ async function handleSetupOrderTicketCommand(interaction) {
     .setCustomId('select_product_order')
     .setPlaceholder('🛒 เลือกสินค้าที่ต้องการสั่งซื้อ')
     .addOptions([
-      {
-        label: 'BOT PREMIUM (รายเดือน)',
-        description: 'สต็อกไม่จำกัด • ฿399.00 / 1 เดือน • ยศ: Bot Premium',
-        value: 'product_bot_premium',
-        emoji: '💎'
-      },
-      {
-        label: 'ยศ Artist ถาวร',
-        description: 'สต็อกไม่จำกัด • ฿69.00 / ถาวร • สิทธิ์แต่งการ์ดส่วนตัว',
-        value: 'product_artist_role',
-        emoji: '🎨'
-      },
-      {
-        label: 'ยศพิเศษ สายชิลล์ ถาวร',
-        description: 'สต็อกไม่จำกัด • ฿19.00 / ถาวร • ยศโปรไฟล์สุดชิลล์',
-        value: 'product_chilling_role',
-        emoji: '☕'
-      },
-      {
-        label: 'ยศพิเศษ คนนอนดึก ถาวร',
-        description: 'สต็อกไม่จำกัด • ฿9.00 / ถาวร • ยศโปรไฟล์สายโต้รุ่ง',
-        value: 'product_nightowl_role',
-        emoji: '🌙'
-      },
-      {
-        label: 'ล้างตัวเลือก',
-        description: 'เคลียร์ค่าตัวเลือกให้กลับมาเป็นค่าเริ่มต้น',
-        value: 'clear_selection',
-        emoji: '❌'
-      }
+      { label: 'BOT PREMIUM (รายเดือน)', description: 'สต็อกไม่จำกัด • ฿399.00 / 1 เดือน • ยศ: Bot Premium', value: 'product_bot_premium', emoji: '💎' },
+      { label: 'ยศ Artist ถาวร', description: 'สต็อกไม่จำกัด • ฿69.00 / ถาวร • สิทธิ์แต่งการ์ดส่วนตัว', value: 'product_artist_role', emoji: '🎨' },
+      { label: 'ยศพิเศษ สายชิลล์ ถาวร', description: 'สต็อกไม่จำกัด • ฿19.00 / ถาวร • ยศโปรไฟล์สุดชิลล์', value: 'product_chilling_role', emoji: '☕' },
+      { label: 'ยศพิเศษ คนนอนดึก ถาวร', description: 'สต็อกไม่จำกัด • ฿9.00 / ถาวร • ยศโปรไฟล์สายโต้รุ่ง', value: 'product_nightowl_role', emoji: '🌙' },
+      { label: 'ล้างตัวเลือก', description: 'เคลียร์ค่าตัวเลือกให้กลับมาเป็นค่าเริ่มต้น', value: 'clear_selection', emoji: '❌' }
     ]);
 
   const row = new ActionRowBuilder().addComponents(selectMenu);
@@ -122,7 +97,7 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
 
     const ticketEmbed = new EmbedBuilder()
       .setTitle(`🎟️ รายละเอียดออร์เดอร์: ${productName}`)
-      .setDescription(`• **ผู้สั่งซื้อ:** <@${user.id}>\n• **สินค้า:** ${productName}\n• **ยอดที่ต้องชำระ:** \`฿${productPriceNum}.00\`\n\n──────────────────────\n📌 **วิธีชำระเงินอัตโนมัติ:**\nส่งลิงก์ซองอั่งเปา TrueMoney Wallet ในห้องนี้ได้เลย ระบบจะตรวจสอบและมอบสินค้าให้อัตโนมัติทันที!`)
+      .setDescription(`• **ผู้สั่งซื้อ:** <@${user.id}>\n• **สินค้า:** ${productName}\n• **ยอดที่ต้องชำระ:** \`฿${productPriceNum}.00\`\n\n──────────────────────\n📌 **วิธีชำระเงินอัตโนมัติ:**\nส่งลิงก์ซองอั่งเปา TrueMoney Wallet ในห้องนี้ได้เลย ระบบจะตรวจสอบ มอบสินค้า และส่งสลิปใบเสร็จเข้า DM ส่วนตัวให้อัตโนมัติทันที!`)
       .setImage(newOrderGif)
       .setColor('#FFD700')
       .setFooter({ text: 'ระบบออร์เดอร์อัตโนมัติ' });
@@ -139,9 +114,8 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
         .setStyle(ButtonStyle.Danger)
     );
 
-    const sentMsg = await ticketChannel.send({ content: `🔔 ออร์เดอร์ใหม่จาก <@${user.id}>`, embeds: [ticketEmbed], components: [payRow] });
+    await ticketChannel.send({ content: `🔔 ออร์เดอร์ใหม่จาก <@${user.id}>`, embeds: [ticketEmbed], components: [payRow] });
     
-    // 💡 Collector สำหรับดึงลิงก์ซองอั่งเปาที่ลูกค้าพิมพ์มาในห้องออร์เดอร์อัตโนมัติ
     const filter = m => m.author.id === user.id && m.content.includes('gift.truemoney.com');
     const collector = ticketChannel.createMessageCollector({ filter, time: 30 * 60 * 1000 });
 
@@ -154,7 +128,6 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
 
       try {
         const voucherHash = match[1];
-        // ⚠️ หมายเหตุ: ใส่เบอร์ Wallet ของคุณสำหรับรับเงินจากซองอั่งเปาตรงนี้
         const storeMobileNumber = '0812345678'; 
         const apiEndpoint = `https://gift.truemoney.com/campaign/vouchers/${voucherHash}/redeem`;
 
@@ -173,7 +146,6 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
             return;
           }
 
-          // ✅ ยอดเงินถูกต้อง ทำการมอบสินค้าและยศอัตโนมัติ
           let roleGrantedText = '';
           const member = await guild.members.fetch(user.id).catch(() => null);
 
@@ -192,9 +164,29 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
             }
           }
 
-          await processingMsg.edit(`🎉 **ชำระเงินสำเร็จ!** ได้รับยอดเงิน \`฿${redeemedAmount}.00\`${roleGrantedText}\n🔒 ห้องนี้จะถูกปิดอัตโนมัติใน 10 วินาที...`);
-          collector.stop();
+          await processingMsg.edit(`🎉 **ชำระเงินสำเร็จ!** ได้รับยอดเงิน \`฿${redeemedAmount}.00\`${roleGrantedText}\n📥 ระบบได้ส่ง **สลิปใบเสร็จรับเงิน** ไปยังห้องแชทส่วนตัว (DM) ของคุณแล้วครับ!\n🔒 ห้องนี้จะปิดอัตโนมัติใน 10 วินาที...`);
+          
+          // 🧾 ระบบส่งสลิปใบเสร็จเข้าห้องแชทส่วนตัว (DM) ของสมาชิก
+          try {
+            const receiptEmbed = new EmbedBuilder()
+              .setTitle('🧾 OFFICIAL RECEIPT • ใบเสร็จรับเงิน')
+              .setDescription(`ขอบคุณที่ใช้บริการ **${guild.name} Store** ครับ!\nรายการสั่งซื้อของคุณได้รับการตรวจสอบและทำรายการสำเร็จเรียบร้อยแล้ว`)
+              .setColor('#00FF00')
+              .addFields(
+                { name: '👤 ผู้ซื้อ', value: `<@${user.id}>`, inline: true },
+                { name: '🛒 สินค้า', value: productName, inline: true },
+                { name: '💳 ยอดชำระ', value: `\`฿${productPriceNum}.00\` (ผ่าน TrueMoney)`, inline: true },
+                { name: '👑 สถานะยศ', value: roleGrantedText ? 'มอบยศเข้าสู่โปรไฟล์สำเร็จ' : 'ดำเนินการสำเร็จ', inline: false }
+              )
+              .setTimestamp()
+              .setFooter({ text: `Server: ${guild.name} | Zen Bot Technology` });
 
+            await user.send({ embeds: [receiptEmbed] }).catch(() => {});
+          } catch (dmErr) {
+            console.error('Could not send receipt DM to user:', dmErr);
+          }
+
+          collector.stop();
           setTimeout(() => {
             ticketChannel.delete().catch(() => {});
           }, 10000);
