@@ -4,7 +4,6 @@ const { isServerPremium } = require('./license');
 
 const userCooldowns = new Map();
 
-// ปรับขึ้นราคาสินค้าใน In-Game Shop และเปลี่ยนชื่อเป็น "กาชาปอง"
 const IN_GAME_ITEMS = [
   { 
     id: 'gacha_box', 
@@ -222,6 +221,18 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
   const userStat = serverConfigs[guildId].levels[userId];
   const userCoins = userStat.orbs || 0;
 
+  // 🔒 ระบบบล็อกไม่ให้คนมียศ Artist ถาวร ไปซื้อยศ Artist 3 วัน
+  const permArtistRoleId = '1560224726868295740';
+  if (item.id === 'role_artist_temp') {
+    try {
+      const member = await interaction.guild.members.fetch(userId);
+      if (member.roles.cache.has(permArtistRoleId)) {
+        await interaction.reply({ content: `❌ คุณมียศ **Artist (แบบถาวร)** อยู่แล้วครับ! จึงไม่จำเป็นต้องซื้อบัตรเช่าราย 3 วันเพิ่ม (ยศถาวรคุ้มค่าและครอบคลุมกว่าอยู่แล้ว)`, ephemeral: true });
+        return true;
+      }
+    } catch (e) {}
+  }
+
   if (item.type === 'role_temp' && userStat.artistUntil && userStat.artistUntil > now) {
     await interaction.reply({ content: `⚠️ คุณยังมีสิทธิ์ Artist ใช้งานอยู่ (เหลือเวลาอีกประมาณ ${Math.ceil((userStat.artistUntil - now) / (1000 * 60 * 60 * 24))} วัน) ไม่สามารถซื้อซ้ำซ้อนได้ครับ!`, ephemeral: true });
     return true;
@@ -234,7 +245,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
 
   userStat.orbs -= item.price;
 
-if (item.type === 'gacha') {
+  if (item.type === 'gacha') {
     const outcomes = [
       { reward: 0, text: 'เกลือสนิมเกาะ! รอบนี้ไม่ได้อะไรเลย เสียใจด้วยนะ 😢' },
       { reward: 0, text: 'พลาดเป้า! ศูนย์เหรียญ ลองใหม่อีกครั้งนะ 💨' },
@@ -248,7 +259,8 @@ if (item.type === 'gacha') {
 
     await interaction.reply({ content: `🎁 **ผลการสุ่มกาชาปอง:**\n${roll.text}\n(ยอด Zen Coins ปัจจุบันของคุณ: ${userStat.orbs} Coins)`, ephemeral: true });
     return true;
-  }
+  } 
+  
   else if (item.type === 'buff') {
     const oneHour = 60 * 60 * 1000;
     userStat.boostUntil = (userStat.boostUntil && userStat.boostUntil > now ? userStat.boostUntil : now) + oneHour;
