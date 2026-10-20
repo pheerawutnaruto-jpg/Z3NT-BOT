@@ -92,16 +92,76 @@ async function generateProfileCard(user, userStat, lConfig) {
   return new AttachmentBuilder(await canvas.encode('png'), { name: 'profile-card.png' });
 }
 
-// 🎨 ฟังก์ชันสร้างการ์ดต้อนรับสมาชิกใหม่ (Welcome Canvas - ภาษาอังกฤษทั้งหมด ป้องกันฟอนต์พัง)
+// 💰 ฟังก์ชันสร้างการ์ดกระเป๋าเงิน Wallet Canvas
+async function generateWalletCard(user, userStat) {
+  const canvas = createCanvas(930, 260);
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#11111f';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  let bgUrl = userStat.customWalletTheme;
+  if (bgUrl && bgUrl.trim() !== '') {
+    try {
+      const bgImage = await loadImage(bgUrl.trim());
+      ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+    } catch (e) {
+      console.error('Failed to load wallet background:', e);
+    }
+  }
+
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+  ctx.fillRect(20, 20, canvas.width - 40, canvas.height - 40);
+
+  ctx.strokeStyle = '#FFD700';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+
+  const avatarUrl = user.displayAvatarURL({ extension: 'png', size: 256 });
+  try {
+    const avatar = await loadImage(avatarUrl);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(110, 130, 55, 0, Math.PI * 2, true);
+    ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(avatar, 55, 75, 110, 110);
+    ctx.restore();
+
+    ctx.strokeStyle = '#FFD700';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(110, 130, 55, 0, Math.PI * 2, true);
+    ctx.stroke();
+  } catch (e) {}
+
+  ctx.fillStyle = '#FFD700';
+  ctx.font = 'bold 24px sans-serif';
+  ctx.fillText('ZEN BOT • OFFICIAL WALLET', 200, 75);
+
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = 'bold 30px sans-serif';
+  ctx.fillText(user.username, 200, 125);
+
+  ctx.fillStyle = '#AAAAAA';
+  ctx.font = '20px sans-serif';
+  ctx.fillText('ZEN COINS BALANCE:', 200, 175);
+
+  const coins = userStat.orbs || 0;
+  ctx.fillStyle = '#00FF66';
+  ctx.font = 'bold 36px sans-serif';
+  ctx.fillText(`${coins.toLocaleString()} COINS`, 470, 178);
+
+  return new AttachmentBuilder(await canvas.encode('png'), { name: 'wallet-card.png' });
+}
+
 async function generateWelcomeCard(member) {
   const canvas = createCanvas(930, 320);
   const ctx = canvas.getContext('2d');
 
-  // 1. พื้นหลังโทนสีเข้มพรีเมียม
   ctx.fillStyle = '#0f0f1a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // 2. ดึงรูป Zen Bot มาทำเป็นภาพพื้นหลังแบบโปร่งแสงฝั่งขวา
   const zenBotBgUrl = 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg';
   try {
     const zenImage = await loadImage(zenBotBgUrl);
@@ -109,11 +169,8 @@ async function generateWelcomeCard(member) {
     ctx.globalAlpha = 0.25;
     ctx.drawImage(zenImage, canvas.width - 400, 0, 400, canvas.height);
     ctx.restore();
-  } catch (e) {
-    console.error('Failed to load Zen Bot background:', e);
-  }
+  } catch (e) {}
 
-  // 3. กรอบการ์ดโปร่งแสง
   ctx.fillStyle = 'rgba(20, 20, 35, 0.85)';
   ctx.beginPath();
   ctx.roundRect(20, 20, canvas.width - 40, canvas.height - 40, 20);
@@ -125,7 +182,6 @@ async function generateWelcomeCard(member) {
   ctx.roundRect(20, 20, canvas.width - 40, canvas.height - 40, 20);
   ctx.stroke();
 
-  // 4. วาดรูป Avatar ของสมาชิกใหม่ (วงกลม)
   const avatarUrl = member.user.displayAvatarURL({ extension: 'png', size: 256 });
   try {
     const avatar = await loadImage(avatarUrl);
@@ -142,11 +198,8 @@ async function generateWelcomeCard(member) {
     ctx.beginPath();
     ctx.arc(130, 160, 75, 0, Math.PI * 2, true);
     ctx.stroke();
-  } catch (e) {
-    console.error('Failed to load member avatar:', e);
-  }
+  } catch (e) {}
 
-  // 5. ข้อความต้อนรับ (ภาษาอังกฤษ)
   ctx.fillStyle = '#66FFFF';
   ctx.font = 'bold 24px sans-serif';
   ctx.fillText('WELCOME TO THE SERVER', 240, 105);
@@ -159,7 +212,6 @@ async function generateWelcomeCard(member) {
   ctx.font = '22px sans-serif';
   ctx.fillText(`Member #${member.guild.memberCount} • Enjoy your stay!`, 240, 205);
 
-  // ป้ายชื่อคอมมูนิตี้ด้านล่าง
   ctx.fillStyle = 'rgba(102, 255, 255, 0.15)';
   ctx.beginPath();
   ctx.roundRect(240, 225, 280, 40, 10);
@@ -172,4 +224,4 @@ async function generateWelcomeCard(member) {
   return new AttachmentBuilder(await canvas.encode('png'), { name: 'welcome-card.png' });
 }
 
-module.exports = { generateProfileCard, generateWelcomeCard };
+module.exports = { generateProfileCard, generateWalletCard, generateWelcomeCard };
