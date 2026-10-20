@@ -10,15 +10,11 @@ async function handleSetupOrderTicketCommand(interaction) {
     return true;
   }
 
-  // จัดเลย์เอาต์ใหม่: เอา Banner ไว้ด้านบนสุด เพื่อให้ฟอร์มการ์ดแสดงผลเรียงสวยงามเหมือนตัวอย่างโมเดิร์น
   const embed = new EmbedBuilder()
+    .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • SELECT STORE')
+    .setDescription('ศูนย์รวมการสั่งซื้อยศถาวรและแพ็กเกจพิเศษผ่านเมนูดรอปดาวน์ สะดวก รวดเร็ว และเป็นส่วนตัว\n\n📌 **วิธีใช้งาน:** เลือกรายการสินค้าที่ต้องการจากกล่องตัวเลือกด้านล่างได้ทันที')
     .setColor('#00FF00')
-    .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg')
-    .setTitle('🎟️ 𝙕𝙀𝙉 𝘽𝙊𝙏 • SELECT STORE')
-    .setDescription(
-      'ศูนย์รวมการสั่งซื้อยศถาวรและแพ็กเกจพิเศษผ่านเมนูดรอปดาวน์ สะดวก รวดเร็ว และเป็นส่วนตัว\n\n' +
-      '📌 **วิธีใช้งาน:** เลือกรายการสินค้าที่ต้องการจากกล่องตัวเลือกด้านล่างได้ทันที'
-    );
+    .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg');
 
   const selectMenu = new StringSelectMenuBuilder()
     .setCustomId('select_product_order')
@@ -90,13 +86,10 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
 
   if (selectedValue === 'clear_selection') {
     const embed = new EmbedBuilder()
+      .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • SELECT STORE')
+      .setDescription('ศูนย์รวมการสั่งซื้อยศถาวรและแพ็กเกจพิเศษผ่านเมนูดรอปดาวน์ สะดวก รวดเร็ว และเป็นส่วนตัว\n\n📌 **วิธีใช้งาน:** เลือกรายการสินค้าที่ต้องการจากกล่องตัวเลือกด้านล่างได้ทันที')
       .setColor('#00FF00')
-      .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg')
-      .setTitle('🎟️ 𝙕𝙀𝙉 𝘽𝙊𝙏 • SELECT STORE')
-      .setDescription(
-        'ศูนย์รวมการสั่งซื้อยศถาวรและแพ็กเกจพิเศษผ่านเมนูดรอปดาวน์ สะดวก รวดเร็ว และเป็นส่วนตัว\n\n' +
-        '📌 **วิธีใช้งาน:** เลือกรายการสินค้าที่ต้องการจากกล่องตัวเลือกด้านล่างได้ทันที'
-      );
+      .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg');
 
     const selectMenu = new StringSelectMenuBuilder()
       .setCustomId('select_product_order')
@@ -127,6 +120,7 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
   else if (selectedValue === 'product_chilling_role') { productName = 'ยศพิเศษ สายชิลล์ ถาวร'; productPrice = '฿19.00'; }
   else if (selectedValue === 'product_nightowl_role') { productName = 'ยศพิเศษ คนนอนดึก ถาวร'; productPrice = '฿9.00'; }
 
+  // 🔒 ป้องกันคนที่มี Artist ถาวรแล้ว มาซื้อซ้ำซ้อน
   const artistPermRoleId = '1560224726868295740';
   if (selectedValue === 'product_artist_role' && member.roles.cache.has(artistPermRoleId)) {
     await interaction.reply({ content: '❌ คุณมียศ **Artist ถาวร** อยู่แล้วครับ! ไม่สามารถซื้อซ้ำได้', ephemeral: true });
@@ -155,17 +149,10 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
     const newOrderGif = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560415906281300059/image0.gif';
 
     const ticketEmbed = new EmbedBuilder()
-      .setColor('#FFD700')
-      .setImage(newOrderGif)
       .setTitle(`🎟️ รายละเอียดออร์เดอร์: ${productName}`)
-      .setDescription(
-        `• **ผู้สั่งซื้อ:** <@${user.id}>\n` +
-        `• **สินค้า:** ${productName}\n` +
-        `• **ยอดที่ต้องชำระ:** \`${productPrice}\`\n\n` +
-        `──────────────────────\n` +
-        `📌 **ช่องทางการชำระเงิน:**\n` +
-        `คลิกปุ่มด้านล่างเพื่อดู QR Code สำหรับโอนเงิน จากนั้นส่งสลิปหลักฐานในห้องนี้เพื่อให้แอดมินตรวจสอบครับ`
-      )
+      .setDescription(`• **ผู้สั่งซื้อ:** <@${user.id}>\n• **สินค้า:** ${productName}\n• **ยอดที่ต้องชำระ:** \`${productPrice}\`\n\n──────────────────────\n📌 **ช่องทางการชำระเงิน:**\nคลิกปุ่มด้านล่างเพื่อดู QR Code สำหรับโอนเงิน จากนั้นส่งสลิปหลักฐานในห้องนี้เพื่อให้แอดมินตรวจสอบครับ`)
+      .setImage(newOrderGif)
+      .setColor('#FFD700')
       .setFooter({ text: 'ช่องทางชำระ' });
 
     const payRow = new ActionRowBuilder().addComponents(
@@ -204,16 +191,10 @@ async function handleOrderPaymentButton(interaction) {
   const promptPayQr = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560193260293595176/ReceiveMoney_QR_2026-10-15_14.13.55.png';
 
   const embed = new EmbedBuilder()
-    .setColor('#00FF00')
-    .setImage(promptPayQr)
     .setTitle('💳 ช่องทางชำระเงิน PromptPay QR')
-    .setDescription(
-      `• **สินค้า:** ${productName}\n` +
-      `• **ยอดชำระ:** \`${productPrice}\`\n\n` +
-      `──────────────────────\n` +
-      `📌 **สแกน QR Code PromptPay ด้านล่างเพื่อโอนเงิน:**\n\n` +
-      `*เมื่อโอนเงินเรียบร้อยแล้ว ส่งสลิปหลักฐานในห้องนี้เพื่อให้แอดมินตรวจสอบและมอบสินค้าให้ได้เลยครับ!*`
-    )
+    .setDescription(`• **สินค้า:** ${productName}\n• **ยอดชำระ:** \`${productPrice}\`\n\n──────────────────────\n📌 **สแกน QR Code PromptPay ด้านล่างเพื่อโอนเงิน:**\n\n*เมื่อโอนเงินเรียบร้อยแล้ว ส่งสลิปหลักฐานในห้องนี้เพื่อให้แอดมินตรวจสอบและมอบสินค้าให้ได้เลยครับ!*`)
+    .setImage(promptPayQr)
+    .setColor('#00FF00')
     .setFooter({ text: 'ช่องทางชำระ' });
 
   const closeRow = new ActionRowBuilder().addComponents(
