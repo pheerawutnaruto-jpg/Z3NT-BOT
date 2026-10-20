@@ -4,6 +4,7 @@ const { isServerPremium } = require('./license');
 
 const userCooldowns = new Map();
 
+// รายการสินค้าใน In-Game Shop (กาชาปอง, บัฟ XP, บัตรเช่า Artist)
 const IN_GAME_ITEMS = [
   { 
     id: 'gacha_box', 
@@ -212,6 +213,18 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
   const item = IN_GAME_ITEMS.find(i => i.id === itemId);
   if (!item) return true;
 
+  // 🔒 ระบบป้องกันคนที่มี Artist ถาวรแล้ว มาซื้อบัตรเช่า Artist | 3d ซ้ำซ้อน
+  const artistPermRoleId = '1560224726868295740'; // Artist ถาวร
+  if (item.id === 'role_artist_temp') {
+    try {
+      const member = await interaction.guild.members.fetch(userId);
+      if (member.roles.cache.has(artistPermRoleId)) {
+        await interaction.reply({ content: '❌ คุณมียศ **Artist ถาวร** อยู่แล้วครับ! ไม่จำเป็นต้องซื้อบัตรเช่า Artist | 3d เพิ่มเติม', ephemeral: true });
+        return true;
+      }
+    } catch (e) {}
+  }
+
   if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
   if (!serverConfigs[guildId].levels) serverConfigs[guildId].levels = {};
   if (!serverConfigs[guildId].levels[userId]) {
@@ -220,18 +233,6 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
 
   const userStat = serverConfigs[guildId].levels[userId];
   const userCoins = userStat.orbs || 0;
-
-  // 🔒 บล็อกไม่ให้คนมียศ Artist ถาวร (1560224726868295740) ไปซื้อยศ Artist 3 วัน
-  const permArtistRoleId = '1560224726868295740';
-  if (item.id === 'role_artist_temp') {
-    try {
-      const member = await interaction.guild.members.fetch(userId);
-      if (member.roles.cache.has(permArtistRoleId)) {
-        await interaction.reply({ content: `❌ คุณมียศ **Artist (แบบถาวร)** อยู่แล้วครับ! จึงไม่จำเป็นต้องซื้อบัตรเช่าราย 3 วันเพิ่ม (ยศถาวรคุ้มค่าและครอบคลุมกว่าอยู่แล้ว)`, ephemeral: true });
-        return true;
-      }
-    } catch (e) {}
-  }
 
   if (item.type === 'role_temp' && userStat.artistUntil && userStat.artistUntil > now) {
     await interaction.reply({ content: `⚠️ คุณยังมีสิทธิ์ Artist ใช้งานอยู่ (เหลือเวลาอีกประมาณ ${Math.ceil((userStat.artistUntil - now) / (1000 * 60 * 60 * 24))} วัน) ไม่สามารถซื้อซ้ำซ้อนได้ครับ!`, ephemeral: true });
