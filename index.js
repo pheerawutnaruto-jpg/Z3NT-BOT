@@ -202,7 +202,6 @@ client.on('guildMemberAdd', async member => {
 
   if (!config) return;
 
-  // 1. ระบบ Autorole แจกยศอัตโนมัติ
   if (config.autoroleEnabled && config.autoroleId) {
     try {
       const role = await member.guild.roles.fetch(config.autoroleId);
@@ -215,7 +214,7 @@ client.on('guildMemberAdd', async member => {
     }
   }
 
-  // 2. ระบบส่งการ์ดต้อนรับเข้าห้องแชทส่วนตัว (Welcome DM)
+  // ส่งการ์ดต้อนรับเข้าห้องแชทส่วนตัว (Welcome DM)
   try {
     const dmAttachment = await generateWelcomeCard(member);
     const dmDesc = `🎉 ยินดีต้อนรับคุณ **${member.user.username}** สู่เซิร์ฟเวอร์ **${member.guild.name}** ครับ!\nขอให้สนุกและมีความสุขกับการอยู่ในคอมมูนิตี้ของเรานะ! ✨`;
@@ -224,7 +223,6 @@ client.on('guildMemberAdd', async member => {
     console.error('Could not send welcome DM to member:', dmErr);
   }
 
-  // 3. ระบบส่งการ์ดต้อนรับเข้าห้องสาธารณะของเซิร์ฟเวอร์ตามที่ตั้งค่า
   if (!config.welcomeEnabled || !config.channelId) return;
 
   try {
@@ -232,6 +230,7 @@ client.on('guildMemberAdd', async member => {
     if (!channel) return;
 
     const attachment = await generateWelcomeCard(member);
+
     const embedConfig = config.embed || {
       description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!'
     };
@@ -534,28 +533,6 @@ client.on('interactionCreate', async interaction => {
         .setRequired(true);
       modal.addComponents(new ActionRowBuilder().addComponents(descInput));
       return await interaction.showModal(modal);
-    }
-    if (id === 'test_welcome') {
-      if (!config.channelId) {
-        return await interaction.reply({ content: '❌ กรุณาเลือกช่องสำหรับส่งข้อความต้อนรับก่อนกดทดสอบครับ!', ephemeral: true });
-      }
-      await interaction.reply({ content: `🔄 กำลังส่งการ์ดต้อนรับทดสอบ...`, ephemeral: true });
-      try {
-        const channel = await interaction.guild.channels.fetch(config.channelId);
-        if (channel) {
-          const attachment = await generateWelcomeCard(interaction.member);
-          const embedConfig = config.embed || {
-            description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!'
-          };
-          const finalDesc = (embedConfig.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!')
-            .replace('{user}', `${interaction.user}`)
-            .replace('{server}', interaction.guild.name);
-          await channel.send({ content: finalDesc, files: [attachment] });
-        }
-      } catch (err) {
-        console.error('Test welcome error:', err);
-      }
-      return;
     }
 
     if (id === 'sec_toggle_main') config.security.enabled = !config.security.enabled;
