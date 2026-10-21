@@ -26,9 +26,7 @@ const {
   addCoinsCommand, 
   handleCoinsCommand, 
   handleAddCoinsCommand, 
-  handleShopButton,
-  myStatusCommand,
-  handleMyStatusCommand
+  handleShopButton 
 } = require('./shop');
 const { setupArtistCommand, handleSetupArtistCommand, handleArtistButton, handleArtistModalSubmit } = require('./artist_card');
 const { setupMediaGuardCommand, handleSetupMediaGuardCommand, handleMediaGuardMessage } = require('./media_guard');
@@ -126,7 +124,7 @@ client.once('ready', async () => {
     coinsCommand,
     addCoinsCommand,
     grantPremiumCommand,
-    myStatusCommand,
+    boostStatusCommand,
     setupArtistCommand,
     setupMediaGuardCommand,
     setupShowcaseCommand,
@@ -289,7 +287,7 @@ client.on('interactionCreate', async interaction => {
   }
   if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
 
-  const premiumCommands = ['setup-quest', 'setup-in-game-shop', 'coins', 'setup-order-ticket', 'add-coins', 'setup-media-guard', 'setup-showcase', 'set-autoclear', 'setup-artist-card', 'my-status', 'cinema-setup', 'cinema-broadcast', 'auto-cinema'];
+  const premiumCommands = ['setup-quest', 'setup-in-game-shop', 'coins', 'setup-order-ticket', 'add-coins', 'setup-media-guard', 'setup-showcase', 'set-autoclear', 'setup-artist-card', 'boost-status', 'cinema-setup', 'cinema-broadcast', 'auto-cinema'];
   if (interaction.isChatInputCommand() && premiumCommands.includes(interaction.commandName)) {
     const hasPremium = await isServerPremium(guildId, serverConfigs);
     if (!hasPremium) {
@@ -324,7 +322,7 @@ client.on('interactionCreate', async interaction => {
         '> 🛡️ **Advanced Security:** ระบบป้องกันลิงก์สแปม และบอทหลอกลวงพร้อมบทลงโทษอัตโนมัติ\n' +
         '> 📊 **Leveling & Voice XP:** ระบบเก็บเลเวลทั้งแชทและห้องเสียง พร้อมการ์ดโปรไฟล์ Canvas สุดพรีเมียม\n' +
         '> 🎬 **Zen Cinema:** ระบบจัดการรอบฉายหนังอัตโนมัติ (Coming Soon & Now Showing) พร้อมระบบขายตั๋วหักเหรียญ\n' +
-        '> 🛒 **Automated Store:** ระบบร้านค้าสกิน/ยศ และระบบห้องออร์เดอร์พร้อมปุ่มอนุมัติสลิปและใบเสร็จอัตโนมัติ\n' +
+        '> 🛒 **Automated Store:** ระบบร้านค้าสกิน/ยศ และระบบห้องออร์เดอร์พร้อมใบเสร็จอัตโนมัติ\n' +
         '> 🎨 **Artist Showcase:** ระบบห้องโชว์ผลงานพร้อมรีแอคชันและปุ่มให้คะแนนอัตโนมัติ\n' +
         '> 🎁 **Daily Quest:** เควสต์สุ่มแจก Zen Coins ฟรีทุก 19 ชั่วโมง (แบบ 50/50)\n\n' +
         '💎 สนใจใช้งานระบบพรีเมียมติดต่อผู้พัฒนาบอทได้เลยครับ!'
@@ -360,8 +358,8 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isChatInputCommand() && interaction.commandName === 'add-coins') {
     return await handleAddCoinsCommand(interaction, serverConfigs, saveConfigs);
   }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'my-status') {
-    return await handleMyStatusCommand(interaction, serverConfigs);
+  if (interaction.isChatInputCommand() && interaction.commandName === 'boost-status') {
+    return await handleBoostStatusCommand(interaction, serverConfigs);
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'setup-artist-card') {
     return await handleSetupArtistCommand(interaction);
@@ -430,7 +428,7 @@ client.on('interactionCreate', async interaction => {
     const handledShowcaseBtn = await handleShowcaseButton(interaction);
     if (handledShowcaseBtn) return;
 
-    const handledCinemaBtn = await handleCinemaButton(interaction, serverConfigs, saveConfigs);
+    const handledCinemaBtn = await handleCinemaButton(interaction, serverConfigs, saveConfigs, client);
     if (handledCinemaBtn) return;
 
     const handledAutoCinemaBtn = await handleAutoCinemaButton(interaction, serverConfigs, saveConfigs, client);
@@ -451,7 +449,7 @@ client.on('interactionCreate', async interaction => {
     const handledQuest = await handleQuestButton(interaction, serverConfigs, saveConfigs);
     if (handledQuest) return;
 
-    const handledShop = await handleShopButton(interaction, serverConfigs, saveConfigs);
+    const handledShop = await handleShopButton(interaction, serverConfigs, saveConfigs, client);
     if (handledShop) return;
 
     const handledArtistBtn = await handleArtistButton(interaction, serverConfigs);
@@ -540,7 +538,7 @@ client.on('interactionCreate', async interaction => {
         .setCustomId('welcomeDesc')
         .setLabel('ข้อความต้อนรับ (ใช้ {user} และ {server} ได้)')
         .setStyle(TextInputStyle.Paragraph)
-        .setValue(config.embed?.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!')
+        .setValue(config.embed?.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢-ber!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!')
         .setRequired(true);
       modal.addComponents(new ActionRowBuilder().addComponents(descInput));
       return await interaction.showModal(modal);
@@ -615,7 +613,7 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.isChannelSelectMenu()) {
-    const handledCinemaSelect = await handleCinemaSelect(interaction, serverConfigs, saveConfigs);
+    const handledCinemaSelect = await handleCinemaSelect(interaction, serverConfigs, saveConfigs, client);
     if (handledCinemaSelect) return;
 
     const handledAutoCinemaSelect = await handleAutoCinemaSelect(interaction, serverConfigs, saveConfigs, client);
@@ -673,7 +671,7 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.isModalSubmit()) {
-    const handledCinemaModal = await handleCinemaModal(interaction, serverConfigs, saveConfigs);
+    const handledCinemaModal = await handleCinemaModal(interaction, serverConfigs, saveConfigs, client);
     if (handledCinemaModal) return;
 
     const handledAutoCinemaModal = await handleAutoCinemaModal(interaction, serverConfigs, saveConfigs, client);
@@ -736,7 +734,7 @@ client.on('interactionCreate', async interaction => {
     if (interaction.customId === 'deleteRoleRewardModal') {
       const targetLevel = interaction.fields.getTextInputValue('targetLevel').trim();
       if (!config.levelConfig.roleRewards || !config.levelConfig.roleRewards[targetLevel]) {
-        return await interaction.reply({ content: '❌ ไม่พบข้อมูลยศรางวัลสำหรับ Level ${targetLevel} ครับ!', ephemeral: true });
+        return await interaction.reply({ content: `❌ ไม่พบข้อมูลยศรางวัลสำหรับ Level ${targetLevel} ครับ!`, ephemeral: true });
       }
       delete config.levelConfig.roleRewards[targetLevel];
       await saveConfigs(serverConfigs);
@@ -768,7 +766,7 @@ function getDashboardContent(config) {
   const channelRow = new ActionRowBuilder().addComponents(
     new ChannelSelectMenuBuilder().setCustomId('select_channel').setPlaceholder('📂 เลือกห้องต้อนรับ').addChannelTypes(ChannelType.GuildText)
   );
-  return { embeds: [embed], components: [row1, channelRow] }
+  return { embeds: [embed], components: [row1, channelRow] };
 }
 
 function getAutoroleDashboardContent(config) {
@@ -788,7 +786,7 @@ function getAutoroleDashboardContent(config) {
   const roleRow = new ActionRowBuilder().addComponents(
     new RoleSelectMenuBuilder().setCustomId('select_autorole').setPlaceholder('👑 เลือกยศแจกสมาชิกใหม่ (เลือกแล้วเปิดระบบทันที)')
   );
-  return { embeds: [embed], components: [roleRow] };
+  return { embeds: [embed], components: [row1, roleRow] };
 }
 
 async function sendDashboard(target) {
@@ -801,9 +799,6 @@ async function sendDashboard(target) {
     await channel.send(payload);
   }
 }
-
-async function sendAutoroleDashboard(target) {
-  }
 
 async function sendAutoroleDashboard(target) {
   const channel = target.channel || target;
