@@ -1,243 +1,270 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { 
-  joinVoiceChannel, 
-  createAudioPlayer, 
-  createAudioResource, 
-  AudioPlayerStatus, 
-  VoiceConnectionStatus, 
-  entersState, 
-  NoSubscriberBehavior,
-  StreamType
-} = require('@discordjs/voice');
-const axios = require('axios');
-const ffmpegPath = require('ffmpeg-static');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, PermissionFlagsBits } = require('discord.js');
+const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus, getVoiceConnection } = require('@discordjs/voice');
+const play = require('play-dl');
 
-if (ffmpegPath) {
-  process.env.FFMPEG_PATH = ffmpegPath;
-}
+// เก็บข้อมูลคิวเพลงและเครื่องเล่นของแต่ละเซิร์ฟเวอร์
+const serverQueues = new Map();
 
-const radioSessions = new Map();
+// คำสั่ง /music-panel สำหรับส่งแผงควบคุมเพลง
+const musicPanelCommand = new SlashCommandBuilder()
+  .setName('music-panel')
+  .setDescription('🎵 [MUSIC] ส่งแผงควบคุมระบบเพลงสุดล้ำสมัย (เฉพาะ Owner/Admin)');
 
-const STATIONS = {
-  music_st_lofi: {
-    name: '☕ Lofi Chill & Study',
-    desc: 'บีทสบายๆ ฟังเพลินตอนนั่งชิลล์ ทำงาน หรือคุยเล่นกับเพื่อน',
-    url: 'https://streams.ilovemusic.de/iloveradio17.mp3',
-    color: '#FF99CC'
-  },
-  music_st_pop: {
-    name: '🎤 Global Pop Hits',
-    desc: 'เพลงสากลฮิตติดชาร์ต ฟังสนุก ร้องตามได้ทั้งวัน',
-    url: 'https://streams.ilovemusic.de/iloveradio1.mp3',
-    color: '#00FFCC'
-  },
-  music_st_edm: {
-    name: '🎧 EDM & Party Beats',
-    desc: 'บีทอิเล็กทรอนิกส์และแดนซ์มันส์ๆ ปลุกเอเนอร์จี้',
-    url: 'https://streams.ilovemusic.de/iloveradio2.mp3',
-    color: '#FFCC00'
-  },
-  music_st_gaming: {
-    name: '🎮 Gaming & Phonk',
-    desc: 'เพลงจังหวะเท่ๆ ดุดัน เพิ่มความตื่นเต้นเวลาเล่นเกม',
-    url: 'https://streams.ilovemusic.de/iloveradio109.mp3',
-    color: '#FF3366'
-  },
-  music_st_chill: {
-    name: '🌙 Night Cafe & R&B',
-    desc: 'เพลงนุ่มๆ บรรยากาศคาเฟ่ยามดึกสำหรับคนนอนดึก',
-    url: 'https://streams.ilovemusic.de/iloveradio10.mp3',
-    color: '#9966FF'
+async function handleMusicPanelCommand(interaction) {
+  // 🔒 ล็อกสิทธิ์: ให้เฉพาะ Owner หรือ Admin ใช้คำสั่งส่งแผงได้
+  if (interaction.user.id !== interaction.guild.ownerId && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+    return await interaction.reply({ content: '❌ เฉพาะเจ้าของเซิร์ฟเวอร์ (Owner) หรือ Administrator เท่านั้นที่จะสร้างแผงเพลงได้!', ephemeral: true });
   }
-};
-
-const musicCommand = new SlashCommandBuilder()
-  .setName('music')
-  .setDescription('📻 เปิดตู้เพลงวิทยุ 24/7 (กดปุ่มเลือกคลื่นฟังได้ทันที)');
-
-function buildJukeboxUI(session) {
-  const activeKey = session?.stationKey;
-  const st = activeKey ? STATIONS[activeKey] : null;
 
   const embed = new EmbedBuilder()
-    .setTitle('📻 𝙕𝙀𝙉 𝙍𝘼𝘿𝙄𝙊 • 24/7 MUSIC LOUNGE')
-    .setColor(st ? st.color : '#2B2D31');
-
-  if (st) {
-    embed.setDescription(
-      `### 🟢 กำลังออกอากาศ: **${st.name}**\n` +
-      `> *${st.desc}*\n\n` +
-      `🔊 **ห้องเสียง:** <#${session.voiceChannelId}>  •  🎧 **ดีเจผู้เปิด:** <@${session.djId}>`
-    );
-  } else {
-    embed.setDescription(
-      `### 💤 ตอนนี้วิทยุปิดอยู่\n` +
-      `> *เข้าห้องเสียง (Voice Channel) แล้วจิ้มปุ่มคลื่นวิทยุด้านล่างเพื่อเปิดเพลงฟังได้เลย!*`
-    );
-  }
+    .setTitle('🎵 ZEN BOT • ADVANCED MUSIC CONTROL PANEL')
+    .setDescription(
+      'ยินดีต้อนรับสู่ระบบควบคุมเสียงเพลงสุดล้ำสมัย!\n\n' +
+      '📌 **วิธีใช้งาน:**\n' +
+      '• 📥 **Join Channel:** ดึงบอทเข้าห้องเสียงของคุณ\n' +
+      '• 🎶 **Play / Add Song:** ใส่ลิงก์ YouTube เพื่อเล่นหรือเพิ่มเข้าคิว\n' +
+      '• ⏸️ / ▶️ / ⏹️: ควบคุมการเล่นเพลงชั่วคราว ข้าม หรือหยุด\n' +
+      '• 📜 **Queue:** ดูรายการเพลงในคิวปัจจุบัน\n\n' +
+      '*⚠️ หมายเหตุ: ระบบนี้ถูกล็อกสิทธิ์ให้เฉพาะเจ้าของเซิร์ฟเวอร์ควบคุมได้เท่านั้น*'
+    )
+    .setColor('#9900FF')
+    .setImage('https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg')
+    .setFooter({ text: 'Powered by Zen Bot Audio Engine' });
 
   const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('music_st_lofi').setLabel('☕ Lofi Chill').setStyle(activeKey === 'music_st_lofi' ? ButtonStyle.Success : ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('music_st_pop').setLabel('🎤 Pop Hits').setStyle(activeKey === 'music_st_pop' ? ButtonStyle.Success : ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('music_st_edm').setLabel('🎧 EDM Party').setStyle(activeKey === 'music_st_edm' ? ButtonStyle.Success : ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('music_st_gaming').setLabel('🎮 Gaming').setStyle(activeKey === 'music_st_gaming' ? ButtonStyle.Success : ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('music_st_chill').setLabel('🌙 Night R&B').setStyle(activeKey === 'music_st_chill' ? ButtonStyle.Success : ButtonStyle.Secondary)
+    new ButtonBuilder().setCustomId('music_join').setLabel('📥 Join').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId('music_play_modal').setLabel('🎶 Play / Add').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('music_pause').setLabel('⏸️ Pause/Resume').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('music_skip').setLabel('⏭️ Skip').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('music_stop').setLabel('⏹️ Stop').setStyle(ButtonStyle.Danger)
   );
 
   const row2 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('music_toggle_pause').setLabel(session?.paused ? '▶️ เล่นต่อ' : '⏸️ พักเสียงชั่วคราว').setStyle(session?.paused ? ButtonStyle.Success : ButtonStyle.Primary).setDisabled(!st),
-    new ButtonBuilder().setCustomId('music_leave').setLabel('⏹️ ปิดวิทยุ / ออกจากห้อง').setStyle(ButtonStyle.Danger).setDisabled(!st)
+    new ButtonBuilder().setCustomId('music_queue').setLabel('📜 ดูคิวเพลง').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId('music_leave').setLabel('📤 Disconnect').setStyle(ButtonStyle.Danger)
   );
 
-  return { embeds: [embed], components: [row1, row2] };
-}
-
-async function startRadioStream(session, stationUrl) {
-  const response = await axios({
-    method: 'get',
-    url: stationUrl,
-    responseType: 'stream',
-    timeout: 10000,
-    headers: { 'User-Agent': 'Mozilla/5.0' }
-  });
-
-  const resource = createAudioResource(response.data, {
-    inputType: StreamType.Arbitrary,
-    inlineVolume: true
-  });
-
-  if (resource.volume) {
-    resource.volume.setVolume(0.8);
-  }
-
-  session.player.play(resource);
-}
-
-async function handleMusicCommand(interaction) {
-  const guildId = interaction.guildId;
-  const session = radioSessions.get(guildId) || null;
-  await interaction.reply(buildJukeboxUI(session));
+  await interaction.channel.send({ embeds: [embed], components: [row1, row2] });
+  await interaction.reply({ content: '✅ ส่งแผงควบคุมเพลงสำเร็จ!', ephemeral: true });
   return true;
 }
 
+// 🛡️ ฟังก์ชันตรวจสอบสิทธิ์เจ้าของห้อง/เซิร์ฟเวอร์
+function checkMusicOwner(interaction) {
+  const isOwner = interaction.user.id === interaction.guild.ownerId;
+  const isAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator);
+  if (!isOwner && !isAdmin) {
+    interaction.reply({ content: '❌ **[LOCKED]** เฉพาะเจ้าของเซิร์ฟเวอร์ (Owner) เท่านั้นที่มีสิทธิ์ควบคุมเพลงนี้!', ephemeral: true });
+    return false;
+  }
+  return true;
+}
+
+// ฟังก์ชันเล่นเพลงถัดไปในคิว
+async function playNextSong(guildId, channel) {
+  const serverQueue = serverQueues.get(guildId);
+  if (!serverQueue || serverQueue.songs.length === 0) {
+    serverQueue.isPlaying = false;
+    return;
+  }
+
+  const song = serverQueue.songs[0];
+  serverQueue.isPlaying = true;
+
+  try {
+    const stream = await play.stream(song.url);
+    const resource = createAudioResource(stream.stream, { inputType: stream.type });
+
+    serverQueue.player.play(resource);
+    serverQueue.connection.subscribe(serverQueue.player);
+
+    serverQueue.player.once(AudioPlayerStatus.Idle, () => {
+      serverQueue.songs.shift(); // ลบเพลงที่เล่นจบแล้วออกจากคิว
+      playNextSong(guildId, channel);
+    });
+
+    if (channel) {
+      channel.send(`🎶 กำลังเล่นเพลง: **[${song.title}](${song.url})** (ขอโดย <@${song.requester}>)`).catch(() => {});
+    }
+  } catch (err) {
+    console.error('Music Play Error:', err);
+    serverQueue.songs.shift();
+    playNextSong(guildId, channel);
+  }
+}
+
+// จัดการปุ่มกดแผงเพลง
 async function handleMusicButton(interaction) {
   const id = interaction.customId;
-  if (!id.startsWith('music_')) return false;
-
-  const memberVoice = interaction.member.voice?.channel;
-  if (!memberVoice) {
-    await interaction.reply({ content: '🎧 **เข้าห้องพูดคุย (Voice Channel) ก่อนนะครับ** แล้วค่อยมากดปุ่มเปิดวิทยุ!', ephemeral: true });
-    return true;
+  if (!['music_join', 'music_play_modal', 'music_pause', 'music_skip', 'music_stop', 'music_queue', 'music_leave'].includes(id)) {
+    return false;
   }
 
-  // เช็กสิทธิ์ Connect และ Speak ของบอทในห้องนั้น
-  const permissions = memberVoice.permissionsFor(interaction.client.user);
-  if (!permissions || !permissions.has('Connect') || !permissions.has('Speak')) {
-    await interaction.reply({ content: '❌ บอทไม่มีสิทธิ์ **Connect** หรือ **Speak** ในห้องเสียงนี้ กรุณาตรวจสอบสิทธิ์ของยศบอทครับ', ephemeral: true });
-    return true;
-  }
+  // 🔒 ล็อกสิทธิ์เฉพาะเจ้าของเซิร์ฟเวอร์หรือแอดมินเท่านั้นที่กดปุ่มควบคุมได้
+  if (!checkMusicOwner(interaction)) return true;
 
   const guildId = interaction.guildId;
-  let session = radioSessions.get(guildId);
+  let serverQueue = serverQueues.get(guildId);
 
-  if (id === 'music_leave') {
-    if (session) {
-      session.player.stop();
-      if (session.connection) session.connection.destroy();
-      radioSessions.delete(guildId);
+  if (id === 'music_join') {
+    const voiceChannel = interaction.member.voice.channel;
+    if (!voiceChannel) {
+      await interaction.reply({ content: '❌ คุณต้องเข้าห้องเสียง (Voice Channel) ก่อนกด Join ครับ!', ephemeral: true });
+      return true;
     }
-    await interaction.update(buildJukeboxUI(null));
-    return true;
-  }
-
-  if (id === 'music_toggle_pause') {
-    if (!session) return true;
-    if (session.paused) {
-      session.player.unpause();
-      session.paused = false;
-    } else {
-      session.player.pause();
-      session.paused = true;
-    }
-    await interaction.update(buildJukeboxUI(session));
-    return true;
-  }
-
-  if (STATIONS[id]) {
-    await interaction.deferUpdate();
-
-    if (!session) {
-      const player = createAudioPlayer({
-        behaviors: { noSubscriber: NoSubscriberBehavior.Play }
-      });
-
-      session = {
-        guildId,
-        voiceChannelId: memberVoice.id,
-        djId: interaction.user.id,
-        stationKey: id,
-        paused: false,
-        connection: null,
-        player
-      };
-
-      player.on(AudioPlayerStatus.Idle, () => {
-        const currentSt = STATIONS[session.stationKey];
-        if (currentSt && !session.paused) {
-          startRadioStream(session, currentSt.url).catch(() => {});
-        }
-      });
-
-      player.on('error', err => {
-        console.error('Radio Player Error:', err);
-      });
-
-      radioSessions.set(guildId, session);
-    }
-
-    session.stationKey = id;
-    session.djId = interaction.user.id;
-    session.paused = false;
 
     try {
-      if (!session.connection || session.voiceChannelId !== memberVoice.id) {
-        if (session.connection) {
-          session.connection.destroy();
-        }
+      const connection = joinVoiceChannel({
+        channelId: voiceChannel.id,
+        guildId: guildId,
+        adapterCreator: interaction.guild.voiceAdapterCreator,
+      });
 
-        const connection = joinVoiceChannel({
-          channelId: memberVoice.id,
-          guildId: guildId,
-          adapterCreator: interaction.guild.voiceAdapterCreator,
-          selfDeaf: true,
-          selfMute: false
-        });
+      const player = createAudioPlayer();
+      serverQueues.set(guildId, { connection, player, songs: [], isPlaying: false });
 
-        await entersState(connection, VoiceConnectionStatus.Ready, 15_000);
-        connection.subscribe(session.player);
-        session.connection = connection;
-        session.voiceChannelId = memberVoice.id;
-      }
-
-      await startRadioStream(session, STATIONS[id].url);
-      await interaction.editReply(buildJukeboxUI(session));
-    } catch (err) {
-      console.error('Radio connection/stream error:', err);
-      await interaction.followUp({ content: '❌ ไม่สามารถเชื่อมต่อห้องเสียงหรือส่งสัญญาณเสียงได้ กรุณาลองใหม่อีกครั้งครับ', ephemeral: true });
+      await interaction.reply({ content: `✅ บอทเชื่อมต่อเข้าห้องเสียง **${voiceChannel.name}** เรียบร้อยแล้ว!`, ephemeral: true });
+    } catch (e) {
+      console.error(e);
+      await interaction.reply({ content: '❌ ไม่สามารถเข้าห้องเสียงได้', ephemeral: true });
     }
+    return true;
+  }
+
+  if (id === 'music_play_modal') {
+    const connection = getVoiceConnection(guildId);
+    if (!connection) {
+      await interaction.reply({ content: '❌ กรุณากดปุ่ม **Join** ดึงบอทเข้าห้องเสียงก่อนพิมพ์ค้นหาเพลงครับ!', ephemeral: true });
+      return true;
+    }
+
+    const modal = new ModalBuilder().setCustomId('musicPlayModal').setTitle('ใส่ลิงก์เพลง YouTube');
+    const urlInput = new TextInputBuilder()
+      .setCustomId('songUrlInput')
+      .setLabel('ลิงก์เพลง YouTube (URL)')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('https://www.youtube.com/watch?v=...')
+      .setRequired(true);
+
+    modal.addComponents(new ActionRowBuilder().addComponents(urlInput));
+    await interaction.showModal(modal);
+    return true;
+  }
+
+  if (id === 'music_pause') {
+    if (!serverQueue || !serverQueue.isPlaying) {
+      await interaction.reply({ content: '❌ ไม่มีเพลงกำลังเล่นอยู่', ephemeral: true });
+      return true;
+    }
+    // สลับสถานะ เล่น/หยุดชั่วคราว
+    serverQueue.player.pause() ? await interaction.reply({ content: '⏸️ หยุดเพลงชั่วคราวแล้ว', ephemeral: true }) : serverQueue.player.unpause() ? await interaction.reply({ content: '▶️ เล่นเพลงต่อแล้ว', ephemeral: true }) : null;
+    return true;
+  }
+
+  if (id === 'music_skip') {
+    if (!serverQueue || serverQueue.songs.length === 0) {
+      await interaction.reply({ content: '❌ ไม่มีเพลงในคิวให้ข้าม', ephemeral: true });
+      return true;
+    }
+    serverQueue.player.stop(); // สั่งหยุดเพื่อข้ามไปเพลงถัดไปอัตโนมัติ
+    await interaction.reply({ content: '⏭️ ข้ามเพลงเรียบร้อย!', ephemeral: true });
+    return true;
+  }
+
+  if (id === 'music_stop') {
+    if (serverQueue) {
+      serverQueue.songs = [];
+      serverQueue.player.stop();
+    }
+    await interaction.reply({ content: '⏹️ หยุดเพลงและเคลียร์คิวทั้งหมดแล้ว', ephemeral: true });
+    return true;
+  }
+
+  if (id === 'music_queue') {
+    if (!serverQueue || serverQueue.songs.length === 0) {
+      await interaction.reply({ content: '📜 คิวเพลงว่างเปล่าในขณะนี้', ephemeral: true });
+      return true;
+    }
+
+    const queueList = serverQueue.songs.map((song, idx) => `${idx === 1 ? '▶️' : `${idx + 1}.`} **${song.title}** (ขอโดย <@${song.requester}>)`).join('\n');
+    const embed = new EmbedBuilder()
+      .setTitle('📜 คิวเพลงปัจจุบัน (Music Queue)')
+      .setDescription(queueList)
+      .setColor('#9900FF');
+
+    await interaction.reply({ embeds: [embed], ephemeral: true });
+    return true;
+  }
+
+  if (id === 'music_leave') {
+    const connection = getVoiceConnection(guildId);
+    if (connection) {
+      connection.destroy();
+      serverQueues.delete(guildId);
+    }
+    await interaction.reply({ content: '📤 บอทออกจากห้องเสียงแล้ว', ephemeral: true });
     return true;
   }
 
   return false;
 }
 
-async function handleMusicSelect() { return false; }
-async function handleMusicModal() { return false; }
+// จัดการการส่งลิงก์เพลงผ่าน Modal
+async function handleMusicModal(interaction) {
+  if (interaction.customId !== 'musicPlayModal') return false;
+
+  const url = interaction.fields.getTextInputValue('songUrlInput').trim();
+  const guildId = interaction.guildId;
+
+  await interaction.reply({ content: '⏳กำลังค้นหาและโหลดเพลง...', ephemeral: true });
+
+  try {
+    const validate = await play.validate(url);
+    if (!validate) {
+      await interaction.editReply({ content: '❌ ลิงก์ไม่ถูกต้อง กรุณาใช้ลิงก์ YouTube ที่ใช้งานได้' });
+      return true;
+    }
+
+    const songInfo = await play.video_info(url);
+    const song = {
+      title: songInfo.video_details.title,
+      url: songInfo.video_details.url,
+      requester: interaction.user.id
+    };
+
+    let serverQueue = serverQueues.get(guildId);
+    if (!serverQueue) {
+      const voiceChannel = interaction.member.voice.channel;
+      const connection = joinVoiceChannel({
+        channelId: voiceChannel.id,
+        guildId: guildId,
+        adapterCreator: interaction.guild.voiceAdapterCreator,
+      });
+      const player = createAudioPlayer();
+      serverQueue = { connection, player, songs: [], isPlaying: false };
+      serverQueues.set(guildId, serverQueue);
+    }
+
+    serverQueue.songs.push(song);
+
+    if (!serverQueue.isPlaying) {
+      playNextSong(guildId, interaction.channel);
+      await interaction.editReply({ content: `✅ เพิ่มและเริ่มเล่นเพลง: **${song.title}**` });
+    } else {
+      await interaction.editReply({ content: `✅ เพิ่มเพลงลงในคิวลำดับที่ ${serverQueue.songs.length}: **${song.title}**` });
+    }
+
+  } catch (err) {
+    console.error('Modal Play Error:', err);
+    await interaction.editReply({ content: '❌ เกิดข้อผิดพลาดในการโหลดเพลง' });
+  }
+
+  return true;
+}
 
 module.exports = {
-  musicCommand,
-  handleMusicCommand,
+  musicPanelCommand,
+  handleMusicPanelCommand,
   handleMusicButton,
-  handleMusicSelect,
   handleMusicModal
 };
