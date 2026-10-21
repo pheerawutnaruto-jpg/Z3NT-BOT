@@ -195,7 +195,7 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
     }
 
     if (member.roles.cache.has(tempRoleId)) {
-      await interaction.reply({ content: `❤️ คุณมีตั๋ว 1 วันอยู่แล้ว ขอให้สนุกกับการรับชมนะครับ!`, ephemeral: true });
+      await interaction.reply({ content: `<1560403833408978994> คุณมีตั๋ว 1 วันอยู่แล้ว ขอให้สนุกกับการรับชมนะครับ!`, ephemeral: true });
       return true;
     }
 
