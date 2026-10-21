@@ -5,56 +5,49 @@ const {
   createAudioResource, 
   AudioPlayerStatus, 
   VoiceConnectionStatus, 
-   entersState, 
+  entersState, 
   NoSubscriberBehavior,
   StreamType
 } = require('@discordjs/voice');
 const axios = require('axios');
 const ffmpegPath = require('ffmpeg-static');
 
-// ตั้งค่าให้ระบบเสียงรู้จัก FFmpeg บน Render อัตโนมัติ
 if (ffmpegPath) {
   process.env.FFMPEG_PATH = ffmpegPath;
 }
 
 const radioSessions = new Map();
 
-// 📻 คลื่นวิทยุ 5 สไตล์ (ลิงก์สตรีมตรง MP3 128kbps เสถียรและเสียงออกชัวร์)
 const STATIONS = {
   music_st_lofi: {
     name: '☕ Lofi Chill & Study',
     desc: 'บีทสบายๆ ฟังเพลินตอนนั่งชิลล์ ทำงาน หรือคุยเล่นกับเพื่อน',
     url: 'https://streams.ilovemusic.de/iloveradio17.mp3',
-    color: '#FF99CC',
-    banner: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg'
+    color: '#FF99CC'
   },
   music_st_pop: {
     name: '🎤 Global Pop Hits',
     desc: 'เพลงสากลฮิตติดชาร์ต ฟังสนุก ร้องตามได้ทั้งวัน',
     url: 'https://streams.ilovemusic.de/iloveradio1.mp3',
-    color: '#00FFCC',
-    banner: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg'
+    color: '#00FFCC'
   },
   music_st_edm: {
     name: '🎧 EDM & Party Beats',
     desc: 'บีทอิเล็กทรอนิกส์และแดนซ์มันส์ๆ ปลุกเอเนอร์จี้',
     url: 'https://streams.ilovemusic.de/iloveradio2.mp3',
-    color: '#FFCC00',
-    banner: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg'
+    color: '#FFCC00'
   },
   music_st_gaming: {
     name: '🎮 Gaming & Phonk',
-    desc: 'เพลงจังหวะเท่ๆ ดุดัน เพิ่มความตื่นเต้นเวลาตีป้อม/ยิงหัว',
+    desc: 'เพลงจังหวะเท่ๆ ดุดัน เพิ่มความตื่นเต้นเวลาเล่นเกม',
     url: 'https://streams.ilovemusic.de/iloveradio109.mp3',
-    color: '#FF3366',
-    banner: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg'
+    color: '#FF3366'
   },
   music_st_chill: {
     name: '🌙 Night Cafe & R&B',
     desc: 'เพลงนุ่มๆ บรรยากาศคาเฟ่ยามดึกสำหรับคนนอนดึก',
     url: 'https://streams.ilovemusic.de/iloveradio10.mp3',
-    color: '#9966FF',
-    banner: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg'
+    color: '#9966FF'
   }
 };
 
@@ -62,7 +55,6 @@ const musicCommand = new SlashCommandBuilder()
   .setName('music')
   .setDescription('📻 เปิดตู้เพลงวิทยุ 24/7 (กดปุ่มเลือกคลื่นฟังได้ทันที)');
 
-// 🎧 หน้าตาตู้เพลงวิทยุ (คลีนๆ สไตล์ Jukebox สำหรับสมาชิก)
 function buildJukeboxUI(session) {
   const activeKey = session?.stationKey;
   const st = activeKey ? STATIONS[activeKey] : null;
@@ -84,53 +76,28 @@ function buildJukeboxUI(session) {
     );
   }
 
-  // แถวที่ 1: ปุ่มกดเลือกคลื่นวิทยุทันที (จิ้มปุ๊บติดปั๊บ)
   const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('music_st_lofi')
-      .setLabel('☕ Lofi Chill')
-      .setStyle(activeKey === 'music_st_lofi' ? ButtonStyle.Success : ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId('music_st_pop')
-      .setLabel('🎤 Pop Hits')
-      .setStyle(activeKey === 'music_st_pop' ? ButtonStyle.Success : ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId('music_st_edm')
-      .setLabel('🎧 EDM Party')
-      .setStyle(activeKey === 'music_st_edm' ? ButtonStyle.Success : ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId('music_st_gaming')
-      .setLabel('🎮 Gaming')
-      .setStyle(activeKey === 'music_st_gaming' ? ButtonStyle.Success : ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId('music_st_chill')
-      .setLabel('🌙 Night R&B')
-      .setStyle(activeKey === 'music_st_chill' ? ButtonStyle.Success : ButtonStyle.Secondary)
+    new ButtonBuilder().setCustomId('music_st_lofi').setLabel('☕ Lofi Chill').setStyle(activeKey === 'music_st_lofi' ? ButtonStyle.Success : ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('music_st_pop').setLabel('🎤 Pop Hits').setStyle(activeKey === 'music_st_pop' ? ButtonStyle.Success : ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('music_st_edm').setLabel('🎧 EDM Party').setStyle(activeKey === 'music_st_edm' ? ButtonStyle.Success : ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('music_st_gaming').setLabel('🎮 Gaming').setStyle(activeKey === 'music_st_gaming' ? ButtonStyle.Success : ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('music_st_chill').setLabel('🌙 Night R&B').setStyle(activeKey === 'music_st_chill' ? ButtonStyle.Success : ButtonStyle.Secondary)
   );
 
-  // แถวที่ 2: ปุ่มพักเสียง / ปิดวิทยุ
   const row2 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('music_toggle_pause')
-      .setLabel(session?.paused ? '▶️ เล่นต่อ' : '⏸️ พักเสียงชั่วคราว')
-      .setStyle(session?.paused ? ButtonStyle.Success : ButtonStyle.Primary)
-      .setDisabled(!st),
-    new ButtonBuilder()
-      .setCustomId('music_leave')
-      .setLabel('⏹️ ปิดวิทยุ / ออกจากห้อง')
-      .setStyle(ButtonStyle.Danger)
-      .setDisabled(!st)
+    new ButtonBuilder().setCustomId('music_toggle_pause').setLabel(session?.paused ? '▶️ เล่นต่อ' : '⏸️ พักเสียงชั่วคราว').setStyle(session?.paused ? ButtonStyle.Success : ButtonStyle.Primary).setDisabled(!st),
+    new ButtonBuilder().setCustomId('music_leave').setLabel('⏹️ ปิดวิทยุ / ออกจากห้อง').setStyle(ButtonStyle.Danger).setDisabled(!st)
   );
 
   return { embeds: [embed], components: [row1, row2] };
 }
 
 async function startRadioStream(session, stationUrl) {
-  // ดึง Stream เสียงผ่าน Axios เพื่อป้องกันปัญหา FFmpeg บล็อก URL บน Render
   const response = await axios({
     method: 'get',
     url: stationUrl,
     responseType: 'stream',
+    timeout: 10000,
     headers: { 'User-Agent': 'Mozilla/5.0' }
   });
 
@@ -149,7 +116,6 @@ async function startRadioStream(session, stationUrl) {
 async function handleMusicCommand(interaction) {
   const guildId = interaction.guildId;
   const session = radioSessions.get(guildId) || null;
-
   await interaction.reply(buildJukeboxUI(session));
   return true;
 }
@@ -164,10 +130,16 @@ async function handleMusicButton(interaction) {
     return true;
   }
 
+  // เช็กสิทธิ์ Connect และ Speak ของบอทในห้องนั้น
+  const permissions = memberVoice.permissionsFor(interaction.client.user);
+  if (!permissions || !permissions.has('Connect') || !permissions.has('Speak')) {
+    await interaction.reply({ content: '❌ บอทไม่มีสิทธิ์ **Connect** หรือ **Speak** ในห้องเสียงนี้ กรุณาตรวจสอบสิทธิ์ของยศบอทครับ', ephemeral: true });
+    return true;
+  }
+
   const guildId = interaction.guildId;
   let session = radioSessions.get(guildId);
 
-  // กรณีสั่งปิดวิทยุ
   if (id === 'music_leave') {
     if (session) {
       session.player.stop();
@@ -178,7 +150,6 @@ async function handleMusicButton(interaction) {
     return true;
   }
 
-  // กรณีสั่งพักเสียง / เล่นต่อ
   if (id === 'music_toggle_pause') {
     if (!session) return true;
     if (session.paused) {
@@ -192,7 +163,6 @@ async function handleMusicButton(interaction) {
     return true;
   }
 
-  // กรณีจิ้มปุ่มเลือกคลื่นวิทยุ
   if (STATIONS[id]) {
     await interaction.deferUpdate();
 
@@ -211,12 +181,15 @@ async function handleMusicButton(interaction) {
         player
       };
 
-      // ถ้าระบบสตรีมหลุด ให้ต่อใหม่เองอัตโนมัติ
       player.on(AudioPlayerStatus.Idle, () => {
         const currentSt = STATIONS[session.stationKey];
         if (currentSt && !session.paused) {
           startRadioStream(session, currentSt.url).catch(() => {});
         }
+      });
+
+      player.on('error', err => {
+        console.error('Radio Player Error:', err);
       });
 
       radioSessions.set(guildId, session);
@@ -227,8 +200,11 @@ async function handleMusicButton(interaction) {
     session.paused = false;
 
     try {
-      // เชื่อมต่อห้องเสียงและรอจนกว่าสถานะจะ Ready ก่อนปล่อยเสียง
       if (!session.connection || session.voiceChannelId !== memberVoice.id) {
+        if (session.connection) {
+          session.connection.destroy();
+        }
+
         const connection = joinVoiceChannel({
           channelId: memberVoice.id,
           guildId: guildId,
@@ -246,8 +222,8 @@ async function handleMusicButton(interaction) {
       await startRadioStream(session, STATIONS[id].url);
       await interaction.editReply(buildJukeboxUI(session));
     } catch (err) {
-      console.error('Radio stream error:', err);
-      await interaction.followUp({ content: '❌ ไม่สามารถส่งเสียงได้ กรุณาตรวจสอบว่าบอทมีสิทธิ์ **Connect** และ **Speak** ในห้องเสียงนั้นครับ', ephemeral: true });
+      console.error('Radio connection/stream error:', err);
+      await interaction.followUp({ content: '❌ ไม่สามารถเชื่อมต่อห้องเสียงหรือส่งสัญญาณเสียงได้ กรุณาลองใหม่อีกครั้งครับ', ephemeral: true });
     }
     return true;
   }
@@ -255,7 +231,6 @@ async function handleMusicButton(interaction) {
   return false;
 }
 
-// คงฟังก์ชันว่างไว้เพื่อให้ไม่เกิด Error กับ index.js ตัวเดิม
 async function handleMusicSelect() { return false; }
 async function handleMusicModal() { return false; }
 
