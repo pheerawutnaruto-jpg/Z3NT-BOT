@@ -57,10 +57,9 @@ const {
   handleShowcaseButton 
 } = require('./media_showcase');
 const { 
-  musicCommand, 
-  handleMusicCommand, 
+  musicPanelCommand, 
+  handleMusicPanelCommand, 
   handleMusicButton, 
-  handleMusicSelect, 
   handleMusicModal 
 } = require('./music');
 
@@ -135,11 +134,11 @@ client.once('ready', async () => {
     setupArtistCommand,
     setupMediaGuardCommand,
     setupShowcaseCommand,
+    musicPanelCommand,
     setLevelCommand,
     setupCinemaCommand,
     cinemaBroadcastCommand,
     autoCinemaCommand,
-    musicCommand,
     new SlashCommandBuilder().setName('clear').setDescription('ลบข้อความในแชทจำนวน 1-100 ข้อความ')
       .addIntegerOption(option => option.setName('amount').setDescription('จำนวนข้อความที่ต้องการลบ (1-100)').setRequired(true)),
     new SlashCommandBuilder().setName('set-autoclear').setDescription('💎 [PREMIUM] ตั้งเวลาระบบลบข้อความอัตโนมัติ')
@@ -295,7 +294,7 @@ client.on('interactionCreate', async interaction => {
   }
   if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
 
-  const premiumCommands = ['setup-quest', 'setup-in-game-shop', 'coins', 'setup-order-ticket', 'add-coins', 'setup-media-guard', 'setup-showcase', 'set-autoclear', 'setup-artist-card', 'boost-status', 'cinema-setup', 'cinema-broadcast', 'auto-cinema', 'music'];
+  const premiumCommands = ['setup-quest', 'setup-in-game-shop', 'coins', 'setup-order-ticket', 'add-coins', 'setup-media-guard', 'setup-showcase', 'music-panel', 'set-autoclear', 'setup-artist-card', 'boost-status', 'cinema-setup', 'cinema-broadcast', 'auto-cinema'];
   if (interaction.isChatInputCommand() && premiumCommands.includes(interaction.commandName)) {
     const hasPremium = await isServerPremium(guildId, serverConfigs);
     if (!hasPremium) {
@@ -329,10 +328,10 @@ client.on('interactionCreate', async interaction => {
         '🚀 **ฟีเจอร์เด่นภายในบอท:**\n' +
         '> 🛡️ **Advanced Security:** ระบบป้องกันลิงก์สแปม และบอทหลอกลวงพร้อมบทลงโทษอัตโนมัติ\n' +
         '> 📊 **Leveling & Voice XP:** ระบบเก็บเลเวลทั้งแชทและห้องเสียง พร้อมการ์ดโปรไฟล์ Canvas สุดพรีเมียม\n' +
-        '> 🎵 **Music & Radio Stream:** เครื่องเล่นเพลงและสตรีมวิทยุ 24/7 ควบคุมผ่านแผงปุ่มกดสุดล้ำ\n' +
-        '> 🎬 **Zen Cinema:** ระบบจัดการรอบฉายหนังอัตโนมัติ (Coming Soon & Now Showing) พร้อมระบบขายตั๋วหักเหรียญ\n' +
-        '> 🛒 **Automated Store:** ระบบร้านค้าสกิน/ยศ และระบบห้องออร์เดอร์พร้อมใบเสร็จอัตโนมัติ\n' +
+        '> 🎬 **Zen Cinema:** ระบบจัดการรอบฉายหนังอัตโนมัติ พร้อมระบบขายตั๋วหักเหรียญ\n' +
+        '> 🛒 **Automated Store:** ระบบห้องออร์เดอร์พร้อมปุ่มแอดมินยืนยันสลิปและออกใบเสร็จอัตโนมัติ\n' +
         '> 🎨 **Artist Showcase:** ระบบห้องโชว์ผลงานพร้อมรีแอคชันและปุ่มให้คะแนนอัตโนมัติ\n' +
+        '> 🎵 **Advanced Music Engine:** ระบบเพลงและวิทยุในห้องเสียง ควบคุมผ่านแผงปุ่มกด (ล็อกสิทธิ์เฉพาะ Owner)\n' +
         '> 🎁 **Daily Quest:** เควสต์สุ่มแจก Zen Coins ฟรีทุก 19 ชั่วโมง (แบบ 50/50)\n\n' +
         '💎 สนใจใช้งานระบบพรีเมียมติดต่อผู้พัฒนาบอทได้เลยครับ!'
       )
@@ -342,9 +341,6 @@ client.on('interactionCreate', async interaction => {
       .setFooter({ text: 'Powered by Zen Bot Technology' });
 
     return await interaction.reply({ embeds: [embed], ephemeral: true });
-  }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'music') {
-    return await handleMusicCommand(interaction);
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'level') {
     return await handleLevelCommand(interaction, serverConfigs);
@@ -381,6 +377,9 @@ client.on('interactionCreate', async interaction => {
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'setup-showcase') {
     return await handleSetupShowcaseCommand(interaction, serverConfigs, saveConfigs);
+  }
+  if (interaction.isChatInputCommand() && interaction.commandName === 'music-panel') {
+    return await handleMusicPanelCommand(interaction);
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'cinema-setup') {
     return await handleSetupCinemaCommand(interaction);
@@ -476,8 +475,7 @@ client.on('interactionCreate', async interaction => {
       'sec_config_time', 'edit_welcome_msg',
       'open_artist_level_card_modal', 'open_artist_wallet_card_modal',
       'cinemabc_edit_info', 'cinemabc_edit_role',
-      'autocinema_edit_info', 'autocinema_edit_role',
-      'music_add_modal'
+      'autocinema_edit_info', 'autocinema_edit_role'
     ];
 
     if (!modalButtons.includes(id)) {
@@ -606,9 +604,6 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.isStringSelectMenu()) {
-    const handledMusicSelect = await handleMusicSelect(interaction);
-    if (handledMusicSelect) return;
-
     const handledOrder = await handleOrderTicketSelect(interaction, serverConfigs);
     if (handledOrder) return;
 
@@ -832,13 +827,5 @@ async function sendAutoroleDashboard(target) {
     await channel.send(payload);
   }
 }
-
-// 🛡️ ระบบป้องกันบอทดับ (Anti-Crash)
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('⚠️ Unhandled Rejection at:', promise, 'reason:', reason);
-});
-process.on('uncaughtException', (err) => {
-  console.error('⚠️ Uncaught Exception:', err);
-});
 
 client.login(process.env.DISCORD_TOKEN);
