@@ -165,7 +165,7 @@ function setupCronJob(guildId, timeStr, channelId) {
   const [hour, minute] = timeStr.split(':');
   if (!hour || !minute) return;
 
-  const cronExpression = `${minute}${hour} * * *`;
+  const cronExpression = `${minute} ${hour} * * *`;
 
   activeCronJobs[guildId] = cron.schedule(cronExpression, async () => {
     try {
@@ -465,9 +465,7 @@ client.on('interactionCreate', async interaction => {
     ];
 
     if (!modalButtons.includes(id) && id !== 'test_welcome') {
-      if (!interaction.replied && !interaction.deferred) {
-        await interaction.deferUpdate().catch(() => {});
-      }
+      await interaction.deferUpdate().catch(() => {});
     }
 
     if (id === 'toggle_welcome') {
@@ -549,10 +547,11 @@ client.on('interactionCreate', async interaction => {
       if (!config.channelId) {
         return await interaction.reply({ content: '❌ กรุณาเลือกช่องสำหรับส่งข้อความต้อนรับก่อนกดทดสอบครับ!', ephemeral: true });
       }
-      await interaction.reply({ content: `🔄 กำลังส่งการ์ดต้อนรับทดสอบ...`, ephemeral: true });
+      await interaction.followUp({ content: `🔄 กำลังส่งการ์ดต้อนรับทดสอบ...`, ephemeral: true });
       try {
         const channel = await interaction.guild.channels.fetch(config.channelId);
         if (channel) {
+          // ดึงข้อมูล Member ให้มั่นใจว่าสมบูรณ์ที่สุดสำหรับการเทส
           const member = await interaction.guild.members.fetch(interaction.user.id);
           const attachment = await generateWelcomeCard(member);
           const embedConfig = config.embed || {
@@ -598,9 +597,7 @@ client.on('interactionCreate', async interaction => {
     const handledOrder = await handleOrderTicketSelect(interaction, serverConfigs);
     if (handledOrder) return;
 
-    if (!interaction.replied && !interaction.deferred) {
-      await interaction.deferUpdate().catch(() => {});
-    }
+    await interaction.deferUpdate().catch(() => {});
     if (interaction.customId === 'act_invite_select') {
       const vals = interaction.values;
       config.security.actions.invite.timeout = vals.includes('timeout');
@@ -626,9 +623,7 @@ client.on('interactionCreate', async interaction => {
     const handledAutoCinemaSelect = await handleAutoCinemaSelect(interaction, serverConfigs, saveConfigs, client);
     if (handledAutoCinemaSelect) return;
 
-    if (!interaction.replied && !interaction.deferred) {
-      await interaction.deferUpdate().catch(() => {});
-    }
+    await interaction.deferUpdate().catch(() => {});
     if (interaction.customId === 'select_channel') {
       config.channelId = interaction.values[0];
       await saveConfigs(serverConfigs);
@@ -647,9 +642,7 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.isRoleSelectMenu()) {
-    if (!interaction.replied && !interaction.deferred) {
-      await interaction.deferUpdate().catch(() => {});
-    }
+    await interaction.deferUpdate().catch(() => {});
     if (interaction.customId === 'select_autorole') {
       config.autoroleId = interaction.values[0];
       config.autoroleEnabled = true;
