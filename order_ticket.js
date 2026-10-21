@@ -1,8 +1,9 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits } = require('discord.js');
+const axios = require('axios');
 
 const setupOrderTicketCommand = new SlashCommandBuilder()
   .setName('setup-order-ticket')
-  .setDescription('💎 [PREMIUM] ส่งแผงร้านค้าแบบมีเมนูกดเลือกสินค้าและสร้างห้องออร์เดอร์ (สำหรับ Admin)');
+  .setDescription('💎 [PREMIUM] ส่งแผงร้านค้าแบบมีเมนูกดเลือกสินค้าและสร้างห้องออร์เดอร์ (for Admin)');
 
 async function handleSetupOrderTicketCommand(interaction) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
@@ -60,7 +61,7 @@ async function handleSetupOrderTicketCommand(interaction) {
 }
 
 // 🧾 ฟังก์ชันส่งใบเสร็จรับเงิน (Order Receipt)
-async function sendOrderReceipt(channel, user, productName, productPrice, paymentMethod = 'PromptPay QR') {
+async function sendOrderReceipt(channel, user, productName, productPrice, paymentMethod = 'TrueMoney Wallet (Auto)') {
   const receiptEmbed = new EmbedBuilder()
     .setTitle('🧾 ZEN BOT • OFFICIAL ORDER RECEIPT')
     .setDescription('ใบเสร็จรับเงินยืนยันการทำรายการสำเร็จ ขอบคุณที่ใช้บริการครับ!')
@@ -70,7 +71,7 @@ async function sendOrderReceipt(channel, user, productName, productPrice, paymen
       { name: '🛒 สินค้า', value: productName, inline: true },
       { name: '💰 ยอดชำระ', value: `\`${productPrice}\``, inline: true },
       { name: '💳 ช่องทางชำระ', value: paymentMethod, inline: true },
-      { name: '👑 สถานะ', value: '✅ รอตรวจสอบสลิปและมอบสินค้า', inline: true },
+      { name: '👑 สถานะ', value: '✅ จัดส่งสินค้าและมอบยศสำเร็จ', inline: true },
       { name: '📅 วันที่ทำรายการ', value: new Date().toLocaleString('th-TH'), inline: false }
     )
     .setTimestamp()
@@ -113,12 +114,28 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
   const loadingGif = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560407479412588686/IMG_7559.gif';
 
   let productName = '';
-  let productPrice = '';
+  let productPriceNum = 0;
+  let targetRoleId = null;
 
-  if (selectedValue === 'product_bot_premium') { productName = 'BOT PREMIUM (รายเดือน)'; productPrice = '฿399.00'; }
-  else if (selectedValue === 'product_artist_role') { productName = 'ยศ Artist ถาวร'; productPrice = '฿69.00'; }
-  else if (selectedValue === 'product_chilling_role') { productName = 'ยศพิเศษ สายชิลล์ ถาวร'; productPrice = '฿19.00'; }
-  else if (selectedValue === 'product_nightowl_role') { productName = 'ยศพิเศษ คนนอนดึก ถาวร'; productPrice = '฿9.00'; }
+  if (selectedValue === 'product_bot_premium') { 
+    productName = 'BOT PREMIUM (รายเดือน)'; 
+    productPriceNum = 399.00; 
+  }
+  else if (selectedValue === 'product_artist_role') { 
+    productName = 'ยศ Artist ถาวร'; 
+    productPriceNum = 69.00; 
+    targetRoleId = '1560224726868295740';
+  }
+  else if (selectedValue === 'product_chilling_role') { 
+    productName = 'ยศพิเศษ สายชิลล์ ถาวร'; 
+    productPriceNum = 19.00; 
+    targetRoleId = '1560002494204084395';
+  }
+  else if (selectedValue === 'product_nightowl_role') { 
+    productName = 'ยศพิเศษ คนนอนดึก ถาวร'; 
+    productPriceNum = 9.00; 
+    targetRoleId = '1560002616266854420';
+  }
 
   // 🔒 ป้องกันคนที่มี Artist ถาวรแล้ว มาซื้อซ้ำซ้อน
   const artistPermRoleId = '1560224726868295740';
@@ -150,10 +167,10 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
 
     const ticketEmbed = new EmbedBuilder()
       .setTitle(`🎟️ รายละเอียดออร์เดอร์: ${productName}`)
-      .setDescription(`• **ผู้สั่งซื้อ:** <@${user.id}>\n• **สินค้า:** ${productName}\n• **ยอดที่ต้องชำระ:** \`${productPrice}\`\n\n──────────────────────\n📌 **ช่องทางการชำระเงิน:**\nคลิกปุ่มด้านล่างเพื่อดู QR Code สำหรับโอนเงิน จากนั้นส่งสลิปหลักฐานในห้องนี้เพื่อให้แอดมินตรวจสอบครับ`)
+      .setDescription(`• **ผู้สั่งซื้อ:** <@${user.id}>\n• **สินค้า:** ${productName}\n• **ยอดที่ต้องชำระ:** \`฿${productPriceNum}.00\`\n\n──────────────────────\n📌 **วิธีชำระเงินอัตโนมัติ:**\nส่งลิงก์ซองอั่งเปา TrueMoney Wallet ในห้องนี้ได้เลย ระบบจะตรวจสอบและมอบสินค้าให้อัตโนมัติทันที!`)
       .setImage(newOrderGif)
       .setColor('#FFD700')
-      .setFooter({ text: 'ช่องทางชำระ' });
+      .setFooter({ text: 'ระบบออร์เดอร์อัตโนมัติ' });
 
     const payRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -168,6 +185,65 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
     );
 
     await ticketChannel.send({ content: `🔔 ออร์เดอร์ใหม่จาก <@${user.id}>`, embeds: [ticketEmbed], components: [payRow] });
+    
+    const filter = m => m.author.id === user.id && m.content.includes('gift.truemoney.com');
+    const collector = ticketChannel.createMessageCollector({ filter, time: 30 * 60 * 1000 });
+
+    collector.on('collect', async m => {
+      const giftUrl = m.content.trim();
+      const match = giftUrl.match(/v=([a-zA-Z0-9]+)/);
+      if (!match) return;
+
+      const processingMsg = await ticketChannel.send(`⏳ กำลังตรวจสอบซองอั่งเปา TrueMoney Wallet กรุณารอสักครู่...`);
+
+      try {
+        const voucherHash = match[1];
+        const storeMobileNumber = '0812345678'; 
+        const apiEndpoint = `https://gift.truemoney.com/campaign/vouchers/${voucherHash}/redeem`;
+
+        const response = await axios.post(apiEndpoint, {
+          mobile: storeMobileNumber,
+          voucher_hash: voucherHash
+        });
+
+        const data = response.data;
+
+        if (data.status.code === 'SUCCESS') {
+          const redeemedAmount = parseFloat(data.data.my_ticket.amount);
+
+          if (redeemedAmount < productPriceNum) {
+            await processingMsg.edit(`❌ ยอดเงินในซองไม่ถูกต้อง! ต้องการ \`฿${productPriceNum}.00\` แต่ในซองมี \`฿${redeemedAmount}.00\``);
+            return;
+          }
+
+          const fetchedMember = await guild.members.fetch(user.id).catch(() => null);
+          if (fetchedMember && targetRoleId) {
+            const role = guild.roles.cache.get(targetRoleId);
+            if (role) {
+              await fetchedMember.roles.add(role);
+            }
+          }
+
+          await processingMsg.edit(`🎉 **ชำระเงินสำเร็จ!** ตรวจสอบยอดเงิน \`฿${redeemedAmount}.00\` เรียบร้อยแล้ว`);
+          
+          // 🧾 ส่งใบเสร็จรับเงิน
+          await sendOrderReceipt(ticketChannel, user, productName, `฿${productPriceNum}.00`, 'TrueMoney Wallet (Auto)');
+
+          collector.stop();
+
+          setTimeout(() => {
+            ticketChannel.delete().catch(() => {});
+          }, 10000);
+
+        } else {
+          await processingMsg.edit(`❌ ไม่สามารถรับซองได้: ${data.status.message} (ซองอาจจะเต็ม หรือถูกใช้ไปแล้ว)`);
+        }
+      } catch (err) {
+        console.error('TrueMoney Auto-Redeem Error:', err.response?.data || err.message);
+        await processingMsg.edit(`❌ เกิดข้อผิดพลาดในการเชื่อมต่อตรวจสอบซองอั่งเปา กรุณาติดต่อแอดมิน`);
+      }
+    });
+
     await interaction.editReply({ content: `✅ สร้างห้องออร์เดอร์ส่วนตัวให้คุณสำเร็จแล้ว: <#${ticketChannel.id}>`, embeds: [] });
   } catch (err) {
     console.error('Error creating order ticket channel:', err);
@@ -192,7 +268,7 @@ async function handleOrderPaymentButton(interaction) {
 
   const embed = new EmbedBuilder()
     .setTitle('💳 ช่องทางชำระเงิน PromptPay QR')
-    .setDescription(`• **สินค้า:** ${productName}\n• **ยอดชำระ:** \`${productPrice}\`\n\n──────────────────────\n📌 **สแกน QR Code PromptPay ด้านล่างเพื่อโอนเงิน:**\n\n*เมื่อโอนเงินเรียบร้อยแล้ว ส่งสลิปหลักฐานในห้องนี้เพื่อให้แอดมินตรวจสอบและมอบสินค้าให้ได้เลยครับ!*`)
+    .setDescription(`• **สินค้า:** ${productName}\n• **ยอดชำระ:** \`${productPrice}\`\n\n──────────────────────\n📌 **สแกน QR Code PromptPay ด้านล่างเพื่อโอนเงิน:**\n\n*หรือส่งลิงก์ซองอั่งเปา TrueMoney Wallet ในแชทร้านค้านี้เพื่อระบบตรวจสอบและมอบยศให้อัตโนมัติได้เลยครับ!*`)
     .setImage(promptPayQr)
     .setColor('#00FF00')
     .setFooter({ text: 'ช่องทางชำระ' });
@@ -224,6 +300,5 @@ module.exports = {
   handleSetupOrderTicketCommand,
   handleOrderTicketSelect,
   handleOrderPaymentButton,
-  handleCloseTicketButton,
-  sendOrderReceipt
+  handleCloseTicketButton
 };
