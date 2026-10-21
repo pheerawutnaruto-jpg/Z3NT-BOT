@@ -56,6 +56,11 @@ const {
   handleShowcaseMessage, 
   handleShowcaseButton 
 } = require('./media_showcase');
+const { 
+  musicCommand, 
+  handleMusicCommand, 
+  handleMusicButton 
+} = require('./music');
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
@@ -128,6 +133,7 @@ client.once('ready', async () => {
     setupArtistCommand,
     setupMediaGuardCommand,
     setupShowcaseCommand,
+    musicCommand,
     setLevelCommand,
     setupCinemaCommand,
     cinemaBroadcastCommand,
@@ -324,6 +330,7 @@ client.on('interactionCreate', async interaction => {
         '> 🎬 **Zen Cinema:** ระบบจัดการรอบฉายหนังอัตโนมัติ (Coming Soon & Now Showing) พร้อมระบบขายตั๋วหักเหรียญ\n' +
         '> 🛒 **Automated Store:** ระบบร้านค้าสกิน/ยศ และระบบห้องออร์เดอร์พร้อมใบเสร็จอัตโนมัติ\n' +
         '> 🎨 **Artist Showcase:** ระบบห้องโชว์ผลงานพร้อมรีแอคชันและปุ่มให้คะแนนอัตโนมัติ\n' +
+        '> 🎵 **Music Panel:** ระบบแผงควบคุมเครื่องเล่นเพลงและวิทยุในห้องเสียง\n' +
         '> 🎁 **Daily Quest:** เควสต์สุ่มแจก Zen Coins ฟรีทุก 19 ชั่วโมง (แบบ 50/50)\n\n' +
         '💎 สนใจใช้งานระบบพรีเมียมติดต่อผู้พัฒนาบอทได้เลยครับ!'
       )
@@ -369,6 +376,9 @@ client.on('interactionCreate', async interaction => {
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'setup-showcase') {
     return await handleSetupShowcaseCommand(interaction, serverConfigs, saveConfigs);
+  }
+  if (interaction.isChatInputCommand() && interaction.commandName === 'music') {
+    return await handleMusicCommand(interaction);
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'cinema-setup') {
     return await handleSetupCinemaCommand(interaction);
@@ -424,6 +434,9 @@ client.on('interactionCreate', async interaction => {
 
   if (interaction.isButton()) {
     const id = interaction.customId;
+
+    const handledMusicBtn = await handleMusicButton(interaction);
+    if (handledMusicBtn) return;
 
     const handledShowcaseBtn = await handleShowcaseButton(interaction);
     if (handledShowcaseBtn) return;
@@ -538,7 +551,7 @@ client.on('interactionCreate', async interaction => {
         .setCustomId('welcomeDesc')
         .setLabel('ข้อความต้อนรับ (ใช้ {user} และ {server} ได้)')
         .setStyle(TextInputStyle.Paragraph)
-        .setValue(config.embed?.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢-ber!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!')
+        .setValue(config.embed?.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!')
         .setRequired(true);
       modal.addComponents(new ActionRowBuilder().addComponents(descInput));
       return await interaction.showModal(modal);
