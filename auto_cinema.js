@@ -112,11 +112,23 @@ function setupAutoCinemaCron(guildId, timeStr, channelId, client, serverConfigs)
         .setImage(imageUrl)
         .setFooter({ text: `วันที่ฉาย: ${new Date().toLocaleDateString('th-TH')}` });
 
-      await channel.send({ 
+      const sentMsg = await channel.send({ 
         content: `<@&${config.roleId || '1560731553766707241'}>`, 
         embeds: [embed]
       });
-      console.log(`✅ ส่ง Auto-Cinema NOW SHOWING สำเร็จสำหรับ Guild ${guildId} เวลา ${timeStr}`);
+
+      // ⏰ ตั้งเวลาลบข้อความอัตโนมัติใน 20 นาที (20 * 60 * 1000 ms)
+      setTimeout(async () => {
+        try {
+          if (sentMsg && !sentMsg.deleted) {
+            await sentMsg.delete().catch(() => {});
+          }
+        } catch (e) {
+          console.error('Error deleting auto-cinema message after 20 mins:', e);
+        }
+      }, 20 * 60 * 1000);
+
+      console.log(`✅ ส่ง Auto-Cinema NOW SHOWING สำเร็จสำหรับ Guild ${guildId} เวลา ${timeStr} (จะลบใน 20 นาที)`);
     } catch (err) {
       console.error(`❌ Error auto cinema cron for guild ${guildId}:`, err);
     }
@@ -205,11 +217,24 @@ async function handleAutoCinemaButton(interaction, serverConfigs, saveConfigs, c
         .setImage(imageUrl)
         .setFooter({ text: `วันที่ฉาย: ${new Date().toLocaleDateString('th-TH')}` });
 
-      return await interaction.reply({ 
-        content: `🧪 **[ทดลองแสดงผล]** (ข้อความนี้เห็นเฉพาะคุณ): <@&${config.roleId || '1560731553766707241'}>`, 
-        embeds: [embed],
-        ephemeral: true 
+      // หากกดทดลองส่งแบบเห็นจริงในห้อง (หรือถ้าใช้แบบเดิมที่เห็นคนเดียว ถ้าอยากให้ส่งเข้าห้องจริงแล้วลบใน 20 นาที สามารถใช้ตัวนี้ได้ครับ)
+      const sentMsg = await channel.send({ 
+        content: `🧪 **[ทดลองส่งเข้าห้องจริง] (ข้อความนี้จะหายไปเองใน 20 นาที):** <@&${config.roleId || '1560731553766707241'}>`, 
+        embeds: [embed]
       });
+
+      // ⏰ ตั้งเวลาลบข้อความทดลองในห้องจริง 20 นาที
+      setTimeout(async () => {
+        try {
+          if (sentMsg && !sentMsg.deleted) {
+            await sentMsg.delete().catch(() => {});
+          }
+        } catch (e) {
+          console.error('Error deleting test auto-cinema message after 20 mins:', e);
+        }
+      }, 20 * 60 * 1000);
+
+      return await interaction.reply({ content: `✅ ส่งข้อความทดลองไปยังห้อง <#${config.channelId}> เรียบร้อยแล้ว! (ข้อความจะหายไปใน 20 นาที)`, ephemeral: true });
     } catch (err) {
       console.error('Error testing auto cinema:', err);
       return await interaction.reply({ content: '❌ เกิดข้อผิดพลาดในการทดลองส่ง กรุณาตรวจสอบสิทธิ์ของบอทครับ', ephemeral: true });
