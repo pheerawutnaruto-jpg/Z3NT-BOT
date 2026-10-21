@@ -58,11 +58,6 @@ const {
   handleShowcaseMessage, 
   handleShowcaseButton 
 } = require('./media_showcase');
-const {
-  musicPanelCommand,
-  handleMusicPanelCommand,
-  handleMusicPanelButton
-} = require('./music_panel');
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
@@ -139,7 +134,6 @@ client.once('ready', async () => {
     setupCinemaCommand,
     cinemaBroadcastCommand,
     autoCinemaCommand,
-    musicPanelCommand,
     new SlashCommandBuilder().setName('clear').setDescription('ลบข้อความในแชทจำนวน 1-100 ข้อความ')
       .addIntegerOption(option => option.setName('amount').setDescription('จำนวนข้อความที่ต้องการลบ (1-100)').setRequired(true)),
     new SlashCommandBuilder().setName('set-autoclear').setDescription('💎 [PREMIUM] ตั้งเวลาระบบลบข้อความอัตโนมัติ')
@@ -295,7 +289,7 @@ client.on('interactionCreate', async interaction => {
   }
   if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
 
-  const premiumCommands = ['setup-quest', 'setup-in-game-shop', 'coins', 'setup-order-ticket', 'add-coins', 'setup-media-guard', 'setup-showcase', 'set-autoclear', 'setup-artist-card', 'my-status', 'cinema-setup', 'cinema-broadcast', 'auto-cinema', 'music'];
+  const premiumCommands = ['setup-quest', 'setup-in-game-shop', 'coins', 'setup-order-ticket', 'add-coins', 'setup-media-guard', 'setup-showcase', 'set-autoclear', 'setup-artist-card', 'my-status', 'cinema-setup', 'cinema-broadcast', 'auto-cinema'];
   if (interaction.isChatInputCommand() && premiumCommands.includes(interaction.commandName)) {
     const hasPremium = await isServerPremium(guildId, serverConfigs);
     if (!hasPremium) {
@@ -332,7 +326,6 @@ client.on('interactionCreate', async interaction => {
         '> 🎬 **Zen Cinema:** ระบบจัดการรอบฉายหนังอัตโนมัติ (Coming Soon & Now Showing) พร้อมระบบขายตั๋วหักเหรียญ\n' +
         '> 🛒 **Automated Store:** ระบบร้านค้าสกิน/ยศ และระบบห้องออร์เดอร์พร้อมปุ่มอนุมัติสลิปและใบเสร็จอัตโนมัติ\n' +
         '> 🎨 **Artist Showcase:** ระบบห้องโชว์ผลงานพร้อมรีแอคชันและปุ่มให้คะแนนอัตโนมัติ\n' +
-        '> 🎵 **Music Panel:** แผงควบคุมระบบเสียงและเพลงในห้อง Voice แบบอินเทอร์แอกทีฟ\n' +
         '> 🎁 **Daily Quest:** เควสต์สุ่มแจก Zen Coins ฟรีทุก 19 ชั่วโมง (แบบ 50/50)\n\n' +
         '💎 สนใจใช้งานระบบพรีเมียมติดต่อผู้พัฒนาบอทได้เลยครับ!'
       )
@@ -388,9 +381,6 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isChatInputCommand() && interaction.commandName === 'auto-cinema') {
     return await handleAutoCinemaCommand(interaction, serverConfigs);
   }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'music') {
-    return await handleMusicPanelCommand(interaction);
-  }
   if (interaction.isChatInputCommand() && interaction.commandName === 'set-level') {
     return await handleSetLevelCommand(interaction, serverConfigs);
   }
@@ -436,9 +426,6 @@ client.on('interactionCreate', async interaction => {
 
   if (interaction.isButton()) {
     const id = interaction.customId;
-
-    const handledMusicBtn = await handleMusicPanelButton(interaction);
-    if (handledMusicBtn) return;
 
     const handledShowcaseBtn = await handleShowcaseButton(interaction);
     if (handledShowcaseBtn) return;
@@ -749,7 +736,7 @@ client.on('interactionCreate', async interaction => {
     if (interaction.customId === 'deleteRoleRewardModal') {
       const targetLevel = interaction.fields.getTextInputValue('targetLevel').trim();
       if (!config.levelConfig.roleRewards || !config.levelConfig.roleRewards[targetLevel]) {
-        return await interaction.reply({ content: `❌ ไม่พบข้อมูลยศรางวัลสำหรับ Level ${targetLevel} ครับ!`, ephemeral: true });
+        return await interaction.reply({ content: '❌ ไม่พบข้อมูลยศรางวัลสำหรับ Level ${targetLevel} ครับ!', ephemeral: true });
       }
       delete config.levelConfig.roleRewards[targetLevel];
       await saveConfigs(serverConfigs);
@@ -781,7 +768,7 @@ function getDashboardContent(config) {
   const channelRow = new ActionRowBuilder().addComponents(
     new ChannelSelectMenuBuilder().setCustomId('select_channel').setPlaceholder('📂 เลือกห้องต้อนรับ').addChannelTypes(ChannelType.GuildText)
   );
-  return { embeds: [embed], components: [row1, channelRow] };
+  return { embeds: [embed], components: [row1, channelRow] }
 }
 
 function getAutoroleDashboardContent(config) {
@@ -801,7 +788,7 @@ function getAutoroleDashboardContent(config) {
   const roleRow = new ActionRowBuilder().addComponents(
     new RoleSelectMenuBuilder().setCustomId('select_autorole').setPlaceholder('👑 เลือกยศแจกสมาชิกใหม่ (เลือกแล้วเปิดระบบทันที)')
   );
-  return { embeds: [embed], components: [row1, roleRow] };
+  return { embeds: [embed], components: [roleRow] };
 }
 
 async function sendDashboard(target) {
@@ -814,6 +801,9 @@ async function sendDashboard(target) {
     await channel.send(payload);
   }
 }
+
+async function sendAutoroleDashboard(target) {
+  }
 
 async function sendAutoroleDashboard(target) {
   const channel = target.channel || target;
