@@ -149,7 +149,7 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
     const cost = 350;
 
     if (member.roles.cache.has(permRoleId)) {
-      await interaction.reply({ content: `:emoji_94: คุณมีตั๋ว 21 วันอยู่แล้ว ขอให้สนุกกับการรับชมนะครับ!`, ephemeral: true });
+      await interaction.reply({ content: `<:emoji_94:1560403833408978994> คุณมีตั๋ว 21 วันอยู่แล้ว ขอให้สนุกกับการรับชมนะครับ!`, ephemeral: true });
       return true;
     }
 
