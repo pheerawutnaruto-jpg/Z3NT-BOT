@@ -1,10 +1,10 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
-const { joinVoiceChannel, createAudioPlayer, createAudioResource, getVoiceConnection, AudioPlayerStatus } = require('@discordjs/voice');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { joinVoiceChannel, getVoiceConnection } = require('@discordjs/voice');
 
 // คำสั่งเดียวเรียกแผงควบคุม
 const musicPanelCommand = new SlashCommandBuilder()
   .setName('music')
-  .setDescription('🎵 เปิดแผงควบคุมระบบเพลงและเสียง');
+  .setDescription('🎵 [MUSIC] เปิดแผงควบคุมระบบเพลงและเสียง');
 
 async function handleMusicPanelCommand(interaction) {
   const channel = interaction.member.voice.channel;
