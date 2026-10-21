@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder } = require('discord.js');
 
-// 1. /cinema-setup (Box Office ถาวร รองรับระบบเหรียญ)
+// 1. /cinema-setup (Box Office ถาวร รองรับระบบเหรียญ - มีเฉพาะปุ่ม 1 วัน)
 const setupCinemaCommand = new SlashCommandBuilder()
   .setName('cinema-setup')
   .setDescription('🎬 [CINEMA] ส่งแผงป้าย Box Office จุดจำหน่ายตั๋ว (สำหรับ Admin)')
@@ -26,25 +26,19 @@ async function handleSetupCinemaCommand(interaction) {
   const customImage = interaction.options.getString('image');
   const defaultImage = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg';
   const imageUrl = (customImage && customImage.trim() !== '') ? customImage.trim() : defaultImage;
-  const permRoleId = '1560731553766707241';
   const tempRoleId = '1551006184272560148';
 
   const embed = new EmbedBuilder()
     .setTitle('🎟️ 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼 • BOX OFFICE')
     .setDescription(
       '✨ **บริการจำหน่ายตั๋วรับชมภาพยนตร์** ✨\n\n' +
-      `> <@&${permRoleId}> ( 350c / 21 วัน )\n` +
       `> <@&${tempRoleId}> ( 250c / 1 วัน )\n\n` +
-      '📌 *กรุณาตรวจสอบเหรียญในกระเป๋าของคุณก่อนกดซื้อตั๋ว*'
+      '📍 กรุณาตรวจสอบเหรียญในกระเป๋าของคุณก่อนกดซื้อตั๋ว'
     )
     .setColor('#FF0000')
     .setImage(imageUrl);
 
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('cinema_perm_ticket')
-      .setLabel('🎫 ซื้อตั๋ว (21 วัน)')
-      .setStyle(ButtonStyle.Danger),
     new ButtonBuilder()
       .setCustomId('cinema_temp_ticket')
       .setLabel('🎟️ ซื้อตั๋ว (1 วัน)')
@@ -259,26 +253,25 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
 
       const defaultImage = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg';
       const imageUrl = (config.imageUrl && config.imageUrl.trim() !== '') ? config.imageUrl.trim() : defaultImage;
+      const permRoleId = '1560731553766707241';
 
       const embed = new EmbedBuilder()
         .setTitle('🍿 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼 • COMING SOON')
         .setDescription(
           `🎬 **ชื่อเรื่อง:** ${config.title}\n` +
-          `📅 **วันที่ฉาย:** ${config.dateStr}`
+          `📅 **วันที่ฉาย:** ${config.dateStr}\n\n` +
+          `> <@&${permRoleId}> ( 350c / 21 วัน )`
         )
         .setColor('#FFD700')
-        .setImage(imageUrl);
+        .setImage(imageUrl)
+        .setFooter({ text: '💡 แนะนำพิเศษ: ซื้อตั๋ว 21 วันคุ้มกว่า รับชมภาพยนตร์ยาวๆ!' });
 
-      // เพิ่มปุ่มทั้ง 2 แบบ (21 วัน และ 1 วัน) เข้าไปในประกาศ
+      // ประกาศ Coming Soon ใช้เฉพาะปุ่ม 21 วัน
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId('cinema_perm_ticket')
           .setLabel('🎫 ซื้อตั๋ว (21 วัน)')
-          .setStyle(ButtonStyle.Danger),
-        new ButtonBuilder()
-          .setCustomId('cinema_temp_ticket')
-          .setLabel('🎟️ ซื้อตั๋ว (1 วัน)')
-          .setStyle(ButtonStyle.Success)
+          .setStyle(ButtonStyle.Danger)
       );
 
       const sentMsg = await channel.send({
@@ -287,7 +280,7 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
         components: [row]
       });
 
-      // ตั้งเวลาลบข้อความประกาศอัตโนมัติใน 4 วัน (4 * 24 * 60 * 60 * 1000 ms)
+      // ตั้งเวลาลบข้อความประกาศอัตโนมัติใน 4 วัน
       setTimeout(async () => {
         try {
           if (sentMsg && !sentMsg.deleted) {
