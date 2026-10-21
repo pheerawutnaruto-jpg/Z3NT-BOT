@@ -56,12 +56,6 @@ const {
   handleShowcaseMessage, 
   handleShowcaseButton 
 } = require('./media_showcase');
-const { 
-  musicPanelCommand, 
-  handleMusicPanelCommand, 
-  handleMusicButton, 
-  handleMusicModal 
-} = require('./music');
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
@@ -134,7 +128,6 @@ client.once('ready', async () => {
     setupArtistCommand,
     setupMediaGuardCommand,
     setupShowcaseCommand,
-    musicPanelCommand,
     setLevelCommand,
     setupCinemaCommand,
     cinemaBroadcastCommand,
@@ -294,7 +287,7 @@ client.on('interactionCreate', async interaction => {
   }
   if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
 
-  const premiumCommands = ['setup-quest', 'setup-in-game-shop', 'coins', 'setup-order-ticket', 'add-coins', 'setup-media-guard', 'setup-showcase', 'music-panel', 'set-autoclear', 'setup-artist-card', 'boost-status', 'cinema-setup', 'cinema-broadcast', 'auto-cinema'];
+  const premiumCommands = ['setup-quest', 'setup-in-game-shop', 'coins', 'setup-order-ticket', 'add-coins', 'setup-media-guard', 'setup-showcase', 'set-autoclear', 'setup-artist-card', 'boost-status', 'cinema-setup', 'cinema-broadcast', 'auto-cinema'];
   if (interaction.isChatInputCommand() && premiumCommands.includes(interaction.commandName)) {
     const hasPremium = await isServerPremium(guildId, serverConfigs);
     if (!hasPremium) {
@@ -328,10 +321,9 @@ client.on('interactionCreate', async interaction => {
         '🚀 **ฟีเจอร์เด่นภายในบอท:**\n' +
         '> 🛡️ **Advanced Security:** ระบบป้องกันลิงก์สแปม และบอทหลอกลวงพร้อมบทลงโทษอัตโนมัติ\n' +
         '> 📊 **Leveling & Voice XP:** ระบบเก็บเลเวลทั้งแชทและห้องเสียง พร้อมการ์ดโปรไฟล์ Canvas สุดพรีเมียม\n' +
-        '> 🎬 **Zen Cinema:** ระบบจัดการรอบฉายหนังอัตโนมัติ พร้อมระบบขายตั๋วหักเหรียญ\n' +
-        '> 🛒 **Automated Store:** ระบบห้องออร์เดอร์พร้อมปุ่มแอดมินยืนยันสลิปและออกใบเสร็จอัตโนมัติ\n' +
+        '> 🎬 **Zen Cinema:** ระบบจัดการรอบฉายหนังอัตโนมัติ (Coming Soon & Now Showing) พร้อมระบบขายตั๋วหักเหรียญ\n' +
+        '> 🛒 **Automated Store:** ระบบร้านค้าสกิน/ยศ และระบบห้องออร์เดอร์พร้อมใบเสร็จอัตโนมัติ\n' +
         '> 🎨 **Artist Showcase:** ระบบห้องโชว์ผลงานพร้อมรีแอคชันและปุ่มให้คะแนนอัตโนมัติ\n' +
-        '> 🎵 **Advanced Music Engine:** ระบบเพลงและวิทยุในห้องเสียง ควบคุมผ่านแผงปุ่มกด (ล็อกสิทธิ์เฉพาะ Owner)\n' +
         '> 🎁 **Daily Quest:** เควสต์สุ่มแจก Zen Coins ฟรีทุก 19 ชั่วโมง (แบบ 50/50)\n\n' +
         '💎 สนใจใช้งานระบบพรีเมียมติดต่อผู้พัฒนาบอทได้เลยครับ!'
       )
@@ -377,9 +369,6 @@ client.on('interactionCreate', async interaction => {
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'setup-showcase') {
     return await handleSetupShowcaseCommand(interaction, serverConfigs, saveConfigs);
-  }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'music-panel') {
-    return await handleMusicPanelCommand(interaction);
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'cinema-setup') {
     return await handleSetupCinemaCommand(interaction);
@@ -435,9 +424,6 @@ client.on('interactionCreate', async interaction => {
 
   if (interaction.isButton()) {
     const id = interaction.customId;
-
-    const handledMusicBtn = await handleMusicButton(interaction);
-    if (handledMusicBtn) return;
 
     const handledShowcaseBtn = await handleShowcaseButton(interaction);
     if (handledShowcaseBtn) return;
@@ -552,7 +538,7 @@ client.on('interactionCreate', async interaction => {
         .setCustomId('welcomeDesc')
         .setLabel('ข้อความต้อนรับ (ใช้ {user} และ {server} ได้)')
         .setStyle(TextInputStyle.Paragraph)
-        .setValue(config.embed?.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!')
+        .setValue(config.embed?.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢-ber!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!')
         .setRequired(true);
       modal.addComponents(new ActionRowBuilder().addComponents(descInput));
       return await interaction.showModal(modal);
@@ -685,9 +671,6 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.isModalSubmit()) {
-    const handledMusicModal = await handleMusicModal(interaction);
-    if (handledMusicModal) return;
-
     const handledCinemaModal = await handleCinemaModal(interaction, serverConfigs, saveConfigs, client);
     if (handledCinemaModal) return;
 
