@@ -26,7 +26,9 @@ const {
   addCoinsCommand, 
   handleCoinsCommand, 
   handleAddCoinsCommand, 
-  handleShopButton 
+  handleShopButton,
+  myStatusCommand,
+  handleMyStatusCommand
 } = require('./shop');
 const { setupArtistCommand, handleSetupArtistCommand, handleArtistButton, handleArtistModalSubmit } = require('./artist_card');
 const { setupMediaGuardCommand, handleSetupMediaGuardCommand, handleMediaGuardMessage } = require('./media_guard');
@@ -56,6 +58,11 @@ const {
   handleShowcaseMessage, 
   handleShowcaseButton 
 } = require('./media_showcase');
+const {
+  musicPanelCommand,
+  handleMusicPanelCommand,
+  handleMusicPanelButton
+} = require('./music_panel');
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
@@ -124,7 +131,7 @@ client.once('ready', async () => {
     coinsCommand,
     addCoinsCommand,
     grantPremiumCommand,
-    boostStatusCommand,
+    myStatusCommand,
     setupArtistCommand,
     setupMediaGuardCommand,
     setupShowcaseCommand,
@@ -132,6 +139,7 @@ client.once('ready', async () => {
     setupCinemaCommand,
     cinemaBroadcastCommand,
     autoCinemaCommand,
+    musicPanelCommand,
     new SlashCommandBuilder().setName('clear').setDescription('ลบข้อความในแชทจำนวน 1-100 ข้อความ')
       .addIntegerOption(option => option.setName('amount').setDescription('จำนวนข้อความที่ต้องการลบ (1-100)').setRequired(true)),
     new SlashCommandBuilder().setName('set-autoclear').setDescription('💎 [PREMIUM] ตั้งเวลาระบบลบข้อความอัตโนมัติ')
@@ -287,7 +295,7 @@ client.on('interactionCreate', async interaction => {
   }
   if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
 
-  const premiumCommands = ['setup-quest', 'setup-in-game-shop', 'coins', 'setup-order-ticket', 'add-coins', 'setup-media-guard', 'setup-showcase', 'set-autoclear', 'setup-artist-card', 'boost-status', 'cinema-setup', 'cinema-broadcast', 'auto-cinema'];
+  const premiumCommands = ['setup-quest', 'setup-in-game-shop', 'coins', 'setup-order-ticket', 'add-coins', 'setup-media-guard', 'setup-showcase', 'set-autoclear', 'setup-artist-card', 'my-status', 'cinema-setup', 'cinema-broadcast', 'auto-cinema', 'music'];
   if (interaction.isChatInputCommand() && premiumCommands.includes(interaction.commandName)) {
     const hasPremium = await isServerPremium(guildId, serverConfigs);
     if (!hasPremium) {
@@ -322,8 +330,9 @@ client.on('interactionCreate', async interaction => {
         '> 🛡️ **Advanced Security:** ระบบป้องกันลิงก์สแปม และบอทหลอกลวงพร้อมบทลงโทษอัตโนมัติ\n' +
         '> 📊 **Leveling & Voice XP:** ระบบเก็บเลเวลทั้งแชทและห้องเสียง พร้อมการ์ดโปรไฟล์ Canvas สุดพรีเมียม\n' +
         '> 🎬 **Zen Cinema:** ระบบจัดการรอบฉายหนังอัตโนมัติ (Coming Soon & Now Showing) พร้อมระบบขายตั๋วหักเหรียญ\n' +
-        '> 🛒 **Automated Store:** ระบบร้านค้าสกิน/ยศ และระบบห้องออร์เดอร์พร้อมใบเสร็จอัตโนมัติ\n' +
+        '> 🛒 **Automated Store:** ระบบร้านค้าสกิน/ยศ และระบบห้องออร์เดอร์พร้อมปุ่มอนุมัติสลิปและใบเสร็จอัตโนมัติ\n' +
         '> 🎨 **Artist Showcase:** ระบบห้องโชว์ผลงานพร้อมรีแอคชันและปุ่มให้คะแนนอัตโนมัติ\n' +
+        '> 🎵 **Music Panel:** แผงควบคุมระบบเสียงและเพลงในห้อง Voice แบบอินเทอร์แอกทีฟ\n' +
         '> 🎁 **Daily Quest:** เควสต์สุ่มแจก Zen Coins ฟรีทุก 19 ชั่วโมง (แบบ 50/50)\n\n' +
         '💎 สนใจใช้งานระบบพรีเมียมติดต่อผู้พัฒนาบอทได้เลยครับ!'
       )
@@ -358,8 +367,8 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isChatInputCommand() && interaction.commandName === 'add-coins') {
     return await handleAddCoinsCommand(interaction, serverConfigs, saveConfigs);
   }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'boost-status') {
-    return await handleBoostStatusCommand(interaction, serverConfigs);
+  if (interaction.isChatInputCommand() && interaction.commandName === 'my-status') {
+    return await handleMyStatusCommand(interaction, serverConfigs);
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'setup-artist-card') {
     return await handleSetupArtistCommand(interaction);
@@ -378,6 +387,9 @@ client.on('interactionCreate', async interaction => {
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'auto-cinema') {
     return await handleAutoCinemaCommand(interaction, serverConfigs);
+  }
+  if (interaction.isChatInputCommand() && interaction.commandName === 'music') {
+    return await handleMusicPanelCommand(interaction);
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'set-level') {
     return await handleSetLevelCommand(interaction, serverConfigs);
@@ -425,10 +437,13 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isButton()) {
     const id = interaction.customId;
 
+    const handledMusicBtn = await handleMusicPanelButton(interaction);
+    if (handledMusicBtn) return;
+
     const handledShowcaseBtn = await handleShowcaseButton(interaction);
     if (handledShowcaseBtn) return;
 
-    const handledCinemaBtn = await handleCinemaButton(interaction, serverConfigs, saveConfigs, client);
+    const handledCinemaBtn = await handleCinemaButton(interaction, serverConfigs, saveConfigs);
     if (handledCinemaBtn) return;
 
     const handledAutoCinemaBtn = await handleAutoCinemaButton(interaction, serverConfigs, saveConfigs, client);
@@ -449,7 +464,7 @@ client.on('interactionCreate', async interaction => {
     const handledQuest = await handleQuestButton(interaction, serverConfigs, saveConfigs);
     if (handledQuest) return;
 
-    const handledShop = await handleShopButton(interaction, serverConfigs, saveConfigs, client);
+    const handledShop = await handleShopButton(interaction, serverConfigs, saveConfigs);
     if (handledShop) return;
 
     const handledArtistBtn = await handleArtistButton(interaction, serverConfigs);
@@ -538,7 +553,7 @@ client.on('interactionCreate', async interaction => {
         .setCustomId('welcomeDesc')
         .setLabel('ข้อความต้อนรับ (ใช้ {user} และ {server} ได้)')
         .setStyle(TextInputStyle.Paragraph)
-        .setValue(config.embed?.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢-ber!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!')
+        .setValue(config.embed?.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!')
         .setRequired(true);
       modal.addComponents(new ActionRowBuilder().addComponents(descInput));
       return await interaction.showModal(modal);
@@ -613,7 +628,7 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.isChannelSelectMenu()) {
-    const handledCinemaSelect = await handleCinemaSelect(interaction, serverConfigs, saveConfigs, client);
+    const handledCinemaSelect = await handleCinemaSelect(interaction, serverConfigs, saveConfigs);
     if (handledCinemaSelect) return;
 
     const handledAutoCinemaSelect = await handleAutoCinemaSelect(interaction, serverConfigs, saveConfigs, client);
@@ -671,7 +686,7 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.isModalSubmit()) {
-    const handledCinemaModal = await handleCinemaModal(interaction, serverConfigs, saveConfigs, client);
+    const handledCinemaModal = await handleCinemaModal(interaction, serverConfigs, saveConfigs);
     if (handledCinemaModal) return;
 
     const handledAutoCinemaModal = await handleAutoCinemaModal(interaction, serverConfigs, saveConfigs, client);
