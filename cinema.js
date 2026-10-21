@@ -161,12 +161,10 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
 
     try {
       userStat.orbs -= cost;
-      // บันทึกวันหมดอายุ 21 วันลงฐานข้อมูล Redis และล้างเวลาตั๋ว 1 วันเดิมทิ้ง
       userStat.cinemaPermUntil = now + (21 * 24 * 60 * 60 * 1000);
       userStat.cinemaTempUntil = 0;
       await saveConfigs(serverConfigs);
       
-      // หากผู้ใช้มียศ 1 วันอยู่ ให้ถอดออกแล้วแทนที่ด้วยยศ 21 วันทันที
       if (member.roles.cache.has(tempRoleId)) {
         await member.roles.remove(tempRoleId).catch(() => {});
       }
@@ -188,7 +186,6 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
     const member = interaction.member;
     const cost = 250;
 
-    // บล็อกไม่ให้คนที่มีตั๋ว 21 วันซื้อตั๋ว 1 วันซ้ำซ้อน
     if (member.roles.cache.has(permRoleId)) {
       await interaction.reply({ content: `❌ คุณมียศตั๋ว 21 วัน (ถาวร/ระยะยาว) อยู่แล้วครับ! ไม่สามารถซื้อตั๋ว 1 วันทับซ้อนได้จนกว่ายศเดิมจะหมดอายุ`, ephemeral: true });
       return true;
@@ -207,7 +204,6 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
 
     try {
       userStat.orbs -= cost;
-      // บันทึกวันหมดอายุ 1 วันลงฐานข้อมูล Redis
       userStat.cinemaTempUntil = now + (1 * 24 * 60 * 60 * 1000);
       await saveConfigs(serverConfigs);
       await member.roles.add(tempRoleId);
@@ -273,10 +269,15 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
         .setColor('#FFD700')
         .setImage(imageUrl);
 
+      // เพิ่มปุ่มทั้ง 2 แบบ (21 วัน และ 1 วัน) เข้าไปในประกาศ
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
+          .setCustomId('cinema_perm_ticket')
+          .setLabel('🎫 ซื้อตั๋ว (21 วัน)')
+          .setStyle(ButtonStyle.Danger),
+        new ButtonBuilder()
           .setCustomId('cinema_temp_ticket')
-          .setLabel('🎟️ ซื้อตั๋ว')
+          .setLabel('🎟️ ซื้อตั๋ว (1 วัน)')
           .setStyle(ButtonStyle.Success)
       );
 
@@ -286,17 +287,18 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
         components: [row]
       });
 
+      // ตั้งเวลาลบข้อความประกาศอัตโนมัติใน 4 วัน (4 * 24 * 60 * 60 * 1000 ms)
       setTimeout(async () => {
         try {
           if (sentMsg && !sentMsg.deleted) {
             await sentMsg.delete().catch(() => {});
           }
         } catch (e) {
-          console.error('Error deleting broadcast message after 20 mins:', e);
+          console.error('Error deleting broadcast message after 4 days:', e);
         }
-      }, 20 * 60 * 1000);
+      }, 4 * 24 * 60 * 60 * 1000);
 
-      await interaction.reply({ content: `✅ ส่งประกาศไปยังห้อง <#${config.channelId}> เรียบร้อยแล้ว! (ข้อความจะหายไปเองใน 20 นาที)`, ephemeral: true });
+      await interaction.reply({ content: `✅ ส่งประกาศไปยังห้อง <#${config.channelId}> เรียบร้อยแล้ว! (ข้อความจะหายไปเองใน 4 วัน)`, ephemeral: true });
       return true;
     } catch (err) {
       console.error('Error sending cinema broadcast:', err);
