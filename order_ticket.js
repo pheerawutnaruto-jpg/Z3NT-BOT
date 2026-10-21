@@ -26,7 +26,7 @@ async function handleSetupOrderTicketCommand(interaction) {
 
   const selectMenu = new StringSelectMenuBuilder()
     .setCustomId('select_product_order')
-    .setPlaceholder('<a:emoji_0:1562554115257536552> เลือกสินค้าที่ต้องการสั่งซื้อ')
+    .setPlaceholder('เลือกสินค้าที่ต้องการสั่งซื้อ')
     .addOptions([
       {
         label: 'BOT PREMIUM (รายเดือน)',
