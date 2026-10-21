@@ -123,8 +123,8 @@ function getCinemaBroadcastDashboard(config) {
   return { embeds: [embed], components: [row1, channelRow] };
 }
 
-// ตัวจัดการปุ่มและการทำงานของ Manual & Box Office Cinema
-async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
+// ตัวจัดการปุ่มและการทำงานของ Manual & Box Office Cinema (เพิ่ม client พารามิเตอร์)
+async function handleCinemaButton(interaction, serverConfigs, saveConfigs, client) {
   const id = interaction.customId;
   const guildId = interaction.guildId;
   if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
@@ -161,12 +161,10 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
 
     try {
       userStat.orbs -= cost;
-      // บันทึกวันหมดอายุ 21 วันลงฐานข้อมูล Redis และล้างเวลาตั๋ว 1 วันเดิมทิ้ง
       userStat.cinemaPermUntil = now + (21 * 24 * 60 * 60 * 1000);
       userStat.cinemaTempUntil = 0;
       await saveConfigs(serverConfigs);
-      
-      // หากผู้ใช้มียศ 1 วันอยู่ ให้ถอดออกแล้วแทนที่ด้วยยศ 21 วันทันที
+       
       if (member.roles.cache.has(tempRoleId)) {
         await member.roles.remove(tempRoleId).catch(() => {});
       }
@@ -188,7 +186,6 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
     const member = interaction.member;
     const cost = 250;
 
-    // บล็อกไม่ให้คนที่มีตั๋ว 21 วันซื้อตั๋ว 1 วันซ้ำซ้อน
     if (member.roles.cache.has(permRoleId)) {
       await interaction.reply({ content: `❌ คุณมียศตั๋ว 21 วัน (ถาวร/ระยะยาว) อยู่แล้วครับ! ไม่สามารถซื้อตั๋ว 1 วันทับซ้อนได้จนกว่ายศเดิมจะหมดอายุ`, ephemeral: true });
       return true;
@@ -207,7 +204,6 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
 
     try {
       userStat.orbs -= cost;
-      // บันทึกวันหมดอายุ 1 วันลงฐานข้อมูล Redis
       userStat.cinemaTempUntil = now + (1 * 24 * 60 * 60 * 1000);
       await saveConfigs(serverConfigs);
       await member.roles.add(tempRoleId);
@@ -308,7 +304,7 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
   return false;
 }
 
-async function handleCinemaSelect(interaction, serverConfigs, saveConfigs) {
+async function handleCinemaSelect(interaction, serverConfigs, saveConfigs, client) {
   const guildId = interaction.guildId;
   if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
 
@@ -332,7 +328,7 @@ async function handleCinemaSelect(interaction, serverConfigs, saveConfigs) {
   return false;
 }
 
-async function handleCinemaModal(interaction, serverConfigs, saveConfigs) {
+async function handleCinemaModal(interaction, serverConfigs, saveConfigs, client) {
   const guildId = interaction.guildId;
   if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
 
