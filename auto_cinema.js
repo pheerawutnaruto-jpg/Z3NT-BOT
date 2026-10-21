@@ -87,7 +87,7 @@ function setupAutoCinemaCron(guildId, timeStr, channelId, client, serverConfigs)
   const [hour, minute] = timeStr.split(':');
   if (!hour || !minute) return;
 
-  const cronExpression = `${minute}${hour} * * *`;
+  const cronExpression = `${minute} ${hour} * * *`;
 
   activeAutoCinemaCrons[guildId] = cron.schedule(cronExpression, async () => {
     try {
@@ -252,7 +252,7 @@ async function handleAutoCinemaModal(interaction, serverConfigs, saveConfigs, cl
   if (interaction.customId === 'autoCinemaInfoModal') {
     if (!serverConfigs[guildId].autoCinema) serverConfigs[guildId].autoCinema = {};
     const config = serverConfigs[guildId].autoCinema;
-     
+    
     const timeVal = interaction.fields.getTextInputValue('timeInput').trim();
     if (/^([01]\d|2[0-3]):([0-5]\d)$/.test(timeVal)) {
       config.timeStr = timeVal;
@@ -276,7 +276,7 @@ async function handleAutoCinemaModal(interaction, serverConfigs, saveConfigs, cl
   if (interaction.customId === 'autoCinemaRoleModal') {
     if (!serverConfigs[guildId].autoCinema) serverConfigs[guildId].autoCinema = {};
     const config = serverConfigs[guildId].autoCinema;
-     
+    
     config.roleId = interaction.fields.getTextInputValue('roleIdInput').trim();
     await saveConfigs(serverConfigs);
     return await interaction.reply({ content: `✅ เปลี่ยนยศประกาศ NOW SHOWING เป็น <@&${config.roleId}> เรียบร้อยแล้ว!`, ephemeral: true });
