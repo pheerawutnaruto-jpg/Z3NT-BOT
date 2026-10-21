@@ -464,7 +464,7 @@ client.on('interactionCreate', async interaction => {
       'autocinema_edit_info', 'autocinema_edit_role'
     ];
 
-    if (!modalButtons.includes(id)) {
+    if (!modalButtons.includes(id) && id !== 'test_welcome') {
       await interaction.deferUpdate().catch(() => {});
     }
 
@@ -551,17 +551,21 @@ client.on('interactionCreate', async interaction => {
       try {
         const channel = await interaction.guild.channels.fetch(config.channelId);
         if (channel) {
-          const attachment = await generateWelcomeCard(interaction.member);
+          // ดึงข้อมูล Member ให้มั่นใจว่าสมบูรณ์ที่สุดสำหรับการเทส
+          const member = await interaction.guild.members.fetch(interaction.user.id);
+          const attachment = await generateWelcomeCard(member);
           const embedConfig = config.embed || {
             description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!'
           };
           const finalDesc = (embedConfig.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!')
-            .replace('{user}', `${interaction.user}`)
+            .replace('{user}', `${member}`)
             .replace('{server}', interaction.guild.name);
           await channel.send({ content: finalDesc, files: [attachment] });
+          await interaction.editReply({ content: `✅ ส่งการ์ดทดสอบไปที่ห้อง <#${config.channelId}> สำเร็จ!` });
         }
       } catch (err) {
         console.error('Test welcome error:', err);
+        await interaction.editReply({ content: `❌ เกิดข้อผิดพลาดในการทดสอบ: ${err.message}` });
       }
       return;
     }
