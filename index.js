@@ -329,7 +329,7 @@ client.on('interactionCreate', async interaction => {
         '🚀 **ฟีเจอร์เด่นภายในบอท:**\n' +
         '> 🛡️ **Advanced Security:** ระบบป้องกันลิงก์สแปม และบอทหลอกลวงพร้อมบทลงโทษอัตโนมัติ\n' +
         '> 📊 **Leveling & Voice XP:** ระบบเก็บเลเวลทั้งแชทและห้องเสียง พร้อมการ์ดโปรไฟล์ Canvas สุดพรีเมียม\n' +
-        '> 🎵 **Music & Radio Stream:** เครื่องเล่นเพลงและสตรีมวิทยุ 24/7 ควบคุมผ่านแผงปุ่มกดสุดล้ำ\n' +
+        '> 📻 **24/7 Jukebox Radio:** ตู้เพลงวิทยุออนไลน์และรองรับการใส่ลิงก์ URL เพลงตรง ควบคุมผ่านแผงปุ่มกด\n' +
         '> 🎬 **Zen Cinema:** ระบบจัดการรอบฉายหนังอัตโนมัติ (Coming Soon & Now Showing) พร้อมระบบขายตั๋วหักเหรียญ\n' +
         '> 🛒 **Automated Store:** ระบบร้านค้าสกิน/ยศ และระบบห้องออร์เดอร์พร้อมใบเสร็จอัตโนมัติ\n' +
         '> 🎨 **Artist Showcase:** ระบบห้องโชว์ผลงานพร้อมรีแอคชันและปุ่มให้คะแนนอัตโนมัติ\n' +
@@ -477,7 +477,7 @@ client.on('interactionCreate', async interaction => {
       'open_artist_level_card_modal', 'open_artist_wallet_card_modal',
       'cinemabc_edit_info', 'cinemabc_edit_role',
       'autocinema_edit_info', 'autocinema_edit_role',
-      'music_add_modal'
+      'musicCustomUrlModal'
     ];
 
     if (!modalButtons.includes(id)) {
@@ -606,9 +606,6 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.isStringSelectMenu()) {
-    const handledMusicSelect = await handleMusicSelect(interaction);
-    if (handledMusicSelect) return;
-
     const handledOrder = await handleOrderTicketSelect(interaction, serverConfigs);
     if (handledOrder) return;
 
@@ -754,7 +751,7 @@ client.on('interactionCreate', async interaction => {
       return await interaction.reply({ content: `📌 กรุณาเลือกยศสำหรับ Level ${targetLevel}:`, components: [row], ephemeral: true });
     }
     if (interaction.customId === 'deleteRoleRewardModal') {
-      const targetLevel = interaction.fields.getTextInputValue('targetLevel').trim();
+      const targetLevel = interaction.fields.getTextInputValue('deleteRoleRewardModal') || interaction.fields.getTextInputValue('targetLevel');
       if (!config.levelConfig.roleRewards || !config.levelConfig.roleRewards[targetLevel]) {
         return await interaction.reply({ content: `❌ ไม่พบข้อมูลยศรางวัลสำหรับ Level ${targetLevel} ครับ!`, ephemeral: true });
       }
