@@ -19,7 +19,7 @@ async function handleSetupOrderTicketCommand(interaction) {
   }
 
   const embed = new EmbedBuilder()
-    .setTitle('<a:emoji_0:1562554115257536552> 𝙕𝙀𝙉 𝘽𝙊𝙏 • SELECT STORE')
+    .setTitle('<a:emoji_103:1560417845903491112> 𝙕𝙀𝙉 𝘽𝙊𝙏 • SELECT STORE')
     .setDescription('ศูนย์รวมการสั่งซื้อยศถาวรและแพ็กเกจพิเศษ สะดวก และเป็นส่วนตัว')
     .setColor('#00FF00')
     .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg');
