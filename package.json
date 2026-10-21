@@ -1,19 +1,16 @@
 {
   "name": "my-discord-bot",
   "version": "1.0.0",
-  "description": "Discord Bot with Advanced Features and Music System on Render",
+  "description": "Discord Bot on Render",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "@discordjs/voice": "^0.16.1",
     "@napi-rs/canvas": "^0.1.62",
     "@upstash/redis": "^1.31.0",
     "axios": "^1.6.8",
     "discord.js": "^14.14.1",
-    "node-cron": "^3.0.3",
-    "play-dl": "^1.9.7",
-    "sodium": "^3.0.2"
+    "node-cron": "^3.0.3"
   }
 }
