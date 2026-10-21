@@ -70,7 +70,7 @@ async function sendOrderReceipt(channel, user, productName, productPrice, paymen
       { name: '🛒 สินค้า', value: productName, inline: true },
       { name: '💰 ยอดชำระ', value: `\`${productPrice}\``, inline: true },
       { name: '💳 ช่องทางชำระ', value: paymentMethod, inline: true },
-      { name: '👑 สถานะ', value: '✅ รอตรวจสอบสลิปและมอบสินค้า', inline: true },
+      { name: '👑 สถานะ', value: '✅ ตรวจสอบสลิปและมอบสินค้าเรียบร้อย', inline: true },
       { name: '📅 วันที่ทำรายการ', value: new Date().toLocaleString('th-TH'), inline: false }
     )
     .setTimestamp()
@@ -155,12 +155,18 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
       .setColor('#FFD700')
       .setFooter({ text: 'ช่องทางชำระ' });
 
+    // 🟢 เพิ่มปุ่มแอดมินยืนยันสลิปไว้ในห้องด้วย (แอดมินกดได้คนเดียว)
     const payRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`pay_promptpay_${selectedValue}`)
         .setLabel('PromptPay QR')
         .setEmoji('1560403647882334208')
         .setStyle(ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId(`verify_payment_${selectedValue}_${user.id}`)
+        .setLabel('แอดมินยืนยันสลิป')
+        .setEmoji('✅')
+        .setStyle(ButtonStyle.Primary),
       new ButtonBuilder()
         .setCustomId('close_order_ticket')
         .setLabel('🔒 ปิดออร์เดอร์')
@@ -197,6 +203,9 @@ async function handleOrderPaymentButton(interaction) {
     .setColor('#00FF00')
     .setFooter({ text: 'ช่องทางชำระ' });
 
+  // คงปุ่มแอดมินยืนยันสลิปไว้เช่นเดิม
+  const parts = interaction.customId.split('_');
+  // ค้นหาค่า product จาก customId เดิม
   const closeRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('close_order_ticket')
@@ -204,7 +213,58 @@ async function handleOrderPaymentButton(interaction) {
       .setStyle(ButtonStyle.Danger)
   );
 
-  await interaction.update({ embeds: [embed], components: [closeRow] });
+  await interaction.update({ embeds: [embed] });
+  return true;
+}
+
+// 🟢 ฟังก์ชันจัดการปุ่ม "แอดมินยืนยันสลิป"
+async function handleVerifyPaymentButton(interaction) {
+  if (!interaction.customId.startsWith('verify_payment_')) return false;
+
+  // ตรวจสอบสิทธิ์ Administrator
+  if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+    await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้นที่จะกดยืนยันสลิปนี้ได้!', ephemeral: true });
+    return true;
+  }
+
+  // แยกค่า product และ targetUserId จาก customId (รูปแบบ: verify_payment_[selectedValue]_[userId])
+  const parts = interaction.customId.split('_');
+  const selectedValue = parts[2];
+  const targetUserId = parts[3];
+
+  let productName = '';
+  let productPrice = '';
+  if (selectedValue === 'product_bot_premium') { productName = 'BOT PREMIUM (รายเดือน)'; productPrice = '฿399.00'; }
+  else if (selectedValue === 'product_artist_role') { productName = 'ยศ Artist ถาวร'; productPrice = '฿69.00'; }
+  else if (selectedValue === 'product_chilling_role') { productName = 'ยศพิเศษ สายชิลล์ ถาวร'; productPrice = '฿19.00'; }
+  else if (selectedValue === 'product_nightowl_role') { productName = 'ยศพิเศษ คนนอนดึก ถาวร'; productPrice = '฿9.00'; }
+
+  // ดึงข้อมูลผู้ซื้อ
+  const targetUser = await interaction.client.users.fetch(targetUserId).catch(() => null);
+  if (!targetUser) {
+    await interaction.reply({ content: '❌ ไม่พบข้อมูลผู้ซื้อในระบบ', ephemeral: true });
+    return true;
+  }
+
+  await interaction.deferUpdate();
+
+  // ส่งใบเสร็จลงในห้อง
+  await sendOrderReceipt(interaction.channel, targetUser, productName, productPrice, 'PromptPay QR (Verified by Admin)');
+
+  // แจ้งเตือนในห้องและปิดปุ่มป้องกันการกดซ้ำ
+  const successEmbed = new EmbedBuilder()
+    .setTitle('✅ ตรวจสอบสลิปและยืนยันการชำระเงินสำเร็จ')
+    .setDescription(`แอดมิน <@${interaction.user.id}> ได้ตรวจสอบสลิปและยืนยันยอดเงินของ <@${targetUserId}> เรียบร้อยแล้ว!\n\n*ระบบจะทำการปิดห้องนี้อัตโนมัติใน 10 วินาที...*`)
+    .setColor('#00FF00')
+    .setTimestamp();
+
+  await interaction.editReply({ embeds: [successEmbed], components: [] });
+
+  // นับถอยหลังปิดห้อง
+  setTimeout(() => {
+    interaction.channel.delete().catch(() => {});
+  }, 10000);
+
   return true;
 }
 
@@ -224,6 +284,7 @@ module.exports = {
   handleSetupOrderTicketCommand,
   handleOrderTicketSelect,
   handleOrderPaymentButton,
+  handleVerifyPaymentButton, // อย่าลืม export ฟังก์ชันนี้ไปใช้ใน index.js หลักด้วยนะครับ
   handleCloseTicketButton,
   sendOrderReceipt
 };
