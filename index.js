@@ -30,7 +30,7 @@ const {
 } = require('./shop');
 const { setupArtistCommand, handleSetupArtistCommand, handleArtistButton, handleArtistModalSubmit } = require('./artist_card');
 const { setupMediaGuardCommand, handleSetupMediaGuardCommand, handleMediaGuardMessage } = require('./media_guard');
-const { setupOrderTicketCommand, handleSetupOrderTicketCommand, handleOrderTicketSelect, handleOrderPaymentButton, handleCloseTicketButton } = require('./order_ticket');
+const { setupOrderTicketCommand, handleSetupOrderTicketCommand, handleOrderTicketSelect, handleOrderPaymentButton, handleVerifyPaymentButton, handleCloseTicketButton } = require('./order_ticket');
 const { isServerPremium, grantPremiumCommand, handleGrantPremiumCommand } = require('./license');
 const { generateWelcomeCard } = require('./canvas_card');
 const { 
@@ -443,6 +443,10 @@ client.on('interactionCreate', async interaction => {
     const handledPayment = await handleOrderPaymentButton(interaction);
     if (handledPayment) return;
 
+    // 🟢 ดักจับปุ่มยืนยันสลิปแอดมิน
+    const handledVerifyPayment = await handleVerifyPaymentButton(interaction);
+    if (handledVerifyPayment) return;
+
     const handledCloseTicket = await handleCloseTicketButton(interaction);
     if (handledCloseTicket) return;
 
@@ -551,7 +555,6 @@ client.on('interactionCreate', async interaction => {
       try {
         const channel = await interaction.guild.channels.fetch(config.channelId);
         if (channel) {
-          // ดึงข้อมูล Member ให้มั่นใจว่าสมบูรณ์ที่สุดสำหรับการเทส
           const member = await interaction.guild.members.fetch(interaction.user.id);
           const attachment = await generateWelcomeCard(member);
           const embedConfig = config.embed || {
