@@ -13,22 +13,27 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
 
   if (!config.levels) config.levels = {};
   if (!config.levels[userId]) {
-    config.levels[userId] = { xp: 0, level: 1, orbs: 0, lastDaily: 0, boostUntil: 0, artistUntil: 0, customTheme: '' };
+    config.levels[userId] = { 
+      xp: 0, level: 1, orbs: 0, lastDaily: 0, 
+      boostUntil: 0, artistUntil: 0, cinemaPermUntil: 0, cinemaTempUntil: 0, 
+      customTheme: '' 
+    };
   }
 
   const userStat = config.levels[userId];
   const multiplier = config.levelConfig.xpMultiplier || 100;
   const now = Date.now();
+  const guild = isVoice ? clientOrMessage : clientOrMessage.guild;
 
   let finalAmount = amount;
   let isBoosted = false;
 
+  // 1. เช็กวันหมดอายุ XP Booster
   if (userStat.boostUntil && now < userStat.boostUntil) {
     finalAmount *= 2; 
     isBoosted = true;
   } else if (userStat.boostUntil && now >= userStat.boostUntil) {
     userStat.boostUntil = 0;
-    const guild = isVoice ? clientOrMessage : clientOrMessage.guild;
     if (guild) {
       try {
         const member = await guild.members.fetch(userId).catch(() => null);
@@ -42,20 +47,53 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
     }
   }
 
+  // 2. เช็กวันหมดอายุ Artist | 3d (เช่า 3 วัน)
   const artistRoleId = '1560136361015513108';
+  const artistPermRoleId = '1560224726868295740';
   if (userStat.artistUntil && now >= userStat.artistUntil) {
     userStat.artistUntil = 0;
-    userStat.customTheme = ''; 
-    const guild = isVoice ? clientOrMessage : clientOrMessage.guild;
     if (guild) {
       try {
         const member = await guild.members.fetch(userId).catch(() => null);
-        if (member && member.roles.cache.has(artistRoleId)) {
-          await member.roles.remove(artistRoleId);
+        if (member) {
+          if (member.roles.cache.has(artistRoleId)) {
+            await member.roles.remove(artistRoleId);
+          }
+          // ถ้าไม่ได้มียศ Artist ถาวรอยู่ ถึงจะล้างพื้นหลังการ์ดที่ตั้งไว้
+          if (!member.roles.cache.has(artistPermRoleId)) {
+            userStat.customTheme = '';
+            userStat.customWalletTheme = '';
+          }
         }
       } catch (err) {
         console.error('Error removing expired artist role:', err);
       }
+    }
+  }
+
+  // 3. เช็กวันหมดอายุตั๋วหนัง 21 วัน และ 1 วัน
+  const cinemaPermRoleId = '1560731553766707241';
+  const cinemaTempRoleId = '1551006184272560148';
+  if (userStat.cinemaPermUntil && now >= userStat.cinemaPermUntil) {
+    userStat.cinemaPermUntil = 0;
+    if (guild) {
+      try {
+        const member = await guild.members.fetch(userId).catch(() => null);
+        if (member && member.roles.cache.has(cinemaPermRoleId)) {
+          await member.roles.remove(cinemaPermRoleId);
+        }
+      } catch (err) {}
+    }
+  }
+  if (userStat.cinemaTempUntil && now >= userStat.cinemaTempUntil) {
+    userStat.cinemaTempUntil = 0;
+    if (guild) {
+      try {
+        const member = await guild.members.fetch(userId).catch(() => null);
+        if (member && member.roles.cache.has(cinemaTempRoleId)) {
+          await member.roles.remove(cinemaTempRoleId);
+        }
+      } catch (err) {}
     }
   }
 
@@ -72,10 +110,8 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
       .replace('{level}', userStat.level) + boostText;
 
     let targetChannel = null;
-    let guild = null;
 
     if (isVoice) {
-      guild = clientOrMessage;
       if (guild && config.levelConfig.channelId) {
         targetChannel = guild.channels.cache.get(config.levelConfig.channelId);
       }
@@ -84,7 +120,6 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
       }
     } else {
       const messageOrInteraction = clientOrMessage;
-      guild = messageOrInteraction.guild;
       if (config.levelConfig.channelId) {
         targetChannel = guild.channels.cache.get(config.levelConfig.channelId);
       }
@@ -161,11 +196,15 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
   }
 }
 
+// ⏳ Cron Job ทำงานทุกๆ 1 นาที: แจก XP ห้องเสียง + เช็กถอดยศเช่าและตั๋วหนังที่หมดอายุจากฐานข้อมูล Redis
 function startVoiceXpCron(client, serverConfigs, saveConfigs) {
   cron.schedule('* * * * *', async () => {
     const now = Date.now();
     const boostRoleId = '1559992075095773184';
     const artistRoleId = '1560136361015513108';
+    const artistPermRoleId = '1560224726868295740';
+    const cinemaPermRoleId = '1560731553766707241';
+    const cinemaTempRoleId = '1551006184272560148';
 
     for (const guildId in serverConfigs) {
       const config = serverConfigs[guildId];
@@ -192,6 +231,7 @@ function startVoiceXpCron(client, serverConfigs, saveConfigs) {
       for (const userId in config.levels) {
         const userStat = config.levels[userId];
 
+        // 1. ถอดยศ XP Booster เมื่อหมดเวลา
         if (userStat.boostUntil && now >= userStat.boostUntil) {
           userStat.boostUntil = 0;
           try {
@@ -205,16 +245,50 @@ function startVoiceXpCron(client, serverConfigs, saveConfigs) {
           updated = true;
         }
 
+        // 2. ถอดยศ Artist | 3d เมื่อหมดเวลา
         if (userStat.artistUntil && now >= userStat.artistUntil) {
           userStat.artistUntil = 0;
-          userStat.customTheme = '';
           try {
             const member = await guild.members.fetch(userId).catch(() => null);
-            if (member && member.roles.cache.has(artistRoleId)) {
-              await member.roles.remove(artistRoleId);
+            if (member) {
+              if (member.roles.cache.has(artistRoleId)) {
+                await member.roles.remove(artistRoleId);
+              }
+              if (!member.roles.cache.has(artistPermRoleId)) {
+                userStat.customTheme = '';
+                userStat.customWalletTheme = '';
+              }
             }
           } catch (err) {
             console.error('Error cron removing expired artist role:', err);
+          }
+          updated = true;
+        }
+
+        // 3. ถอดยศตั๋วหนัง 21 วัน เมื่อหมดเวลา
+        if (userStat.cinemaPermUntil && now >= userStat.cinemaPermUntil) {
+          userStat.cinemaPermUntil = 0;
+          try {
+            const member = await guild.members.fetch(userId).catch(() => null);
+            if (member && member.roles.cache.has(cinemaPermRoleId)) {
+              await member.roles.remove(cinemaPermRoleId);
+            }
+          } catch (err) {
+            console.error('Error cron removing expired 21-day cinema role:', err);
+          }
+          updated = true;
+        }
+
+        // 4. ถอดยศตั๋วหนัง 1 วัน เมื่อหมดเวลา
+        if (userStat.cinemaTempUntil && now >= userStat.cinemaTempUntil) {
+          userStat.cinemaTempUntil = 0;
+          try {
+            const member = await guild.members.fetch(userId).catch(() => null);
+            if (member && member.roles.cache.has(cinemaTempRoleId)) {
+              await member.roles.remove(cinemaTempRoleId);
+            }
+          } catch (err) {
+            console.error('Error cron removing expired 1-day cinema role:', err);
           }
           updated = true;
         }
