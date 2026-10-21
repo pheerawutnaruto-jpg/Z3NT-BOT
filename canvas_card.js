@@ -17,8 +17,10 @@ async function generateProfileCard(user, userStat, lConfig) {
   let bgUrl = userStat.customTheme || lConfig.statsCardImageUrl;
   if (bgUrl && bgUrl.trim() !== '') {
     try {
-      const bgImage = await loadImage(bgUrl.trim());
-      ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+      const bgImage = await loadImage(bgUrl.trim()).catch(() => null);
+      if (bgImage) {
+        ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+      }
     } catch (e) {
       console.error('Failed to load custom background image:', e);
     }
@@ -33,14 +35,16 @@ async function generateProfileCard(user, userStat, lConfig) {
 
   const avatarUrl = user.displayAvatarURL({ extension: 'png', size: 256 });
   try {
-    const avatar = await loadImage(avatarUrl);
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(110, 140, 65, 0, Math.PI * 2, true);
-    ctx.closePath();
-    ctx.clip();
-    ctx.drawImage(avatar, 45, 75, 130, 130);
-    ctx.restore();
+    const avatar = await loadImage(avatarUrl).catch(() => null);
+    if (avatar) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(110, 140, 65, 0, Math.PI * 2, true);
+      ctx.closePath();
+      ctx.clip();
+      ctx.drawImage(avatar, 45, 75, 130, 130);
+      ctx.restore();
+    }
 
     ctx.strokeStyle = lConfig.embedColor || '#66FFFF';
     ctx.lineWidth = 4;
@@ -103,8 +107,10 @@ async function generateWalletCard(user, userStat) {
   let bgUrl = userStat.customWalletTheme;
   if (bgUrl && bgUrl.trim() !== '') {
     try {
-      const bgImage = await loadImage(bgUrl.trim());
-      ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+      const bgImage = await loadImage(bgUrl.trim()).catch(() => null);
+      if (bgImage) {
+        ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+      }
     } catch (e) {
       console.error('Failed to load wallet background:', e);
     }
@@ -119,14 +125,16 @@ async function generateWalletCard(user, userStat) {
 
   const avatarUrl = user.displayAvatarURL({ extension: 'png', size: 256 });
   try {
-    const avatar = await loadImage(avatarUrl);
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(110, 130, 55, 0, Math.PI * 2, true);
-    ctx.closePath();
-    ctx.clip();
-    ctx.drawImage(avatar, 55, 75, 110, 110);
-    ctx.restore();
+    const avatar = await loadImage(avatarUrl).catch(() => null);
+    if (avatar) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(110, 130, 55, 0, Math.PI * 2, true);
+      ctx.closePath();
+      ctx.clip();
+      ctx.drawImage(avatar, 55, 75, 110, 110);
+      ctx.restore();
+    }
 
     ctx.strokeStyle = '#FFD700';
     ctx.lineWidth = 3;
@@ -164,11 +172,13 @@ async function generateWelcomeCard(member) {
 
   const zenBotBgUrl = 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg';
   try {
-    const zenImage = await loadImage(zenBotBgUrl);
-    ctx.save();
-    ctx.globalAlpha = 0.25;
-    ctx.drawImage(zenImage, canvas.width - 400, 0, 400, canvas.height);
-    ctx.restore();
+    const zenImage = await loadImage(zenBotBgUrl).catch(() => null);
+    if (zenImage) {
+      ctx.save();
+      ctx.globalAlpha = 0.25;
+      ctx.drawImage(zenImage, canvas.width - 400, 0, 400, canvas.height);
+      ctx.restore();
+    }
   } catch (e) {}
 
   ctx.fillStyle = 'rgba(20, 20, 35, 0.85)';
@@ -184,14 +194,16 @@ async function generateWelcomeCard(member) {
 
   const avatarUrl = member.user.displayAvatarURL({ extension: 'png', size: 256 });
   try {
-    const avatar = await loadImage(avatarUrl);
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(130, 160, 75, 0, Math.PI * 2, true);
-    ctx.closePath();
-    ctx.clip();
-    ctx.drawImage(avatar, 55, 85, 150, 150);
-    ctx.restore();
+    const avatar = await loadImage(avatarUrl).catch(() => null);
+    if (avatar) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(130, 160, 75, 0, Math.PI * 2, true);
+      ctx.closePath();
+      ctx.clip();
+      ctx.drawImage(avatar, 55, 85, 150, 150);
+      ctx.restore();
+    }
 
     ctx.strokeStyle = '#66FFFF';
     ctx.lineWidth = 5;
