@@ -213,25 +213,13 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
   const item = IN_GAME_ITEMS.find(i => i.id === itemId);
   if (!item) return true;
 
- // 🔒 ระบบป้องกันคนที่มี Artist ถาวร หรือมี Artist | 3d อยู่แล้ว มาซื้อซ้ำซ้อน
+  // 🔒 ระบบป้องกันคนที่มี Artist ถาวรแล้ว มาซื้อบัตรเช่า Artist | 3d ซ้ำซ้อน
   const artistPermRoleId = '1560224726868295740'; // Artist ถาวร
-  const artist3dRoleId = '1560136361015513108';   // Artist | 3d (3 วัน)
-
   if (item.id === 'role_artist_temp') {
     try {
       const member = await interaction.guild.members.fetch(userId);
       if (member.roles.cache.has(artistPermRoleId)) {
-        await interaction.reply({ 
-          content: '❌ คุณมียศ **Artist ถาวร** อยู่แล้วครับ! ไม่จำเป็นต้องซื้อบัตรเช่า Artist | 3d เพิ่มเติม', 
-          ephemeral: true 
-        });
-        return true;
-      }
-      if (member.roles.cache.has(artist3dRoleId)) {
-        await interaction.reply({ 
-          content: '⚠️ คุณมียศ **Artist | 3d** ใช้งานอยู่แล้วครับ! กรุณารอให้หมดอายุก่อนจึงจะซื้อใหม่ได้', 
-          ephemeral: true 
-        });
+        await interaction.reply({ content: '❌ คุณมียศ **Artist ถาวร** อยู่แล้วครับ! ไม่จำเป็นต้องซื้อบัตรเช่า Artist | 3d เพิ่มเติม', ephemeral: true });
         return true;
       }
     } catch (e) {}
