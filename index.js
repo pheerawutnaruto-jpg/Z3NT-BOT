@@ -455,15 +455,14 @@ client.on('interactionCreate', async interaction => {
     const handledArtistBtn = await handleArtistButton(interaction, serverConfigs);
     if (handledArtistBtn) return;
     
-    const modalButtons = [
+const modalButtons = [
       'edit_voice_amount', 'edit_level_rate', 'edit_level_card', 
       'edit_level_messages', 'set_role_reward', 'delete_role_reward', 
-      'sec_config_time', 'edit_welcome_msg',
+      'sec_config_time', 'edit_welcome_msg', 'test_welcome', // <-- เพิ่ม 'test_welcome' ตรงนี้
       'open_artist_level_card_modal', 'open_artist_wallet_card_modal',
       'cinemabc_edit_info', 'cinemabc_edit_role',
       'autocinema_edit_info', 'autocinema_edit_role'
     ];
-
     if (!modalButtons.includes(id)) {
       await interaction.deferUpdate().catch(() => {});
     }
@@ -543,11 +542,12 @@ client.on('interactionCreate', async interaction => {
       modal.addComponents(new ActionRowBuilder().addComponents(descInput));
       return await interaction.showModal(modal);
     }
+
     if (id === 'test_welcome') {
       if (!config.channelId) {
-        return await interaction.reply({ content: '❌ กรุณาเลือกช่องสำหรับส่งข้อความต้อนรับก่อนกดทดสอบครับ!', ephemeral: true });
+        return await interaction.followUp({ content: '❌ กรุณาเลือกช่องสำหรับส่งข้อความต้อนรับก่อนกดทดสอบครับ!', ephemeral: true });
       }
-      await interaction.reply({ content: `🔄 กำลังส่งการ์ดต้อนรับทดสอบ...`, ephemeral: true });
+      await interaction.followUp({ content: `🔄 กำลังส่งการ์ดต้อนรับทดสอบไปยังห้อง <#${config.channelId}>...`, ephemeral: true });
       try {
         const channel = await interaction.guild.channels.fetch(config.channelId);
         if (channel) {
@@ -562,6 +562,7 @@ client.on('interactionCreate', async interaction => {
         }
       } catch (err) {
         console.error('Test welcome error:', err);
+        await interaction.followUp({ content: '❌ เกิดข้อผิดพลาดในการสร้างหรือส่งการ์ดต้อนรับ กรุณาเช็กสิทธิ์บอทในห้องนั้นครับ', ephemeral: true });
       }
       return;
     }
