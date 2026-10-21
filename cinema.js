@@ -124,7 +124,7 @@ function getCinemaBroadcastDashboard(config) {
 }
 
 // ตัวจัดการปุ่มและการทำงานของ Manual & Box Office Cinema
-async function handleCinemaButton(interaction, serverConfigs, saveConfigs, client) {
+async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
   const id = interaction.customId;
   const guildId = interaction.guildId;
   if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
@@ -132,11 +132,16 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs, clien
 
   const userId = interaction.user.id;
   if (!serverConfigs[guildId].levels[userId]) {
-    serverConfigs[guildId].levels[userId] = { xp: 0, level: 1, orbs: 0, lastDaily: 0, boostUntil: 0, artistUntil: 0, customTheme: '' };
+    serverConfigs[guildId].levels[userId] = { 
+      xp: 0, level: 1, orbs: 0, lastDaily: 0, 
+      boostUntil: 0, artistUntil: 0, cinemaPermUntil: 0, cinemaTempUntil: 0, 
+      customTheme: '' 
+    };
   }
   const userStat = serverConfigs[guildId].levels[userId];
+  const now = Date.now();
 
-  // 🎫 ตั๋ว 21 วัน (350 Coins / 21 วัน)
+  // 🎫 ตั๋ว 21 วัน (350 Coins / 21 วัน) - บันทึกเวลาลง Redis
   if (id === 'cinema_perm_ticket') {
     const permRoleId = '1560731553766707241';
     const tempRoleId = '1551006184272560148';
@@ -156,6 +161,9 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs, clien
 
     try {
       userStat.orbs -= cost;
+      // บันทึกวันหมดอายุ 21 วันลงฐานข้อมูล Redis และล้างเวลาตั๋ว 1 วันเดิมทิ้ง
+      userStat.cinemaPermUntil = now + (21 * 24 * 60 * 60 * 1000);
+      userStat.cinemaTempUntil = 0;
       await saveConfigs(serverConfigs);
       
       // หากผู้ใช้มียศ 1 วันอยู่ ให้ถอดออกแล้วแทนที่ด้วยยศ 21 วันทันที
@@ -164,21 +172,7 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs, clien
       }
       await member.roles.add(permRoleId);
 
-      setTimeout(async () => {
-        try {
-          const guild = await client.guilds.fetch(member.guild.id).catch(() => null);
-          if (guild) {
-            const fetchedMember = await guild.members.fetch(member.id).catch(() => null);
-            if (fetchedMember && fetchedMember.roles.cache.has(permRoleId)) {
-              await fetchedMember.roles.remove(permRoleId);
-            }
-          }
-        } catch (e) {
-          console.error('Error removing 21-day cinema role:', e);
-        }
-      }, 21 * 24 * 60 * 60 * 1000);
-
-      await interaction.reply({ content: `🎉 **ซื้อตั๋วสำเร็จ!** ระบบได้หัก ${cost} Zen Coins (คงเหลือ ${userStat.orbs} Coins) และมอบยศ <@&${permRoleId}> ให้คุณเรียบร้อยแล้ว (ยศนี้จะถอดออกเองใน 21 วัน)`, ephemeral: true });
+      await interaction.reply({ content: `🎉 **ซื้อตั๋วสำเร็จ!** ระบบได้หัก ${cost} Zen Coins (คงเหลือ ${userStat.orbs} Coins) และมอบยศ <@&${permRoleId}> ให้คุณเรียบร้อยแล้ว (ระบบบันทึกเวลา 21 วันลงฐานข้อมูลเรียบร้อย)`, ephemeral: true });
       return true;
     } catch (err) {
       console.error('Error assigning 21-day cinema role:', err);
@@ -187,7 +181,7 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs, clien
     }
   }
 
-  // 🎟️ ตั๋วรายวัน (250 Coins / 1 วัน)
+  // 🎟️ ตั๋วรายวัน (250 Coins / 1 วัน) - บันทึกเวลาลง Redis
   if (id === 'cinema_temp_ticket') {
     const permRoleId = '1560731553766707241';
     const tempRoleId = '1551006184272560148';
@@ -213,24 +207,12 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs, clien
 
     try {
       userStat.orbs -= cost;
+      // บันทึกวันหมดอายุ 1 วันลงฐานข้อมูล Redis
+      userStat.cinemaTempUntil = now + (1 * 24 * 60 * 60 * 1000);
       await saveConfigs(serverConfigs);
       await member.roles.add(tempRoleId);
 
-      setTimeout(async () => {
-        try {
-          const guild = await client.guilds.fetch(member.guild.id).catch(() => null);
-          if (guild) {
-            const fetchedMember = await guild.members.fetch(member.id).catch(() => null);
-            if (fetchedMember && fetchedMember.roles.cache.has(tempRoleId)) {
-              await fetchedMember.roles.remove(tempRoleId);
-            }
-          }
-        } catch (e) {
-          console.error('Error removing temporary cinema role:', e);
-        }
-      }, 1 * 24 * 60 * 60 * 1000);
-
-      await interaction.reply({ content: `🎉 **ซื้อตั๋วสำเร็จ!** ระบบได้หัก ${cost} Zen Coins (คงเหลือ ${userStat.orbs} Coins) และมอบยศให้คุณเรียบร้อยแล้ว (ยศนี้จะถอดออกเองใน 1 วัน)`, ephemeral: true });
+      await interaction.reply({ content: `🎉 **ซื้อตั๋วสำเร็จ!** ระบบได้หัก ${cost} Zen Coins (คงเหลือ ${userStat.orbs} Coins) และมอบยศให้คุณเรียบร้อยแล้ว (ระบบบันทึกเวลา 1 วันลงฐานข้อมูลเรียบร้อย)`, ephemeral: true });
       return true;
     } catch (err) {
       console.error('Error assigning temp cinema role:', err);
