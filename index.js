@@ -349,12 +349,12 @@ client.on('interactionCreate', async interaction => {
     const inviteUrl = 'https://discord.com/oauth2/authorize?client_id=1557999666816098337';
 
     const showcaseMessage = 
-      `## 🤖 **Bot Server**\n` +
-      `Say goodbye to annoying server management! Invite <@${botId}> to your Discord server today.\n` +
-      `> 🌐 **Invite Link:** ${inviteUrl}\n\n` +
-      `⚡ **Quick Command:**\n` +
-      `\`/bot-info\` \`ดูคำสั่งและฟีเจอร์ทั้งหมด\`\n` +
-      `> *Just type \`/level\` set for rank server!*`;
+      `## 🤖 **𝙕𝙀𝙉 𝘽𝙊𝙏 • OFFICIAL SYSTEM**\n` +
+      `🛡️ ปิดจบทุกปัญหาการจัดการเซิร์ฟเวอร์! เชิญ <@${botId}> เข้าสู่ดิสคอร์ดของคุณเพื่อความปลอดภัยและระบบสุดล้ำ\n` +
+      `> 🌐 **ลิงก์เชิญบอท:** ${inviteUrl}\n\n` +
+      `⚡ **คำสั่งด่วน (Quick Commands):**\n` +
+      `\`/bot-info\` \`ดูข้อมูลและฟีเจอร์ทั้งหมดของบอท\`\n` +
+      `> *พิมพ์ \`/level\` เพื่อเริ่มต้นระบบแรงค์ภายในเซิร์ฟเวอร์ทันที!*`;
 
     await interaction.channel.send({ content: showcaseMessage });
     return await interaction.reply({ content: '✅ ส่งป้ายโชว์บอทเรียบร้อยแล้ว!', ephemeral: true });
