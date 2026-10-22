@@ -30,7 +30,7 @@ const {
 } = require('./shop');
 const { setupArtistCommand, handleSetupArtistCommand, handleArtistButton, handleArtistModalSubmit } = require('./artist_card');
 const { setupMediaGuardCommand, handleSetupMediaGuardCommand, handleMediaGuardMessage } = require('./media_guard');
-const { setupOrderTicketCommand, handleSetupOrderTicketCommand, handleOrderTicketSelect, handleOrderPaymentButton, handleCloseTicketButton } = require('./order_ticket');
+const { setupOrderTicketCommand, handleSetupOrderTicketCommand, handleOrderTicketSelect, handleOrderPaymentButton, handleVerifyPaymentButton, handleCloseTicketButton } = require('./order_ticket');
 const { isServerPremium, grantPremiumCommand, handleGrantPremiumCommand } = require('./license');
 const { generateWelcomeCard } = require('./canvas_card');
 const { 
@@ -443,6 +443,10 @@ client.on('interactionCreate', async interaction => {
     const handledPayment = await handleOrderPaymentButton(interaction);
     if (handledPayment) return;
 
+    // 🟢 ดักจับปุ่มยืนยันสลิปแอดมิน
+    const handledVerifyPayment = await handleVerifyPaymentButton(interaction);
+    if (handledVerifyPayment) return;
+
     const handledCloseTicket = await handleCloseTicketButton(interaction);
     if (handledCloseTicket) return;
 
@@ -458,13 +462,13 @@ client.on('interactionCreate', async interaction => {
     const modalButtons = [
       'edit_voice_amount', 'edit_level_rate', 'edit_level_card', 
       'edit_level_messages', 'set_role_reward', 'delete_role_reward', 
-      'sec_config_time', 'edit_welcome_msg', 'test_welcome',
+      'sec_config_time', 'edit_welcome_msg',
       'open_artist_level_card_modal', 'open_artist_wallet_card_modal',
       'cinemabc_edit_info', 'cinemabc_edit_role',
       'autocinema_edit_info', 'autocinema_edit_role'
     ];
 
-    if (!modalButtons.includes(id)) {
+    if (!modalButtons.includes(id) && id !== 'test_welcome') {
       await interaction.deferUpdate().catch(() => {});
     }
 
@@ -547,21 +551,24 @@ client.on('interactionCreate', async interaction => {
       if (!config.channelId) {
         return await interaction.reply({ content: '❌ กรุณาเลือกช่องสำหรับส่งข้อความต้อนรับก่อนกดทดสอบครับ!', ephemeral: true });
       }
-      await interaction.reply({ content: `🔄 กำลังส่งการ์ดต้อนรับทดสอบ...`, ephemeral: true });
+      await interaction.followUp({ content: `🔄 กำลังส่งการ์ดต้อนรับทดสอบ...`, ephemeral: true });
       try {
         const channel = await interaction.guild.channels.fetch(config.channelId);
         if (channel) {
-          const attachment = await generateWelcomeCard(interaction.member);
+          const member = await interaction.guild.members.fetch(interaction.user.id);
+          const attachment = await generateWelcomeCard(member);
           const embedConfig = config.embed || {
             description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!'
           };
           const finalDesc = (embedConfig.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!')
-            .replace('{user}', `${interaction.user}`)
+            .replace('{user}', `${member}`)
             .replace('{server}', interaction.guild.name);
           await channel.send({ content: finalDesc, files: [attachment] });
+          await interaction.editReply({ content: `✅ ส่งการ์ดทดสอบไปที่ห้อง <#${config.channelId}> สำเร็จ!` });
         }
       } catch (err) {
         console.error('Test welcome error:', err);
+        await interaction.editReply({ content: `❌ เกิดข้อผิดพลาดในการทดสอบ: ${err.message}` });
       }
       return;
     }
