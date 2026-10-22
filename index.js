@@ -120,6 +120,7 @@ client.once('ready', async () => {
     new SlashCommandBuilder().setName('set-autorole').setDescription('ตั้งค่าระบบแจกยศอัตโนมัติสำหรับสมาชิกใหม่'),
     new SlashCommandBuilder().setName('set-security').setDescription('เปิดแผงควบคุมระบบป้องกันความปลอดภัยขั้นสูง'),
     new SlashCommandBuilder().setName('bot-info').setDescription('✨ แสดงข้อมูลและหน้าพรีเซนต์แนะนำตัวของ Zen Bot'),
+    new SlashCommandBuilder().setName('send-bot-showcase').setDescription('🤖 ส่งป้ายโชว์บอทพร้อมการ์ดปุ่มเชิญบอท (สำหรับ Admin)'),
     levelCommand,
     leaderboardCommand,
     setupQuestCommand,
@@ -338,6 +339,25 @@ client.on('interactionCreate', async interaction => {
       .setFooter({ text: 'Powered by Zen Bot Technology' });
 
     return await interaction.reply({ embeds: [embed], ephemeral: true });
+  }
+  if (interaction.isChatInputCommand() && interaction.commandName === 'send-bot-showcase') {
+    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+      return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
+    }
+
+    const botId = '1557999666816098337';
+    const inviteUrl = 'https://discord.com/oauth2/authorize?client_id=1557999666816098337';
+
+    const showcaseMessage = 
+      `## 🤖 **Bot Server**\n` +
+      `Say goodbye to annoying server management! Invite <@${botId}> to your Discord server today.\n` +
+      `> 🌐 **Invite Link:** ${inviteUrl}\n\n` +
+      `⚡ **Quick Command:**\n` +
+      `\`/bot-info\` \`ดูคำสั่งและฟีเจอร์ทั้งหมด\`\n` +
+      `> *Just type \`/level\` set for rank server!*`;
+
+    await interaction.channel.send({ content: showcaseMessage });
+    return await interaction.reply({ content: '✅ ส่งป้ายโชว์บอทเรียบร้อยแล้ว!', ephemeral: true });
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'level') {
     return await handleLevelCommand(interaction, serverConfigs);
