@@ -152,6 +152,9 @@ async function handleBoostStatusCommand(interaction, serverConfigs) {
 }
 
 async function handleInGameShopPanel(interaction, serverConfigs) {
+  // ป้องกัน Error Unknown interaction กรณีโหลดข้อมูลช้า
+  await interaction.deferReply({ ephemeral: true }).catch(() => {});
+
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
   const config = serverConfigs[guildId] || {};
@@ -185,7 +188,7 @@ async function handleInGameShopPanel(interaction, serverConfigs) {
     );
   });
 
-  await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
+  await interaction.editReply({ embeds: [embed], components: [row] });
   return true;
 }
 
@@ -196,13 +199,16 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
 
   if (!interaction.customId.startsWith('buy_item_')) return false;
 
+  // ป้องกัน Error Unknown interaction สำหรับปุ่มซื้อสินค้า
+  await interaction.deferReply({ ephemeral: true }).catch(() => {});
+
   const userId = interaction.user.id;
   const now = Date.now();
 
   if (userCooldowns.has(userId)) {
     const expirationTime = userCooldowns.get(userId) + 2000;
     if (now < expirationTime) {
-      await interaction.reply({ content: '⏳ ใจเย็นๆ ครับ! กรุณารอสักครู่ก่อนกดทำรายการถัดไป...', ephemeral: true });
+      await interaction.editReply({ content: '⏳ ใจเย็นๆ ครับ! กรุณารอสักครู่ก่อนกดทำรายการถัดไป...' });
       return true;
     }
   }
@@ -219,7 +225,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
     try {
       const member = await interaction.guild.members.fetch(userId);
       if (member.roles.cache.has(artistPermRoleId)) {
-        await interaction.reply({ content: '❌ คุณมียศ **Artist ถาวร** อยู่แล้วครับ! ไม่จำเป็นต้องซื้อบัตรเช่า Artist | 3d เพิ่มเติม', ephemeral: true });
+        await interaction.editReply({ content: '❌ คุณมียศ **Artist ถาวร** อยู่แล้วครับ! ไม่จำเป็นต้องซื้อบัตรเช่า Artist | 3d เพิ่มเติม' });
         return true;
       }
     } catch (e) {}
@@ -235,12 +241,12 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
   const userCoins = userStat.orbs || 0;
 
   if (item.type === 'role_temp' && userStat.artistUntil && userStat.artistUntil > now) {
-    await interaction.reply({ content: `⚠️ คุณยังมีสิทธิ์ Artist ใช้งานอยู่ (เหลือเวลาอีกประมาณ ${Math.ceil((userStat.artistUntil - now) / (1000 * 60 * 60 * 24))} วัน) ไม่สามารถซื้อซ้ำซ้อนได้ครับ!`, ephemeral: true });
+    await interaction.editReply({ content: `⚠️ คุณยังมีสิทธิ์ Artist ใช้งานอยู่ (เหลือเวลาอีกประมาณ ${Math.ceil((userStat.artistUntil - now) / (1000 * 60 * 60 * 24))} วัน) ไม่สามารถซื้อซ้ำซ้อนได้ครับ!` });
     return true;
   }
 
   if (userCoins < item.price) {
-    await interaction.reply({ content: `❌ Zen Coins ของคุณไม่พอ! (คุณมี ${userCoins} Coins แต่สินค้าราคา ${item.price} Coins)`, ephemeral: true });
+    await interaction.editReply({ content: `❌ Zen Coins ของคุณไม่พอ! (คุณมี ${userCoins} Coins แต่สินค้าราคา ${item.price} Coins)` });
     return true;
   }
 
@@ -258,7 +264,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
     userStat.orbs += roll.reward;
     await saveConfigs(serverConfigs);
 
-    await interaction.reply({ content: `🎁 **ผลการสุ่มกาชาปอง:**\n${roll.text}\n(ยอด Zen Coins ปัจจุบันของคุณ: ${userStat.orbs} Coins)`, ephemeral: true });
+    await interaction.editReply({ content: `🎁 **ผลการสุ่มกาชาปอง:**\n${roll.text}\n(ยอด Zen Coins ปัจจุบันของคุณ: ${userStat.orbs} Coins)` });
     return true;
   } 
   
@@ -273,7 +279,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
       if (role) await member.roles.add(role);
     } catch (err) {}
 
-    await interaction.reply({ content: `⚡ เปิดใช้งานน้ำยาคูณ XP สำเร็จ! คุณได้รับสิทธิ์คูณ XP 2 เท่า นาน 1 ชั่วโมงเต็ม (คงเหลือ ${userStat.orbs} Coins)`, ephemeral: true });
+    await interaction.editReply({ content: `⚡ เปิดใช้งานน้ำยาคูณ XP สำเร็จ! คุณได้รับสิทธิ์คูณ XP 2 เท่า นาน 1 ชั่วโมงเต็ม (คงเหลือ ${userStat.orbs} Coins)` });
     return true;
   } 
   
@@ -288,7 +294,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
       if (role) await member.roles.add(role);
     } catch (err) {}
 
-    await interaction.reply({ content: `🎉 เช่าสำเร็จ! คุณได้รับยศ Artist และสิทธิ์แต่งการ์ดส่วนตัวเป็นเวลา 3 วันเต็ม! (คงเหลือ ${userStat.orbs} Coins)`, ephemeral: true });
+    await interaction.editReply({ content: `🎉 เช่าสำเร็จ! คุณได้รับยศ Artist และสิทธิ์แต่งการ์ดส่วนตัวเป็นเวลา 3 วันเต็ม! (คงเหลือ ${userStat.orbs} Coins)` });
     return true;
   }
 
