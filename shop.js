@@ -4,7 +4,6 @@ const { isServerPremium } = require('./license');
 
 const userCooldowns = new Map();
 
-// รายการสินค้าใน In-Game Shop (กาชาปอง, บัฟ XP, บัตรเช่า Artist)
 const IN_GAME_ITEMS = [
   { 
     id: 'gacha_box', 
@@ -90,10 +89,11 @@ async function handleAddCoinsCommand(interaction, serverConfigs, saveConfigs) {
   }
 
   const userStat = serverConfigs[guildId].levels[userId];
-  userStat.orbs = (userStat.orbs || 0) + amount;
+  userStat.orbs = Math.max(0, (userStat.orbs || 0) + amount);
   await saveConfigs(serverConfigs);
 
-  await interaction.reply({ content: `✅ เติม Zen Coins จำนวน **+${amount} Coins** ให้กับคุณ <@${userId}> สำเร็จแล้ว! (ยอดรวม: ${userStat.orbs} Coins)`, ephemeral: true });
+  const actionText = amount >= 0 ? `เติม Zen Coins จำนวน **+${amount} Coins**` : `หัก Zen Coins จำนวน **${amount} Coins**`;
+  await interaction.reply({ content: `✅ ${actionText} ให้กับคุณ <@${userId}> สำเร็จแล้ว! (ยอดคงเหลือ: ${userStat.orbs} Coins)`, ephemeral: true });
   return true;
 }
 
@@ -152,7 +152,6 @@ async function handleBoostStatusCommand(interaction, serverConfigs) {
 }
 
 async function handleInGameShopPanel(interaction, serverConfigs) {
-  // ป้องกัน Error Unknown interaction กรณีโหลดข้อมูลช้า
   await interaction.deferReply({ ephemeral: true }).catch(() => {});
 
   const guildId = interaction.guildId;
@@ -199,7 +198,6 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
 
   if (!interaction.customId.startsWith('buy_item_')) return false;
 
-  // ป้องกัน Error Unknown interaction สำหรับปุ่มซื้อสินค้า
   await interaction.deferReply({ ephemeral: true }).catch(() => {});
 
   const userId = interaction.user.id;
@@ -219,8 +217,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
   const item = IN_GAME_ITEMS.find(i => i.id === itemId);
   if (!item) return true;
 
-  // 🔒 ระบบป้องกันคนที่มี Artist ถาวรแล้ว มาซื้อบัตรเช่า Artist | 3d ซ้ำซ้อน
-  const artistPermRoleId = '1560224726868295740'; // Artist ถาวร
+  const artistPermRoleId = '1560224726868295740';
   if (item.id === 'role_artist_temp') {
     try {
       const member = await interaction.guild.members.fetch(userId);
