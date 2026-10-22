@@ -5,23 +5,23 @@ const { isServerPremium } = require('./license');
 
 const pendingRoleRewardImages = new Map();
 
-async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConfigs, saveConfigs, isVoice = false) {
-  if (!serverConfigs[guildId]) return;
+async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConfigs, saveConfigs, isVoice = false, shouldSave = true) {
+  if (!serverConfigs[guildId]) return false;
 
   const config = serverConfigs[guildId];
-  if (!config.levelConfig || !config.levelConfig.enabled) return;
+  if (!config.levelConfig || !config.levelConfig.enabled) return false;
 
   if (!config.levels) config.levels = {};
   if (!config.levels[userId]) {
     config.levels[userId] = { 
       xp: 0, level: 1, orbs: 0, lastDaily: 0, 
       boostUntil: 0, artistUntil: 0, cinemaPermUntil: 0, cinemaTempUntil: 0, 
-      customTheme: '' 
+      customTheme: '', customWalletTheme: '' 
     };
   }
 
   const userStat = config.levels[userId];
-  const multiplier = config.levelConfig.xpMultiplier || 100;
+  const multiplier = Math.max(10, config.levelConfig.xpMultiplier || 100);
   const now = Date.now();
   const guild = isVoice ? clientOrMessage : clientOrMessage.guild;
 
@@ -39,7 +39,7 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
         const member = await guild.members.fetch(userId).catch(() => null);
         const boostRoleId = '1559992075095773184';
         if (member && member.roles.cache.has(boostRoleId)) {
-          await member.roles.remove(boostRoleId);
+          await member.roles.remove(boostRoleId).catch(() => {});
         }
       } catch (err) {
         console.error('Error removing expired boost role:', err);
@@ -57,9 +57,8 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
         const member = await guild.members.fetch(userId).catch(() => null);
         if (member) {
           if (member.roles.cache.has(artistRoleId)) {
-            await member.roles.remove(artistRoleId);
+            await member.roles.remove(artistRoleId).catch(() => {});
           }
-          // ถ้าไม่ได้มียศ Artist ถาวรอยู่ ถึงจะล้างพื้นหลังการ์ดที่ตั้งไว้
           if (!member.roles.cache.has(artistPermRoleId)) {
             userStat.customTheme = '';
             userStat.customWalletTheme = '';
@@ -80,7 +79,7 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
       try {
         const member = await guild.members.fetch(userId).catch(() => null);
         if (member && member.roles.cache.has(cinemaPermRoleId)) {
-          await member.roles.remove(cinemaPermRoleId);
+          await member.roles.remove(cinemaPermRoleId).catch(() => {});
         }
       } catch (err) {}
     }
@@ -91,19 +90,24 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
       try {
         const member = await guild.members.fetch(userId).catch(() => null);
         if (member && member.roles.cache.has(cinemaTempRoleId)) {
-          await member.roles.remove(cinemaTempRoleId);
+          await member.roles.remove(cinemaTempRoleId).catch(() => {});
         }
       } catch (err) {}
     }
   }
 
   userStat.xp += finalAmount;
-  const requiredXp = userStat.level * multiplier;
+  let requiredXp = userStat.level * multiplier;
+  let leveledUp = false;
 
-  if (userStat.xp >= requiredXp) {
+  while (userStat.xp >= requiredXp) {
     userStat.xp -= requiredXp;
     userStat.level += 1;
+    leveledUp = true;
+    requiredXp = userStat.level * multiplier;
+  }
 
+  if (leveledUp) {
     let boostText = isBoosted ? ' *(⚡ กำลังใช้งาน XP Booster x2)*' : '';
     const customMsg = (config.levelConfig.levelUpMessage || 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว!')
       .replace('{user}', `<@${userId}>`)
@@ -146,7 +150,7 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
                 }
               }
 
-              await member.roles.add(roleToGive);
+              await member.roles.add(roleToGive).catch(() => {});
               if (targetChannel) {
                 const customRewardMsg = (config.levelConfig.roleRewardMessage || '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!')
                   .replace('{user}', `<@${userId}>`)
@@ -166,7 +170,7 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
                   }
                 }
 
-                targetChannel.send({ embeds: [embed] });
+                await targetChannel.send({ embeds: [embed] }).catch(() => {});
               }
             }
           }
@@ -181,19 +185,21 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
         if (!config.levelConfig.channelId && !isVoice) {
           setTimeout(() => msg.delete().catch(() => {}), 6000);
         }
-      });
+      }).catch(() => {});
     }
   }
 
-  await saveConfigs(serverConfigs);
+  if (shouldSave) {
+    await saveConfigs(serverConfigs);
+  }
 
   if (isBoosted && !isVoice && clientOrMessage.channel) {
-    try {
-      clientOrMessage.channel.send({ content: `⚡ <@${userId}> ได้รับ XP +${finalAmount} [XP Boost x2]` }).then(msg => {
-        setTimeout(() => msg.delete().catch(() => {}), 4000);
-      });
-    } catch (err) {}
+    clientOrMessage.channel.send({ content: `⚡ <@${userId}> ได้รับ XP +${finalAmount} [XP Boost x2]` }).then(msg => {
+      setTimeout(() => msg.delete().catch(() => {}), 4000);
+    }).catch(() => {});
   }
+
+  return true;
 }
 
 // ⏳ Cron Job ทำงานทุกๆ 1 นาที: แจก XP ห้องเสียง + เช็กถอดยศเช่าและตั๋วหนังที่หมดอายุจากฐานข้อมูล Redis
@@ -206,6 +212,8 @@ function startVoiceXpCron(client, serverConfigs, saveConfigs) {
     const cinemaPermRoleId = '1560731553766707241';
     const cinemaTempRoleId = '1551006184272560148';
 
+    let globalUpdated = false;
+
     for (const guildId in serverConfigs) {
       const config = serverConfigs[guildId];
       if (!config || !config.levels) continue;
@@ -213,19 +221,18 @@ function startVoiceXpCron(client, serverConfigs, saveConfigs) {
       const guild = client.guilds.cache.get(guildId);
       if (!guild) continue;
 
-      let updated = false;
-
       const hasPremium = await isServerPremium(guildId, serverConfigs);
       if (hasPremium && config.levelConfig && config.levelConfig.enabled && config.levelConfig.voiceXpEnabled) {
         const xpPerMin = config.levelConfig.voiceXpAmount || 10;
-        guild.channels.cache.forEach(channel => {
-          if (channel.type === ChannelType.GuildVoice) {
-            channel.members.forEach(member => {
-              if (member.user.bot) return;
-              giveXpToUser(guildId, member.user.id, xpPerMin, guild, serverConfigs, saveConfigs, true);
-            });
+        const voiceChannels = guild.channels.cache.filter(c => c.type === ChannelType.GuildVoice);
+        
+        for (const [, channel] of voiceChannels) {
+          for (const [, member] of channel.members) {
+            if (member.user.bot) continue;
+            const changed = await giveXpToUser(guildId, member.user.id, xpPerMin, guild, serverConfigs, saveConfigs, true, false);
+            if (changed) globalUpdated = true;
           }
-        });
+        }
       }
 
       for (const userId in config.levels) {
@@ -237,12 +244,12 @@ function startVoiceXpCron(client, serverConfigs, saveConfigs) {
           try {
             const member = await guild.members.fetch(userId).catch(() => null);
             if (member && member.roles.cache.has(boostRoleId)) {
-              await member.roles.remove(boostRoleId);
+              await member.roles.remove(boostRoleId).catch(() => {});
             }
           } catch (err) {
             console.error('Error cron removing expired boost role:', err);
           }
-          updated = true;
+          globalUpdated = true;
         }
 
         // 2. ถอดยศ Artist | 3d เมื่อหมดเวลา
@@ -252,7 +259,7 @@ function startVoiceXpCron(client, serverConfigs, saveConfigs) {
             const member = await guild.members.fetch(userId).catch(() => null);
             if (member) {
               if (member.roles.cache.has(artistRoleId)) {
-                await member.roles.remove(artistRoleId);
+                await member.roles.remove(artistRoleId).catch(() => {});
               }
               if (!member.roles.cache.has(artistPermRoleId)) {
                 userStat.customTheme = '';
@@ -262,7 +269,7 @@ function startVoiceXpCron(client, serverConfigs, saveConfigs) {
           } catch (err) {
             console.error('Error cron removing expired artist role:', err);
           }
-          updated = true;
+          globalUpdated = true;
         }
 
         // 3. ถอดยศตั๋วหนัง 21 วัน เมื่อหมดเวลา
@@ -271,12 +278,12 @@ function startVoiceXpCron(client, serverConfigs, saveConfigs) {
           try {
             const member = await guild.members.fetch(userId).catch(() => null);
             if (member && member.roles.cache.has(cinemaPermRoleId)) {
-              await member.roles.remove(cinemaPermRoleId);
+              await member.roles.remove(cinemaPermRoleId).catch(() => {});
             }
           } catch (err) {
             console.error('Error cron removing expired 21-day cinema role:', err);
           }
-          updated = true;
+          globalUpdated = true;
         }
 
         // 4. ถอดยศตั๋วหนัง 1 วัน เมื่อหมดเวลา
@@ -285,18 +292,18 @@ function startVoiceXpCron(client, serverConfigs, saveConfigs) {
           try {
             const member = await guild.members.fetch(userId).catch(() => null);
             if (member && member.roles.cache.has(cinemaTempRoleId)) {
-              await member.roles.remove(cinemaTempRoleId);
+              await member.roles.remove(cinemaTempRoleId).catch(() => {});
             }
           } catch (err) {
             console.error('Error cron removing expired 1-day cinema role:', err);
           }
-          updated = true;
+          globalUpdated = true;
         }
       }
+    }
 
-      if (updated) {
-        await saveConfigs(serverConfigs);
-      }
+    if (globalUpdated) {
+      await saveConfigs(serverConfigs);
     }
   }, { timezone: "Asia/Bangkok" });
 }
@@ -324,8 +331,10 @@ function handleLeveling(message, serverConfigs, saveConfigs) {
   const lConfig = serverConfigs[guildId].levelConfig;
   if (!lConfig.enabled) return;
 
-  const earnedXp = Math.floor(Math.random() * (lConfig.maxXp - lConfig.minXp + 1)) + lConfig.minXp;
-  giveXpToUser(guildId, message.author.id, earnedXp, message, serverConfigs, saveConfigs, false);
+  const min = Math.min(lConfig.minXp || 15, lConfig.maxXp || 25);
+  const max = Math.max(lConfig.minXp || 15, lConfig.maxXp || 25);
+  const earnedXp = Math.floor(Math.random() * (max - min + 1)) + min;
+  giveXpToUser(guildId, message.author.id, earnedXp, message, serverConfigs, saveConfigs, false, true);
 }
 
 function handleCommandLeveling(interaction, serverConfigs, saveConfigs) {
@@ -339,7 +348,7 @@ function handleCommandLeveling(interaction, serverConfigs, saveConfigs) {
   if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
 
   const cmdXp = config.levelConfig.cmdXp || 20;
-  giveXpToUser(guildId, interaction.user.id, cmdXp, interaction, serverConfigs, saveConfigs, false);
+  giveXpToUser(guildId, interaction.user.id, cmdXp, interaction, serverConfigs, saveConfigs, false, true);
 }
 
 const levelCommand = new SlashCommandBuilder()
@@ -369,7 +378,7 @@ async function handleLevelCommand(interaction, serverConfigs) {
     return await interaction.editReply({ files: [attachment] });
   } 
   
-  const requiredXp = userStat.level * (lConfig.xpMultiplier || 100);
+  const requiredXp = userStat.level * Math.max(10, lConfig.xpMultiplier || 100);
   const percentage = Math.min(Math.round((userStat.xp / requiredXp) * 10), 10);
   const progressBar = '█'.repeat(percentage) + '░'.repeat(10 - percentage);
 
