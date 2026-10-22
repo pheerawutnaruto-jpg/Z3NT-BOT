@@ -1,3 +1,8 @@
+// ดักจับ Error ระดับสากลเพื่อป้องกันบอทดับ (Crash)
+process.on('unhandledRejection', error => {
+  console.error('Unhandled promise rejection:', error);
+});
+
 const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, RoleSelectMenuBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
 const http = require('http');
 const cron = require('node-cron');
