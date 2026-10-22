@@ -5,7 +5,7 @@ async function generateProfileCard(user, userStat, lConfig) {
   const canvas = createCanvas(930, 280);
   const ctx = canvas.getContext('2d');
 
-  const multiplier = lConfig.xpMultiplier || 100;
+  const multiplier = Math.max(10, lConfig.xpMultiplier || 100);
   const currentXp = userStat.xp || 0;
   const currentLevel = userStat.level || 1;
   const requiredXp = currentLevel * multiplier;
@@ -66,7 +66,7 @@ async function generateProfileCard(user, userStat, lConfig) {
 
   ctx.fillStyle = '#AAAAAA';
   ctx.font = '20px sans-serif';
-  ctx.fillText(`XP: ${currentXp} /${requiredXp}`, canvas.width - 50, 130);
+  ctx.fillText(`XP: ${currentXp} / ${requiredXp}`, canvas.width - 50, 130);
   ctx.textAlign = 'left';
 
   const barX = 210;
