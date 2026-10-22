@@ -14,7 +14,7 @@ async function handleSetupQuestCommand(interaction) {
     .setTitle('🎁 𝙕𝙀𝙉 𝘽𝙊𝙏 • DAILY QUEST')
     .setDescription('กดปุ่มด้านล่างเพื่อสุ่มรับ **Zen Coins** ฟรีประจำวัน (รีเซ็ตทุกๆ 19 ชั่วโมง) อัตราลุ้นโชคแบบ 50/50 ลุ้นรับสูงสุดถึง 100 Zen Coins!')
     .setColor('#66FFFF')
-    .setImage('https://cdn.discordapp.com/attachments/1550576199829430382/1560524247216955432/IMG_7329.jpg?ex=6ad8f5b5&is=6ad7a435&hm=368998fdee4b3a8b5e2a4bb7fe808e4470b24faab8581314d9d7a8f3a43235a8&');
+    .setImage('https://cdn.discordapp.com/attachments/1550576199829430382/1560524247216955432/IMG_7329.jpg');
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -31,7 +31,6 @@ async function handleSetupQuestCommand(interaction) {
 async function handleQuestButton(interaction, serverConfigs, saveConfigs) {
   if (interaction.customId !== 'claim_daily_orb') return false;
 
-  // ป้องกัน Error 10062 (Unknown interaction) กรณีโหลดข้อมูลหรือบันทึก Redis ช้า
   await interaction.deferReply({ ephemeral: true }).catch(() => {});
 
   const guildId = interaction.guildId;
@@ -60,10 +59,8 @@ async function handleQuestButton(interaction, serverConfigs, saveConfigs) {
   const isLuckyHalf = Math.random() < 0.5;
 
   if (isLuckyHalf) {
-    // 50% ครึ่งบน: สุ่มได้ 50 ถึง 100 Coins
     rewardCoins = Math.floor(Math.random() * (100 - 50 + 1)) + 50;
   } else {
-    // 50% ครึ่งล่าง: สุ่มได้น้อยหรือไม่ได้เลย (0 ถึง 20 Coins)
     rewardCoins = Math.floor(Math.random() * 21);
   }
   
