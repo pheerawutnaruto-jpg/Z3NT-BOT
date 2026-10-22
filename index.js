@@ -53,8 +53,7 @@ const {
 const { 
   setupShowcaseCommand, 
   handleSetupShowcaseCommand, 
-  handleShowcaseMessage, 
-  handleShowcaseButton 
+  handleShowcaseMessage 
 } = require('./media_showcase');
 
 const redis = new Redis({
@@ -323,7 +322,7 @@ client.on('interactionCreate', async interaction => {
         '> 📊 **Leveling & Voice XP:** ระบบเก็บเลเวลทั้งแชทและห้องเสียง พร้อมการ์ดโปรไฟล์ Canvas สุดพรีเมียม\n' +
         '> 🎬 **Zen Cinema:** ระบบจัดการรอบฉายหนังอัตโนมัติ (Coming Soon & Now Showing) พร้อมระบบขายตั๋วหักเหรียญ\n' +
         '> 🛒 **Automated Store:** ระบบร้านค้าสกิน/ยศ และระบบห้องออร์เดอร์พร้อมใบเสร็จอัตโนมัติ\n' +
-        '> 🎨 **Artist Showcase:** ระบบห้องโชว์ผลงานพร้อมรีแอคชันและปุ่มให้คะแนนอัตโนมัติ\n' +
+        '> 🎨 **Artist Showcase:** ระบบห้องโชว์ผลงานพร้อมรีแอคชันอัตโนมัติ\n' +
         '> 🎁 **Daily Quest:** เควสต์สุ่มแจก Zen Coins ฟรีทุก 19 ชั่วโมง (แบบ 50/50)\n\n' +
         '💎 สนใจใช้งานระบบพรีเมียมติดต่อผู้พัฒนาบอทได้เลยครับ!'
       )
@@ -425,9 +424,6 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isButton()) {
     const id = interaction.customId;
 
-    const handledShowcaseBtn = await handleShowcaseButton(interaction);
-    if (handledShowcaseBtn) return;
-
     const handledCinemaBtn = await handleCinemaButton(interaction, serverConfigs, saveConfigs, client);
     if (handledCinemaBtn) return;
 
@@ -458,7 +454,7 @@ client.on('interactionCreate', async interaction => {
     const modalButtons = [
       'edit_voice_amount', 'edit_level_rate', 'edit_level_card', 
       'edit_level_messages', 'set_role_reward', 'delete_role_reward', 
-      'sec_config_time', 'edit_welcome_msg',
+      'sec_config_time', 'edit_welcome_msg', 'test_welcome', 
       'open_artist_level_card_modal', 'open_artist_wallet_card_modal',
       'cinemabc_edit_info', 'cinemabc_edit_role',
       'autocinema_edit_info', 'autocinema_edit_role'
@@ -732,7 +728,7 @@ client.on('interactionCreate', async interaction => {
       return await interaction.reply({ content: `📌 กรุณาเลือกยศสำหรับ Level ${targetLevel}:`, components: [row], ephemeral: true });
     }
     if (interaction.customId === 'deleteRoleRewardModal') {
-      const targetLevel = interaction.fields.getTextInputValue('targetLevel').trim();
+      const targetLevel = interaction.fields.getTextInputValue('deleteRoleRewardModal').trim();
       if (!config.levelConfig.roleRewards || !config.levelConfig.roleRewards[targetLevel]) {
         return await interaction.reply({ content: `❌ ไม่พบข้อมูลยศรางวัลสำหรับ Level ${targetLevel} ครับ!`, ephemeral: true });
       }
