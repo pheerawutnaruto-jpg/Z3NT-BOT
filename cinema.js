@@ -1,6 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder } = require('discord.js');
 
-// 1. /cinema-setup (Box Office ถาวร รองรับระบบเหรียญ - มีเฉพาะปุ่ม 1 วัน)
 const setupCinemaCommand = new SlashCommandBuilder()
   .setName('cinema-setup')
   .setDescription('🎬 [CINEMA] ส่งแผงป้าย Box Office จุดจำหน่ายตั๋ว (สำหรับ Admin)')
@@ -50,7 +49,6 @@ async function handleSetupCinemaCommand(interaction) {
   return true;
 }
 
-// 2. /cinema-broadcast (ระบบประกาศ COMING SOON แบบกดส่งเอง)
 const cinemaBroadcastCommand = new SlashCommandBuilder()
   .setName('cinema-broadcast')
   .setDescription('🎥 [CINEMA] แผงควบคุมและส่งประกาศ COMING SOON (สำหรับ Admin)');
@@ -117,7 +115,6 @@ function getCinemaBroadcastDashboard(config) {
   return { embeds: [embed], components: [row1, channelRow] };
 }
 
-// ตัวจัดการปุ่มและการทำงานของ Manual & Box Office Cinema
 async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
   const id = interaction.customId;
   const guildId = interaction.guildId;
@@ -135,7 +132,6 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
   const userStat = serverConfigs[guildId].levels[userId];
   const now = Date.now();
 
-  // 🎫 ตั๋ว 21 วัน (350 Coins / 21 วัน) - บันทึกเวลาลง Redis
   if (id === 'cinema_perm_ticket') {
     await interaction.deferReply({ ephemeral: true }).catch(() => {});
 
@@ -166,7 +162,7 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
       }
       await member.roles.add(permRoleId);
 
-      await interaction.editReply({ content: `🎉 **ซื้อตั๋วสำเร็จ!** ระบบได้หัก ${cost} Zen Coins (คงเหลือ ${userStat.orbs} Coins) และมอบยศ <@&${permRoleId}> ให้คุณเรียบร้อยแล้ว (ระบบบันทึกเวลา 21 วันลงฐานข้อมูลเรียบร้อย)` });
+      await interaction.editReply({ content: `🎉 **ซื้อตั๋วสำเร็จ!** ระบบได้หัก ${cost} Zen Coins (คงเหลือ ${userStat.orbs} Coins) และมอบยศ <@&${permRoleId}> ให้คุณเรียบร้อยแล้ว` });
       return true;
     } catch (err) {
       console.error('Error assigning 21-day cinema role:', err);
@@ -175,7 +171,6 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
     }
   }
 
-  // 🎟️ ตั๋วรายวัน (250 Coins / 1 วัน) - บันทึกเวลาลง Redis
   if (id === 'cinema_temp_ticket') {
     await interaction.deferReply({ ephemeral: true }).catch(() => {});
 
@@ -185,7 +180,7 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
     const cost = 250;
 
     if (member.roles.cache.has(permRoleId)) {
-      await interaction.editReply({ content: `❌ คุณมียศตั๋ว 21 วัน (ถาวร/ระยะยาว) อยู่แล้วครับ! ไม่สามารถซื้อตั๋ว 1 วันทับซ้อนได้จนกว่ายศเดิมจะหมดอายุ` });
+      await interaction.editReply({ content: `❌ คุณมียศตั๋ว 21 วัน (ถาวร/ระยะยาว) อยู่แล้วครับ! ไม่สามารถซื้อตั๋ว 1 วันทับซ้อนได้` });
       return true;
     }
 
@@ -206,7 +201,7 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
       await saveConfigs(serverConfigs);
       await member.roles.add(tempRoleId);
 
-      await interaction.editReply({ content: `🎉 **ซื้อตั๋วสำเร็จ!** ระบบได้หัก ${cost} Zen Coins (คงเหลือ ${userStat.orbs} Coins) และมอบยศให้คุณเรียบร้อยแล้ว (ระบบบันทึกเวลา 1 วันลงฐานข้อมูลเรียบร้อย)` });
+      await interaction.editReply({ content: `🎉 **ซื้อตั๋วสำเร็จ!** ระบบได้หัก ${cost} Zen Coins (คงเหลือ ${userStat.orbs} Coins) และมอบยศให้คุณเรียบร้อยแล้ว` });
       return true;
     } catch (err) {
       console.error('Error assigning temp cinema role:', err);
@@ -272,7 +267,6 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
         .setImage(imageUrl)
         .setFooter({ text: '💡 แนะนำพิเศษ: ซื้อตั๋ว 21 วันคุ้มกว่า รับชมภาพยนตร์ยาวๆ!' });
 
-      // ประกาศ Coming Soon ใช้เฉพาะปุ่ม 21 วัน
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId('cinema_perm_ticket')
@@ -286,18 +280,15 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
         components: [row]
       });
 
-      // ตั้งเวลาลบข้อความประกาศอัตโนมัติใน 4 วัน
       setTimeout(async () => {
         try {
           if (sentMsg && !sentMsg.deleted) {
             await sentMsg.delete().catch(() => {});
           }
-        } catch (e) {
-          console.error('Error deleting broadcast message after 4 days:', e);
-        }
+        } catch (e) {}
       }, 4 * 24 * 60 * 60 * 1000);
 
-      await interaction.editReply({ content: `✅ ส่งประกาศไปยังห้อง <#${config.channelId}> เรียบร้อยแล้ว! (ข้อความจะหายไปเองใน 4 วัน)` });
+      await interaction.editReply({ content: `✅ ส่งประกาศไปยังห้อง <#${config.channelId}> เรียบร้อยแล้ว!` });
       return true;
     } catch (err) {
       console.error('Error sending cinema broadcast:', err);
