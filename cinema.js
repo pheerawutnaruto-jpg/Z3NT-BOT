@@ -137,19 +137,21 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
 
   // 🎫 ตั๋ว 21 วัน (350 Coins / 21 วัน) - บันทึกเวลาลง Redis
   if (id === 'cinema_perm_ticket') {
+    await interaction.deferReply({ ephemeral: true }).catch(() => {});
+
     const permRoleId = '1560731553766707241';
     const tempRoleId = '1551006184272560148';
     const member = interaction.member;
     const cost = 350;
 
     if (member.roles.cache.has(permRoleId)) {
-      await interaction.reply({ content: `❌ คุณมีตั๋ว 21 วันอยู่แล้ว ขอให้สนุกกับการรับชมนะครับ!`, ephemeral: true });
+      await interaction.editReply({ content: `❌ คุณมีตั๋ว 21 วันอยู่แล้ว ขอให้สนุกกับการรับชมนะครับ!` });
       return true;
     }
 
     const userCoins = userStat.orbs || 0;
     if (userCoins < cost) {
-      await interaction.reply({ content: `❌ Zen Coins ของคุณไม่เพียงพอ! ต้องการ ${cost} Coins แต่คุณมี ${userCoins} Coins`, ephemeral: true });
+      await interaction.editReply({ content: `❌ Zen Coins ของคุณไม่เพียงพอ! ต้องการ ${cost} Coins แต่คุณมี ${userCoins} Coins` });
       return true;
     }
 
@@ -164,35 +166,37 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
       }
       await member.roles.add(permRoleId);
 
-      await interaction.reply({ content: `🎉 **ซื้อตั๋วสำเร็จ!** ระบบได้หัก ${cost} Zen Coins (คงเหลือ ${userStat.orbs} Coins) และมอบยศ <@&${permRoleId}> ให้คุณเรียบร้อยแล้ว (ระบบบันทึกเวลา 21 วันลงฐานข้อมูลเรียบร้อย)`, ephemeral: true });
+      await interaction.editReply({ content: `🎉 **ซื้อตั๋วสำเร็จ!** ระบบได้หัก ${cost} Zen Coins (คงเหลือ ${userStat.orbs} Coins) และมอบยศ <@&${permRoleId}> ให้คุณเรียบร้อยแล้ว (ระบบบันทึกเวลา 21 วันลงฐานข้อมูลเรียบร้อย)` });
       return true;
     } catch (err) {
       console.error('Error assigning 21-day cinema role:', err);
-      await interaction.reply({ content: '❌ เกิดข้อผิดพลาดในการมอบยศ กรุณาตรวจสอบสิทธิ์ของบอทครับ', ephemeral: true });
+      await interaction.editReply({ content: '❌ เกิดข้อผิดพลาดในการมอบยศ กรุณาตรวจสอบสิทธิ์ของบอทครับ' });
       return true;
     }
   }
 
   // 🎟️ ตั๋วรายวัน (250 Coins / 1 วัน) - บันทึกเวลาลง Redis
   if (id === 'cinema_temp_ticket') {
+    await interaction.deferReply({ ephemeral: true }).catch(() => {});
+
     const permRoleId = '1560731553766707241';
     const tempRoleId = '1551006184272560148';
     const member = interaction.member;
     const cost = 250;
 
     if (member.roles.cache.has(permRoleId)) {
-      await interaction.reply({ content: `❌ คุณมียศตั๋ว 21 วัน (ถาวร/ระยะยาว) อยู่แล้วครับ! ไม่สามารถซื้อตั๋ว 1 วันทับซ้อนได้จนกว่ายศเดิมจะหมดอายุ`, ephemeral: true });
+      await interaction.editReply({ content: `❌ คุณมียศตั๋ว 21 วัน (ถาวร/ระยะยาว) อยู่แล้วครับ! ไม่สามารถซื้อตั๋ว 1 วันทับซ้อนได้จนกว่ายศเดิมจะหมดอายุ` });
       return true;
     }
 
     if (member.roles.cache.has(tempRoleId)) {
-      await interaction.reply({ content: `❌ คุณมีตั๋ว 1 วันอยู่แล้ว ขอให้สนุกกับการรับชมนะครับ!`, ephemeral: true });
+      await interaction.editReply({ content: `❌ คุณมีตั๋ว 1 วันอยู่แล้ว ขอให้สนุกกับการรับชมนะครับ!` });
       return true;
     }
 
     const userCoins = userStat.orbs || 0;
     if (userCoins < cost) {
-      await interaction.reply({ content: `❌ Zen Coins ของคุณไม่เพียงพอ! ต้องการ ${cost} Coins แต่คุณมี ${userCoins} Coins`, ephemeral: true });
+      await interaction.editReply({ content: `❌ Zen Coins ของคุณไม่เพียงพอ! ต้องการ ${cost} Coins แต่คุณมี ${userCoins} Coins` });
       return true;
     }
 
@@ -202,11 +206,11 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
       await saveConfigs(serverConfigs);
       await member.roles.add(tempRoleId);
 
-      await interaction.reply({ content: `🎉 **ซื้อตั๋วสำเร็จ!** ระบบได้หัก ${cost} Zen Coins (คงเหลือ ${userStat.orbs} Coins) และมอบยศให้คุณเรียบร้อยแล้ว (ระบบบันทึกเวลา 1 วันลงฐานข้อมูลเรียบร้อย)`, ephemeral: true });
+      await interaction.editReply({ content: `🎉 **ซื้อตั๋วสำเร็จ!** ระบบได้หัก ${cost} Zen Coins (คงเหลือ ${userStat.orbs} Coins) และมอบยศให้คุณเรียบร้อยแล้ว (ระบบบันทึกเวลา 1 วันลงฐานข้อมูลเรียบร้อย)` });
       return true;
     } catch (err) {
       console.error('Error assigning temp cinema role:', err);
-      await interaction.reply({ content: '❌ เกิดข้อผิดพลาดในการมอบยศ กรุณาตรวจสอบสิทธิ์ของบอทครับ', ephemeral: true });
+      await interaction.editReply({ content: '❌ เกิดข้อผิดพลาดในการมอบยศ กรุณาตรวจสอบสิทธิ์ของบอทครับ' });
       return true;
     }
   }
@@ -224,7 +228,7 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
       new ActionRowBuilder().addComponents(dateInput),
       new ActionRowBuilder().addComponents(imageInput)
     );
-    await interaction.showModal(modal);
+    await interaction.showModal(modal).catch(() => {});
     return true;
   }
 
@@ -233,21 +237,23 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
     const modal = new ModalBuilder().setCustomId('cinemaBcRoleModal').setTitle('เปลี่ยนยศประกาศ COMING SOON');
     const roleInput = new TextInputBuilder().setCustomId('roleIdInput').setLabel('ระบุ Role ID ที่ต้องการแท็ก').setStyle(TextInputStyle.Short).setValue(config.roleId || '1551183125076508713').setRequired(true);
     modal.addComponents(new ActionRowBuilder().addComponents(roleInput));
-    await interaction.showModal(modal);
+    await interaction.showModal(modal).catch(() => {});
     return true;
   }
 
   if (id === 'cinemabc_test_send') {
+    await interaction.deferReply({ ephemeral: true }).catch(() => {});
+
     const config = serverConfigs[guildId].cinemaBroadcast;
     if (!config || !config.channelId) {
-      await interaction.reply({ content: '❌ กรุณาเลือกห้องส่งประกาศ COMING SOON จากเมนูด้านล่างแผงควบคุมก่อนกดส่งครับ!', ephemeral: true });
+      await interaction.editReply({ content: '❌ กรุณาเลือกห้องส่งประกาศ COMING SOON จากเมนูด้านล่างแผงควบคุมก่อนกดส่งครับ!' });
       return true;
     }
 
     try {
       const channel = await interaction.guild.channels.fetch(config.channelId).catch(() => null);
       if (!channel || !channel.isTextBased()) {
-        await interaction.reply({ content: '❌ ไม่พบห้องที่เลือก กรุณาเลือกห้องใหม่อีกครั้งครับ', ephemeral: true });
+        await interaction.editReply({ content: '❌ ไม่พบห้องที่เลือก กรุณาเลือกห้องใหม่อีกครั้งครับ' });
         return true;
       }
 
@@ -291,11 +297,11 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
         }
       }, 4 * 24 * 60 * 60 * 1000);
 
-      await interaction.reply({ content: `✅ ส่งประกาศไปยังห้อง <#${config.channelId}> เรียบร้อยแล้ว! (ข้อความจะหายไปเองใน 4 วัน)`, ephemeral: true });
+      await interaction.editReply({ content: `✅ ส่งประกาศไปยังห้อง <#${config.channelId}> เรียบร้อยแล้ว! (ข้อความจะหายไปเองใน 4 วัน)` });
       return true;
     } catch (err) {
       console.error('Error sending cinema broadcast:', err);
-      await interaction.reply({ content: '❌ เกิดข้อผิดพลาดในการส่งประกาศ กรุณาตรวจสอบสิทธิ์ของบอทครับ', ephemeral: true });
+      await interaction.editReply({ content: '❌ เกิดข้อผิดพลาดในการส่งประกาศ กรุณาตรวจสอบสิทธิ์ของบอทครับ' });
       return true;
     }
   }
@@ -308,6 +314,8 @@ async function handleCinemaSelect(interaction, serverConfigs, saveConfigs) {
   if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
 
   if (interaction.customId === 'cinemabc_select_channel') {
+    await interaction.deferUpdate().catch(() => {});
+
     const channelId = interaction.values[0];
     if (!serverConfigs[guildId].cinemaBroadcast) {
       serverConfigs[guildId].cinemaBroadcast = {
@@ -320,7 +328,7 @@ async function handleCinemaSelect(interaction, serverConfigs, saveConfigs) {
     serverConfigs[guildId].cinemaBroadcast.channelId = channelId;
     await saveConfigs(serverConfigs);
 
-    await interaction.update(getCinemaBroadcastDashboard(serverConfigs[guildId].cinemaBroadcast));
+    await interaction.editReply(getCinemaBroadcastDashboard(serverConfigs[guildId].cinemaBroadcast)).catch(() => {});
     return true;
   }
 
@@ -332,6 +340,8 @@ async function handleCinemaModal(interaction, serverConfigs, saveConfigs) {
   if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
 
   if (interaction.customId === 'cinemaBcInfoModal') {
+    await interaction.deferReply({ ephemeral: true }).catch(() => {});
+
     if (!serverConfigs[guildId].cinemaBroadcast) serverConfigs[guildId].cinemaBroadcast = {};
     const config = serverConfigs[guildId].cinemaBroadcast;
 
@@ -341,17 +351,19 @@ async function handleCinemaModal(interaction, serverConfigs, saveConfigs) {
     if (imgVal) config.imageUrl = imgVal;
 
     await saveConfigs(serverConfigs);
-    await interaction.reply({ content: '✅ บันทึกข้อมูลประกาศ COMING SOON เรียบร้อยแล้ว!', ephemeral: true });
+    await interaction.editReply({ content: '✅ บันทึกข้อมูลประกาศ COMING SOON เรียบร้อยแล้ว!' });
     return true;
   }
 
   if (interaction.customId === 'cinemaBcRoleModal') {
+    await interaction.deferReply({ ephemeral: true }).catch(() => {});
+
     if (!serverConfigs[guildId].cinemaBroadcast) serverConfigs[guildId].cinemaBroadcast = {};
     const config = serverConfigs[guildId].cinemaBroadcast;
 
     config.roleId = interaction.fields.getTextInputValue('roleIdInput').trim();
     await saveConfigs(serverConfigs);
-    await interaction.reply({ content: `✅ เปลี่ยนยศประกาศ COMING SOON เป็น <@&${config.roleId}> เรียบร้อยแล้ว!`, ephemeral: true });
+    await interaction.editReply({ content: `✅ เปลี่ยนยศประกาศ COMING SOON เป็น <@&${config.roleId}> เรียบร้อยแล้ว!` });
     return true;
   }
 
