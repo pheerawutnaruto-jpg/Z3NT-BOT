@@ -53,7 +53,7 @@ function handleMediaGuardMessage(message, serverConfigs) {
     return false;
   }
 
-  if (message.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
+  if (message.member && message.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
     return false;
   }
 
@@ -68,7 +68,7 @@ function handleMediaGuardMessage(message, serverConfigs) {
       content: `⚠️ <@${message.author.id}> ห้องนี้อนุญาตให้ส่ง **เฉพาะรูปภาพ ผลงาน หรือลิงก์มีเดียเท่านั้น** ครับ! (ข้อความตัวอักษรธรรมดาจะถูกลบ)` 
     }).then(msg => {
       setTimeout(() => msg.delete().catch(() => {}), 5000);
-    });
+    }).catch(() => {});
 
     return true;
   }
