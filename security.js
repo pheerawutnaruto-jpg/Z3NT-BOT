@@ -7,7 +7,6 @@ function getSecurityDashboardContent(config) {
   const spamStatus = sec.antiSpam ? '✅ เปิด' : '❌ ปิด';
   const beastStatus = sec.antiMrBeast ? '✅ เปิด' : '❌ ปิด';
 
-  // รองรับกรณีค่าเก่าในฐานข้อมูลเป็น 3000 ให้แสดงผลอย่างถูกต้อง
   const timeoutSecDisplay = sec.timeoutSeconds >= 1000 ? Math.floor(sec.timeoutSeconds / 1000) : (sec.timeoutSeconds || 60);
 
   const formatActions = (act) => {
@@ -108,7 +107,6 @@ async function handleSecurityMessage(message, config, spamTracker) {
 
   const content = message.content;
   const rawTimeout = sec.timeoutSeconds || 60;
-  // แปลงวินาทีเป็นมิลลิวินาที (หากค่าเดิมในระบบ >= 1000 ให้ถือว่าเป็น ms อยู่แล้วเพื่อป้องกันบั๊กข้อมูลเก่า)
   const timeoutMs = rawTimeout >= 1000 ? rawTimeout : rawTimeout * 1000;
 
   // 1. ตรวจสอบ Anti-Link
@@ -120,24 +118,24 @@ async function handleSecurityMessage(message, config, spamTracker) {
       await applyPunishment(message.member, sec.actions?.invite, timeoutMs, 'Anti-Link Protection');
       message.channel.send({ content: `⚠️ <@${message.author.id}> ห้ามส่งลิงก์ในห้องนี้ครับ!` }).then(msg => {
         setTimeout(() => msg.delete().catch(() => {}), 4000);
-      });
+      }).catch(() => {});
       return true;
     }
   }
 
-  // 2. ตรวจสอบ Anti-MrBeast / บอทสแปมข้อความแจกเงินหลอกลวง
+  // 2. ตรวจสอบ Anti-MrBeast
   if (sec.antiMrBeast) {
     const beastKeywords = ['mrbeast', 'giveaway free nitro', 'claim free nitro', 'steam gift card free'];
     const lowerContent = content.toLowerCase();
     if (beastKeywords.some(keyword => lowerContent.includes(keyword))) {
       await message.delete().catch(() => {});
       await applyPunishment(message.member, sec.actions?.mrbeast || { timeout: true }, timeoutMs, 'Anti-MrBeast Auto-Punish');
-      message.channel.send({ content: `🚨 ตรวจพบบอทสแปมหลอกลวง (<@${message.author.id}>) ทำการลบข้อความและลงโทษเรียบร้อย!` });
+      await message.channel.send({ content: `🚨 ตรวจพบบอทสแปมหลอกลวง (<@${message.author.id}>) ทำการลบข้อความและลงโทษเรียบร้อย!` }).catch(() => {});
       return true;
     }
   }
 
-  // 3. ตรวจสอบ Anti-Spam (พิมพ์รัวเกินกำหนด)
+  // 3. ตรวจสอบ Anti-Spam
   if (sec.antiSpam) {
     const userId = message.author.id;
     const now = Date.now();
@@ -157,7 +155,7 @@ async function handleSecurityMessage(message, config, spamTracker) {
       await applyPunishment(message.member, sec.actions?.spam || { timeout: true }, timeoutMs, 'Anti-Spam Auto-Punish');
       message.channel.send({ content: `⚠️ <@${userId}> คุณพิมพ์ข้อความเร็วเกินไป (สแปม) จึงถูกลงโทษตามกฎของเซิร์ฟเวอร์!` }).then(msg => {
         setTimeout(() => msg.delete().catch(() => {}), 5000);
-      });
+      }).catch(() => {});
       return true;
     }
   }
