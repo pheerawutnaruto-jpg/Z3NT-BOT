@@ -105,6 +105,7 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
   const selectedValue = interaction.values[0];
 
   if (selectedValue === 'clear_selection') {
+    await interaction.deferUpdate().catch(() => {});
     const embed = new EmbedBuilder()
       .setTitle('<a:emoji_93:1560403772025344101> 𝙕𝙀𝙉 𝘽𝙊𝙏 • SELECT STORE')
       .setDescription('ศูนย์รวมการสั่งซื้อยศถาวรและแพ็กเกจพิเศษ สะดวก และเป็นส่วนตัว\n\n📌 **วิธีใช้งาน:** เลือกรายการสินค้าที่ต้องการจากกล่องตัวเลือกด้านล่างได้ทันที')
@@ -123,7 +124,7 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
       ]);
 
     const row = new ActionRowBuilder().addComponents(selectMenu);
-    await interaction.update({ embeds: [embed], components: [row] });
+    await interaction.editReply({ embeds: [embed], components: [row] }).catch(() => {});
     return true;
   }
 
@@ -141,13 +142,16 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
     return true;
   }
 
+  // ป้องกัน Error Unknown interaction ขณะสร้างห้องออร์เดอร์
+  await interaction.deferReply({ ephemeral: true }).catch(() => {});
+
   const loadingEmbed = new EmbedBuilder()
     .setTitle('⏳ กำลังเตรียมช่องทางส่วนตัวของคุณ...')
     .setDescription('ระบบกำลังสร้างห้องออร์เดอร์เฉพาะกิจ กรุณารอสักครู่ครับ')
     .setImage(loadingGif)
     .setColor('#00FFFF');
 
-  await interaction.reply({ embeds: [loadingEmbed], ephemeral: true });
+  await interaction.editReply({ embeds: [loadingEmbed] });
 
   try {
     const ticketChannel = await guild.channels.create({
@@ -209,6 +213,8 @@ async function handleOrderPaymentButton(interaction) {
 
   // 1. ปุ่มแสดง QR Code PromptPay
   if (customId.startsWith('pay_promptpay_')) {
+    await interaction.deferUpdate().catch(() => {});
+
     const parts = customId.replace('pay_promptpay_', '').split('_');
     const customerId = parts.pop();
     const selectedValue = parts.join('_');
@@ -242,7 +248,7 @@ async function handleOrderPaymentButton(interaction) {
         .setStyle(ButtonStyle.Danger)
     );
 
-    await interaction.update({ embeds: [embed], components: [actionRow] });
+    await interaction.editReply({ embeds: [embed], components: [actionRow] });
     return true;
   }
 
@@ -253,13 +259,13 @@ async function handleOrderPaymentButton(interaction) {
       return true;
     }
 
+    await interaction.deferUpdate().catch(() => {});
+
     const parts = customId.replace('approve_order_', '').split('_');
     const customerId = parts.pop();
     const selectedValue = parts.join('_');
     const product = ORDER_PRODUCTS[selectedValue];
     if (!product) return false;
-
-    await interaction.deferUpdate();
 
     const guild = interaction.guild;
     const customerMember = await guild.members.fetch(customerId).catch(() => null);
