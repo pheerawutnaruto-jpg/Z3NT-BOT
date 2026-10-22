@@ -28,7 +28,7 @@ async function handleSetupArtistCommand(interaction) {
   );
 
   await interaction.channel.send({ embeds: [embed], components: [row] });
-  await interaction.reply({ content: '✅ ส่งแผงปุ่มตั้งค่าการ์ด Artist ไปยังห้องนี้สำเร็จแล้ว!', ephemeral: true });
+  await interaction.reply({ content: '✅ ส่งแผงป้ายตั้งค่าการ์ด Artist ไปยังห้องนี้สำเร็จแล้ว!', ephemeral: true });
   return true;
 }
 
@@ -71,19 +71,27 @@ async function handleArtistButton(interaction, serverConfigs) {
     .setRequired(true);
 
   modal.addComponents(new ActionRowBuilder().addComponents(imageUrlInput));
-  await interaction.showModal(modal);
+  
+  // ป้องกัน Error กรณี interaction หมดเวลาก่อนเด้ง Modal
+  await interaction.showModal(modal).catch((err) => {
+    console.error('Error showing artist modal:', err);
+  });
+  
   return true;
 }
 
 async function handleArtistModalSubmit(interaction, serverConfigs, saveConfigs) {
   if (interaction.customId !== 'artistLevelCardModal' && interaction.customId !== 'artistWalletCardModal') return false;
 
+  // ป้องกัน Error Unknown interaction ขณะบันทึกข้อมูลลง Redis
+  await interaction.deferReply({ ephemeral: true }).catch(() => {});
+
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
   const imageUrl = interaction.fields.getTextInputValue('cardImageUrl').trim();
 
   if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
-    await interaction.reply({ content: '❌ ลิงก์ไม่ถูกต้อง! กรุณาระบุลิงก์รูปภาพที่ขึ้นต้นด้วย http:// หรือ https://', ephemeral: true });
+    await interaction.editReply({ content: '❌ ลิงก์ไม่ถูกต้อง! กรุณาระบุลิงก์รูปภาพที่ขึ้นต้นด้วย http:// หรือ https://' });
     return true;
   }
 
@@ -101,7 +109,7 @@ async function handleArtistModalSubmit(interaction, serverConfigs, saveConfigs) 
   }
   await saveConfigs(serverConfigs);
 
-  await interaction.reply({ content: `✅ บันทึกรูปภาพพื้นหลังการ์ดสำเร็จ! ลองพิมพ์ \`${isWallet ? '/coins' : '/level'}\` ดูการเปลี่ยนแปลงได้เลย`, ephemeral: true });
+  await interaction.editReply({ content: `✅ บันทึกรูปภาพพื้นหลังการ์ดสำเร็จ! ลองพิมพ์ \`${isWallet ? '/coins' : '/level'}\` ดูการเปลี่ยนแปลงได้เลย` });
   return true;
 }
 
