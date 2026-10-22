@@ -191,6 +191,7 @@ function setupCronJob(guildId, timeStr, channelId) {
 
 client.on('messageCreate', async message => {
   const guildId = message.guild?.id;
+  if (!guildId) return;
   const config = serverConfigs[guildId];
 
   const hasPremium = await isServerPremium(guildId, serverConfigs);
@@ -459,7 +460,7 @@ client.on('interactionCreate', async interaction => {
     const modalButtons = [
       'edit_voice_amount', 'edit_level_rate', 'edit_level_card', 
       'edit_level_messages', 'set_role_reward', 'delete_role_reward', 
-      'sec_config_time', 'edit_welcome_msg', 'test_welcome', 
+      'sec_config_time', 'edit_welcome_msg', 'test_welcome',
       'open_artist_level_card_modal', 'open_artist_wallet_card_modal',
       'cinemabc_edit_info', 'cinemabc_edit_role',
       'autocinema_edit_info', 'autocinema_edit_role'
@@ -539,7 +540,7 @@ client.on('interactionCreate', async interaction => {
         .setCustomId('welcomeDesc')
         .setLabel('ข้อความต้อนรับ (ใช้ {user} และ {server} ได้)')
         .setStyle(TextInputStyle.Paragraph)
-        .setValue(config.embed?.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢-ber!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!')
+        .setValue(config.embed?.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!')
         .setRequired(true);
       modal.addComponents(new ActionRowBuilder().addComponents(descInput));
       return await interaction.showModal(modal);
@@ -688,22 +689,30 @@ client.on('interactionCreate', async interaction => {
       return await interaction.reply({ content: '✅ บันทึกข้อความต้อนรับเรียบร้อยแล้ว!', ephemeral: true });
     }
     if (interaction.customId === 'secTimeModal') {
-      config.security.spamCount = parseInt(interaction.fields.getTextInputValue('spamCount')) || 3;
-      config.security.spamSeconds = parseInt(interaction.fields.getTextInputValue('spamSec')) || 6;
-      config.security.timeoutSeconds = parseInt(interaction.fields.getTextInputValue('timeoutSec')) || 60;
+      config.security.spamCount = Math.max(1, parseInt(interaction.fields.getTextInputValue('spamCount')) || 3);
+      config.security.spamSeconds = Math.max(1, parseInt(interaction.fields.getTextInputValue('spamSec')) || 6);
+      config.security.timeoutSeconds = Math.max(1, parseInt(interaction.fields.getTextInputValue('timeoutSec')) || 60);
       await saveConfigs(serverConfigs);
       return await interaction.reply({ content: '✅ บันทึกค่าเวลาความปลอดภัยเรียบร้อยแล้ว!', ephemeral: true });
     }
     if (interaction.customId === 'voiceAmountModal') {
-      config.levelConfig.voiceXpAmount = parseInt(interaction.fields.getTextInputValue('voiceXp')) || 10;
+      config.levelConfig.voiceXpAmount = Math.max(1, parseInt(interaction.fields.getTextInputValue('voiceXp')) || 10);
       await saveConfigs(serverConfigs);
       return await interaction.reply({ content: '✅ บันทึกจำนวน XP ห้องเสียงเรียบร้อยแล้ว!', ephemeral: true });
     }
     if (interaction.customId === 'levelRateModal') {
-      config.levelConfig.minXp = parseInt(interaction.fields.getTextInputValue('minXp')) || 15;
-      config.levelConfig.maxXp = parseInt(interaction.fields.getTextInputValue('maxXp')) || 25;
-      config.levelConfig.cmdXp = parseInt(interaction.fields.getTextInputValue('cmdXp')) || 20;
-      config.levelConfig.xpMultiplier = parseInt(interaction.fields.getTextInputValue('multiplier')) || 100;
+      let minVal = Math.max(1, parseInt(interaction.fields.getTextInputValue('minXp')) || 15);
+      let maxVal = Math.max(1, parseInt(interaction.fields.getTextInputValue('maxXp')) || 25);
+      if (minVal > maxVal) {
+        [minVal, maxVal] = [maxVal, minVal];
+      }
+      const cmdVal = Math.max(0, parseInt(interaction.fields.getTextInputValue('cmdXp')) || 20);
+      const multVal = Math.max(10, parseInt(interaction.fields.getTextInputValue('multiplier')) || 100);
+
+      config.levelConfig.minXp = minVal;
+      config.levelConfig.maxXp = maxVal;
+      config.levelConfig.cmdXp = cmdVal;
+      config.levelConfig.xpMultiplier = multVal;
       await saveConfigs(serverConfigs);
       return await interaction.reply({ content: '✅ บันทึกเรต XP เรียบร้อยแล้ว!', ephemeral: true });
     }
@@ -724,9 +733,11 @@ client.on('interactionCreate', async interaction => {
       return await interaction.reply({ content: '✅ บันทึกข้อความเรียบร้อยแล้ว!', ephemeral: true });
     }
     if (interaction.customId === 'roleRewardModal') {
-      const targetLevel = interaction.fields.getTextInputValue('targetLevel');
+      const targetLevel = interaction.fields.getTextInputValue('targetLevel').trim();
       const rewardImage = interaction.fields.getTextInputValue('rewardImage') || '';
-      if (isNaN(targetLevel)) return await interaction.reply({ content: '❌ กรุณากรอกเป็นตัวเลขเลเวลที่ถูกต้อง!', ephemeral: true });
+      if (isNaN(targetLevel) || parseInt(targetLevel) < 1) {
+        return await interaction.reply({ content: '❌ กรุณากรอกเป็นตัวเลขเลเวลที่ถูกต้อง (ตั้งแต่ 1 ขึ้นไป)!', ephemeral: true });
+      }
       pendingRoleRewardImages.set(`${interaction.user.id}_${targetLevel}`, rewardImage);
       const roleSelectMenu = new RoleSelectMenuBuilder().setCustomId(`select_reward_role_${targetLevel}`).setPlaceholder(`👑 เลือกยศ Level ${targetLevel}`);
       const row = new ActionRowBuilder().addComponents(roleSelectMenu);
