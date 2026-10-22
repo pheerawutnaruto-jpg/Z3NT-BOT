@@ -4,7 +4,6 @@ const setupOrderTicketCommand = new SlashCommandBuilder()
   .setName('setup-order-ticket')
   .setDescription('💎 [PREMIUM] ส่งแผงร้านค้าแบบมีเมนูกดเลือกสินค้าและสร้างห้องออร์เดอร์ (สำหรับ Admin)');
 
-// ข้อมูลสินค้าและ Role ID สำหรับมอบยศอัตโนมัติเมื่อแอดมินกดยืนยัน
 const ORDER_PRODUCTS = {
   product_bot_premium: { name: 'BOT PREMIUM (รายเดือน)', price: '฿399.00', roleId: null },
   product_artist_role: { name: 'ยศ Artist ถาวร', price: '฿69.00', roleId: '1560224726868295740' },
@@ -28,36 +27,11 @@ async function handleSetupOrderTicketCommand(interaction) {
     .setCustomId('select_product_order')
     .setPlaceholder('เลือกสินค้าที่ต้องการสั่งซื้อ')
     .addOptions([
-      {
-        label: 'BOT PREMIUM (รายเดือน)',
-        description: 'สต็อกไม่จำกัด • ฿399.00 / 1 เดือน • ยศ: Bot Premium',
-        value: 'product_bot_premium',
-        emoji: '💎'
-      },
-      {
-        label: 'ยศ Artist ถาวร',
-        description: 'สต็อกไม่จำกัด • ฿69.00 / ถาวร • สิทธิ์แต่งการ์ดส่วนตัว',
-        value: 'product_artist_role',
-        emoji: '🎨'
-      },
-      {
-        label: 'ยศพิเศษ สายชิลล์ ถาวร',
-        description: 'สต็อกไม่จำกัด • ฿19.00 / ถาวร • ยศโปรไฟล์สุดชิลล์',
-        value: 'product_chilling_role',
-        emoji: '☕'
-      },
-      {
-        label: 'ยศพิเศษ คนนอนดึก ถาวร',
-        description: 'สต็อกไม่จำกัด • ฿9.00 / ถาวร • ยศโปรไฟล์สายโต้รุ่ง',
-        value: 'product_nightowl_role',
-        emoji: '🌙'
-      },
-      {
-        label: 'ล้างตัวเลือก',
-        description: 'เคลียร์ค่าตัวเลือกให้กลับมาเป็นค่าเริ่มต้น',
-        value: 'clear_selection',
-        emoji: '❌'
-      }
+      { label: 'BOT PREMIUM (รายเดือน)', description: 'สต็อกไม่จำกัด • ฿399.00 / 1 เดือน • ยศ: Bot Premium', value: 'product_bot_premium', emoji: '💎' },
+      { label: 'ยศ Artist ถาวร', description: 'สต็อกไม่จำกัด • ฿69.00 / ถาวร • สิทธิ์แต่งการ์ดส่วนตัว', value: 'product_artist_role', emoji: '🎨' },
+      { label: 'ยศพิเศษ สายชิลล์ ถาวร', description: 'สต็อกไม่จำกัด • ฿19.00 / ถาวร • ยศโปรไฟล์สุดชิลล์', value: 'product_chilling_role', emoji: '☕' },
+      { label: 'ยศพิเศษ คนนอนดึก ถาวร', description: 'สต็อกไม่จำกัด • ฿9.00 / ถาวร • ยศโปรไฟล์สายโต้รุ่ง', value: 'product_nightowl_role', emoji: '🌙' },
+      { label: 'ล้างตัวเลือก', description: 'เคลียร์ค่าตัวเลือกให้กลับมาเป็นค่าเริ่มต้น', value: 'clear_selection', emoji: '❌' }
     ]);
 
   const row = new ActionRowBuilder().addComponents(selectMenu);
@@ -67,7 +41,6 @@ async function handleSetupOrderTicketCommand(interaction) {
   return true;
 }
 
-// 🧾 ฟังก์ชันส่งใบเสร็จรับเงิน (Order Receipt)
 async function sendOrderReceipt(channel, customerUser, adminUser, product, paymentMethod = 'PromptPay QR (Verified)') {
   const statusText = product.roleId 
     ? `✅ จัดส่งสำเร็จ (มอบยศ <@&${product.roleId}> แล้ว)` 
@@ -89,14 +62,11 @@ async function sendOrderReceipt(channel, customerUser, adminUser, product, payme
     .setTimestamp()
     .setFooter({ text: 'Zen Bot Secure Transaction', iconURL: customerUser.displayAvatarURL() });
 
-  await channel.send({ embeds: [receiptEmbed] });
+  await channel.send({ embeds: [receiptEmbed] }).catch(() => {});
 
-  // ส่งใบเสร็จเข้า DM ของลูกค้าเพื่อเก็บเป็นหลักฐานส่วนตัว
   try {
     await customerUser.send({ content: `🎉 **รายการสั่งซื้อของคุณได้รับการอนุมัติเรียบร้อยแล้ว!** นี่คือใบเสร็จรับเงินของคุณครับ:`, embeds: [receiptEmbed] });
-  } catch (e) {
-    // กรณีลูกค้าปิด DM ไว้ ระบบจะข้ามไปโดยไม่เกิด Error
-  }
+  } catch (e) {}
 }
 
 async function handleOrderTicketSelect(interaction, serverConfigs) {
@@ -136,13 +106,11 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
   const member = interaction.member;
   const loadingGif = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560407479412588686/IMG_7559.gif';
 
-  // 🔒 ป้องกันคนที่มียศถาวรของสินค้านั้นอยู่แล้ว มาซื้อซ้ำซ้อน
   if (product.roleId && member.roles.cache.has(product.roleId)) {
     await interaction.reply({ content: `❌ คุณมียศ **${product.name}** อยู่แล้วครับ! ไม่สามารถสั่งซื้อซ้ำได้`, ephemeral: true });
     return true;
   }
 
-  // ป้องกัน Error Unknown interaction ขณะสร้างห้องออร์เดอร์
   await interaction.deferReply({ ephemeral: true }).catch(() => {});
 
   const loadingEmbed = new EmbedBuilder()
@@ -154,13 +122,31 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
   await interaction.editReply({ embeds: [loadingEmbed] });
 
   try {
+    const cleanName = user.username.toLowerCase().replace(/[^a-z0-9ก-๙]/g, '').slice(0, 20) || user.id.slice(-4);
+
     const ticketChannel = await guild.channels.create({
-      name: `🛒-order-${user.username}`,
+      name: `🛒-order-${cleanName}`,
       type: ChannelType.GuildText,
       permissionOverwrites: [
         { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
-        { id: user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
-        { id: interaction.client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels] }
+        { 
+          id: user.id, 
+          allow: [
+            PermissionFlagsBits.ViewChannel, 
+            PermissionFlagsBits.SendMessages, 
+            PermissionFlagsBits.ReadMessageHistory,
+            PermissionFlagsBits.AttachFiles,
+            PermissionFlagsBits.EmbedLinks
+          ] 
+        },
+        { 
+          id: interaction.client.user.id, 
+          allow: [
+            PermissionFlagsBits.ViewChannel, 
+            PermissionFlagsBits.SendMessages, 
+            PermissionFlagsBits.ManageChannels
+          ] 
+        }
       ],
     });
 
@@ -211,7 +197,6 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
 async function handleOrderPaymentButton(interaction) {
   const customId = interaction.customId;
 
-  // 1. ปุ่มแสดง QR Code PromptPay
   if (customId.startsWith('pay_promptpay_')) {
     await interaction.deferUpdate().catch(() => {});
 
@@ -252,7 +237,6 @@ async function handleOrderPaymentButton(interaction) {
     return true;
   }
 
-  // 2. 🟢 ปุ่มแอดมินยืนยันสลิป & มอบยศอัตโนมัติ
   if (customId.startsWith('approve_order_')) {
     if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
       await interaction.reply({ content: '❌ ปุ่มนี้สำหรับ **Administrator** กดยืนยันสลิปเท่านั้นครับ! ลูกค้ากรุณาส่งรูปสลิปในแชทแล้วรอแอดมินสักครู่นะครับ', ephemeral: true });
@@ -275,11 +259,9 @@ async function handleOrderPaymentButton(interaction) {
       return true;
     }
 
-    // มอบยศให้ลูกค้าอัตโนมัติ (กรณีเป็นสินค้าประเภทยศ)
     if (product.roleId) {
       try {
         await customerMember.roles.add(product.roleId);
-        // หากซื้อ Artist ถาวร แล้วมี Artist | 3d อยู่ ให้ถอดยศเช่า 3 วันออกแทนที่ด้วยยศถาวรเลย
         const artist3dRoleId = '1560136361015513108';
         if (product.roleId === '1560224726868295740' && customerMember.roles.cache.has(artist3dRoleId)) {
           await customerMember.roles.remove(artist3dRoleId).catch(() => {});
@@ -291,7 +273,6 @@ async function handleOrderPaymentButton(interaction) {
       }
     }
 
-    // ปิดปุ่มไม่ให้กดซ้ำ
     const disabledRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId('approved_done')
@@ -301,10 +282,9 @@ async function handleOrderPaymentButton(interaction) {
     );
     await interaction.editReply({ components: [disabledRow] });
 
-    // ออกใบเสร็จรับเงินเข้าห้องแชทและส่งเข้า DM ลูกค้า
     await sendOrderReceipt(interaction.channel, customerMember.user, interaction.user, product);
 
-    await interaction.channel.send({ content: `🎉 ขอบคุณที่ใช้บริการครับคุณ <@${customerId}>! ห้องออร์เดอร์นี้จะถูกปิดอัตโนมัติใน **10 วินาที**...` });
+    await interaction.channel.send({ content: `🎉 ขอบคุณที่ใช้บริการครับคุณ <@${customerId}>! ห้องออร์เดอร์นี้จะถูกปิดอัตโนมัติใน **10 วินาที**...` }).catch(() => {});
 
     setTimeout(() => {
       interaction.channel.delete().catch(() => {});
