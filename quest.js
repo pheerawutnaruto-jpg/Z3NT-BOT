@@ -31,6 +31,9 @@ async function handleSetupQuestCommand(interaction) {
 async function handleQuestButton(interaction, serverConfigs, saveConfigs) {
   if (interaction.customId !== 'claim_daily_orb') return false;
 
+  // ป้องกัน Error 10062 (Unknown interaction) กรณีโหลดข้อมูลหรือบันทึก Redis ช้า
+  await interaction.deferReply({ ephemeral: true }).catch(() => {});
+
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
 
@@ -48,7 +51,7 @@ async function handleQuestButton(interaction, serverConfigs, saveConfigs) {
     const remainingMs = cooldownTime - (now - userStat.lastDaily);
     const remainingHours = Math.floor(remainingMs / (1000 * 60 * 60));
     const remainingMinutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
-    await interaction.reply({ content: `⏳ คุณรับรางวัลประจำวันไปแล้ว! กรุณารออีกประมาณ **${remainingHours} ชั่วโมง ${remainingMinutes} นาที** ถึงจะกดรับใหม่ได้ครับ`, ephemeral: true });
+    await interaction.editReply({ content: `⏳ คุณรับรางวัลประจำวันไปแล้ว! กรุณารออีกประมาณ **${remainingHours} ชั่วโมง ${remainingMinutes} นาที** ถึงจะกดรับใหม่ได้ครับ` });
     return true;
   }
 
@@ -69,9 +72,9 @@ async function handleQuestButton(interaction, serverConfigs, saveConfigs) {
   await saveConfigs(serverConfigs);
 
   if (rewardCoins === 0) {
-    await interaction.reply({ content: `😢 น่าเสียดาย! รอบนี้ดวงไม่ดี สุ่มได้ **0 Zen Coins** (พยายามใหม่พรุ่งนี้เสี่ยงดวงใหม่นะ!)`, ephemeral: true });
+    await interaction.editReply({ content: `😢 น่าเสียดาย! รอบนี้ดวงไม่ดี สุ่มได้ **0 Zen Coins** (พยายามใหม่พรุ่งนี้เสี่ยงดวงใหม่นะ!)` });
   } else {
-    await interaction.reply({ content: `🎉 ยินดีด้วย! คุณสุ่มรับ **${rewardCoins} Zen Coins** ประจำวันสำเร็จแล้ว! (ยอดสะสมปัจจุบัน: ${userStat.orbs} Zen Coins)`, ephemeral: true });
+    await interaction.editReply({ content: `🎉 ยินดีด้วย! คุณสุ่มรับ **${rewardCoins} Zen Coins** ประจำวันสำเร็จแล้ว! (ยอดสะสมปัจจุบัน: ${userStat.orbs} Zen Coins)` });
   }
   return true;
 }
