@@ -14,7 +14,7 @@ async function handleSetupArtistCommand(interaction) {
     .setTitle('🎨 𝙕𝙀𝙉 𝘽𝙊𝙏 • ARTIST CARD CUSTOMIZER')
     .setDescription('สำหรับสมาชิกที่มียศ **Artist** หรือ **Aritist | 3d** กดปุ่มด้านล่างเพื่อเลือกเปลี่ยนพื้นหลังการ์ด `/level` หรือกระเป๋าเงิน `/coins` ส่วนตัวของคุณได้ทันที!\n──────────────────────')
     .setColor('#FF69B4')
-    .setImage('https://cdn.discordapp.com/attachments/1550576199829430382/1559721936588636220/IMG_7335.jpg?ex=6ad8ad7f&is=6ad75bff&hm=7abc72dc7a21ce57c299d6c88eeca6073cf0e33aac005569262c706a3e8a0e88&');
+    .setImage('https://cdn.discordapp.com/attachments/1550576199829430382/1559721936588636220/IMG_7335.jpg');
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -28,7 +28,7 @@ async function handleSetupArtistCommand(interaction) {
   );
 
   await interaction.channel.send({ embeds: [embed], components: [row] });
-  await interaction.reply({ content: '✅ ส่งแผงป้ายตั้งค่าการ์ด Artist ไปยังห้องนี้สำเร็จแล้ว!', ephemeral: true });
+  await interaction.reply({ content: '✅ ส่งแผงปุ่มตั้งค่าการ์ด Artist ไปยังห้องนี้สำเร็จแล้ว!', ephemeral: true });
   return true;
 }
 
@@ -71,19 +71,13 @@ async function handleArtistButton(interaction, serverConfigs) {
     .setRequired(true);
 
   modal.addComponents(new ActionRowBuilder().addComponents(imageUrlInput));
-  
-  // ป้องกัน Error กรณี interaction หมดเวลาก่อนเด้ง Modal
-  await interaction.showModal(modal).catch((err) => {
-    console.error('Error showing artist modal:', err);
-  });
-  
+  await interaction.showModal(modal).catch(() => {});
   return true;
 }
 
 async function handleArtistModalSubmit(interaction, serverConfigs, saveConfigs) {
   if (interaction.customId !== 'artistLevelCardModal' && interaction.customId !== 'artistWalletCardModal') return false;
 
-  // ป้องกัน Error Unknown interaction ขณะบันทึกข้อมูลลง Redis
   await interaction.deferReply({ ephemeral: true }).catch(() => {});
 
   const guildId = interaction.guildId;
