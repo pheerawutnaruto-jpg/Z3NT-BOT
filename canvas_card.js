@@ -223,7 +223,7 @@ async function generatePetCard(user, petEgg) {
   ctx.fillText(`EXP: ${petXp} / ${requiredXp} (${Math.floor(progress * 100)}%)`, barX + (barWidth / 2), barY + 17);
   ctx.textAlign = 'left';
 
-  // 3. 🖼️ ด้านขวา: รูปภาพสัตว์เลี้ยง (พร้อมระบบดักจับ Error ป้องกันบอทพังกรณีลิงก์รูปมีปัญหา)
+  // 3. 🖼️ ด้านขวา: รูปภาพสัตว์เลี้ยง
   if (pet.image) {
     try {
       const petImg = await loadImage(pet.image).catch(() => null);
@@ -242,9 +242,7 @@ async function generatePetCard(user, petEgg) {
         ctx.roundRect(690, 45, 195, 190, 12);
         ctx.stroke();
       }
-    } catch (e) {
-      console.error('Failed to load pet image:', e);
-    }
+    } catch (e) {}
   }
 
   return new AttachmentBuilder(await canvas.encode('png'), { name: 'pet-card.png' });
