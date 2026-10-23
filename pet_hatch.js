@@ -1,5 +1,7 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+// pet_hatch.js
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
 const { generatePetCard } = require('./canvas_card');
+const { COLORS } = require('./constants');
 
 // 📦 ฐานข้อมูลสัตว์เลี้ยง 6 ระดับดาว (1 ดาว - 6 ดาว Cosmic)
 const PET_DATABASE = [
@@ -10,6 +12,22 @@ const PET_DATABASE = [
   { name: 'Golden Dragon', stars: 5, type: 'Legendary', baseOrb: 1000, image: 'https://cdn.discordapp.com/attachments/1559878908348997774/1563060184962572338/image0.jpg' },
   { name: 'Rainbow Phoenix', stars: 6, type: 'Cosmic', baseOrb: 2500, image: 'https://cdn.discordapp.com/attachments/1559878908348997774/1563060186032377906/image0.jpg' }
 ];
+
+// 🛠️ Helper: ค้นหาห้องส่งแจ้งเตือนสัตว์เลี้ยงที่ปลอดภัยที่สุด
+function findPetTargetChannel(guild, config) {
+  if (!guild) return null;
+  if (config.petChannelId) {
+    const ch = guild.channels.cache.get(config.petChannelId);
+    if (ch && ch.isTextBased()) return ch;
+  }
+  return guild.channels.cache.find(c =>
+    c.type === ChannelType.GuildText &&
+    !c.name.toLowerCase().includes('staff') &&
+    !c.name.toLowerCase().includes('admin') &&
+    !c.name.toLowerCase().includes('log') &&
+    c.permissionsFor(guild.members.me)?.has(PermissionFlagsBits.SendMessages)
+  ) || null;
+}
 
 // 1. แจกไข่เริ่มต้น (ล็อกไม่ให้รับฟรีซ้ำหลังย่อยสลาย)
 function assignInitialEgg(config, userId) {
@@ -35,8 +53,8 @@ function assignInitialEgg(config, userId) {
   }
 }
 
-// 2. ระบบลดเวลาฟักไข่เมื่อพิมพ์แชท (ลดลงครั้งละ 30 วินาที -> พิมพ์ 2 ครั้งฟัก)
-async function progressEggTime(guildId, userId, secondsToReduce, client, serverConfigs, saveConfigs) {
+// 2. ระบบลดเวลาฟักไข่เมื่อพิมพ์แชทหรืออยู่ในห้องเสียง
+async function progressEggTime(guildId, userId, secondsToReduce, client, serverConfigs, saveConfigs, shouldSave = true) {
   const config = serverConfigs[guildId];
   if (!config || !config.levels || !config.levels[userId]) return;
 
@@ -44,23 +62,24 @@ async function progressEggTime(guildId, userId, secondsToReduce, client, serverC
   if (!userStat.petEgg) assignInitialEgg(config, userId);
 
   if (userStat.petEgg.isHatched) {
-    await progressPetXp(guildId, userId, 10, client, serverConfigs, saveConfigs);
+    await progressPetXp(guildId, userId, 10, client, serverConfigs, saveConfigs, shouldSave);
     return;
   }
 
   if (!userStat.petEgg.hasEgg) return;
 
-  userStat.petEgg.remainingSeconds = Math.max(0, userStat.petEgg.remainingSeconds - 30);
+  const reduction = secondsToReduce || 30;
+  userStat.petEgg.remainingSeconds = Math.max(0, userStat.petEgg.remainingSeconds - reduction);
 
   if (userStat.petEgg.remainingSeconds <= 0 && !userStat.petEgg.isHatched) {
-    await triggerHatchEvent(guildId, userId, client, serverConfigs, saveConfigs);
-  } else {
+    await triggerHatchEvent(guildId, userId, client, serverConfigs, saveConfigs, shouldSave);
+  } else if (shouldSave) {
     await saveConfigs(serverConfigs);
   }
 }
 
-// 3. ระบบเก็บเลเวลสัตว์เลี้ยง (ส่งข้อความธรรมดาเมื่อเลเวลอัป)
-async function progressPetXp(guildId, userId, xpAmount, client, serverConfigs, saveConfigs) {
+// 3. ระบบเก็บเลเวลสัตว์เลี้ยง
+async function progressPetXp(guildId, userId, xpAmount, client, serverConfigs, saveConfigs, shouldSave = true) {
   const config = serverConfigs[guildId];
   if (!config || !config.levels || !config.levels[userId]) return;
 
@@ -83,32 +102,19 @@ async function progressPetXp(guildId, userId, xpAmount, client, serverConfigs, s
     requiredPetXp = userStat.petEgg.petLevel * 100;
   }
 
-  await saveConfigs(serverConfigs);
+  if (shouldSave) {
+    await saveConfigs(serverConfigs);
+  }
 
-  // ส่งข้อความแจ้งเตือนเลเวลอัปตามรูปแบบที่กำหนด
-  if (leveledUp && client) {
+  if (leveledUp && client && client.guilds) {
     try {
-      const guild = await client.guilds.fetch(guildId);
-      if (!guild) return;
-
-      let targetChannel = null;
-      if (config.petChannelId) {
-        targetChannel = guild.channels.cache.get(config.petChannelId);
-      }
-      if (!targetChannel) {
-        targetChannel = guild.channels.cache.find(c => 
-          c.type === 0 && 
-          !c.name.toLowerCase().includes('staff') && 
-          !c.name.toLowerCase().includes('admin') && 
-          !c.name.toLowerCase().includes('log') && 
-          c.permissionsFor(guild.members.me).has(PermissionFlagsBits.SendMessages)
-        );
-      }
+      const guild = client.guilds.cache.get(guildId) || await client.guilds.fetch(guildId).catch(() => null);
+      const targetChannel = findPetTargetChannel(guild, config);
 
       if (targetChannel) {
         const pet = userStat.petEgg.hatchedPet;
-        await targetChannel.send({ 
-          content: `[ZEN PET] ยินดีด้วยคุณ <@${userId}>! **${pet.name}** ของคุณ **Level ${newLevel}** แล้ว!` 
+        await targetChannel.send({
+          content: `[ZEN PET] ยินดีด้วยคุณ <@${userId}>! **${pet.name}** ของคุณอัปเลเวลเป็น **Level ${newLevel}** แล้ว!`
         }).catch(() => {});
       }
     } catch (err) {
@@ -117,11 +123,11 @@ async function progressPetXp(guildId, userId, xpAmount, client, serverConfigs, s
   }
 }
 
-// 4. เหตุการณ์ไข่แตก (แสดงชื่อ Rarity, Claims จำนวนคนที่มี, และ Base Orb 🔮)
-async function triggerHatchEvent(guildId, userId, client, serverConfigs, saveConfigs) {
+// 4. เหตุการณ์ไข่แตก
+async function triggerHatchEvent(guildId, userId, client, serverConfigs, saveConfigs, shouldSave = true) {
   const config = serverConfigs[guildId];
-  const userStat = config.levels[userId];
-  if (!userStat || userStat.petEgg.isHatched) return;
+  const userStat = config?.levels?.[userId];
+  if (!userStat || !userStat.petEgg || userStat.petEgg.isHatched) return;
 
   userStat.petEgg.isHatched = true;
   userStat.petEgg.petLevel = 1;
@@ -129,33 +135,26 @@ async function triggerHatchEvent(guildId, userId, client, serverConfigs, saveCon
 
   const rand = Math.random() * 100;
   let selectedPet;
-  if (rand < 48) selectedPet = PET_DATABASE[0];        // 48% - 1 ดาว
-  else if (rand < 78) selectedPet = PET_DATABASE[1];   // 30% - 2 ดาว
-  else if (rand < 92) selectedPet = PET_DATABASE[2];   // 14% - 3 ดาว
-  else if (rand < 98) selectedPet = PET_DATABASE[3];   // 6%  - 4 ดาว
+  if (rand < 48) selectedPet = PET_DATABASE[0];      // 48% - 1 ดาว
+  else if (rand < 78) selectedPet = PET_DATABASE[1]; // 30% - 2 ดาว
+  else if (rand < 92) selectedPet = PET_DATABASE[2]; // 14% - 3 ดาว
+  else if (rand < 98) selectedPet = PET_DATABASE[3]; // 6%  - 4 ดาว
   else if (rand < 99.7) selectedPet = PET_DATABASE[4]; // 1.7% - 5 ดาว
-  else selectedPet = PET_DATABASE[5];                  // 0.3% - 6 ดาว (Cosmic)
+  else selectedPet = PET_DATABASE[5];                // 0.3% - 6 ดาว (Cosmic)
 
   userStat.petEgg.hatchedPet = selectedPet;
-  await saveConfigs(serverConfigs);
+
+  if (shouldSave) {
+    await saveConfigs(serverConfigs);
+  }
+
+  if (!client || !client.guilds) return;
 
   try {
-    const guild = await client.guilds.fetch(guildId);
+    const guild = client.guilds.cache.get(guildId) || await client.guilds.fetch(guildId).catch(() => null);
     if (!guild) return;
 
-    let targetChannel = null;
-    if (config.petChannelId) {
-      targetChannel = guild.channels.cache.get(config.petChannelId);
-    }
-    if (!targetChannel) {
-      targetChannel = guild.channels.cache.find(c => 
-        c.type === 0 && 
-        !c.name.toLowerCase().includes('staff') && 
-        !c.name.toLowerCase().includes('admin') && 
-        !c.name.toLowerCase().includes('log') && 
-        c.permissionsFor(guild.members.me).has(PermissionFlagsBits.SendMessages)
-      );
-    }
+    const targetChannel = findPetTargetChannel(guild, config);
 
     if (targetChannel) {
       const starString = '⭐'.repeat(selectedPet.stars);
@@ -164,7 +163,7 @@ async function triggerHatchEvent(guildId, userId, client, serverConfigs, saveCon
       if (config.levels) {
         for (const id in config.levels) {
           const st = config.levels[id];
-          if (st.petEgg && st.petEgg.isHatched && st.petEgg.hatchedPet && st.petEgg.hatchedPet.name === selectedPet.name) {
+          if (st.petEgg?.isHatched && st.petEgg?.hatchedPet?.name === selectedPet.name) {
             claimCount++;
           }
         }
@@ -177,28 +176,26 @@ async function triggerHatchEvent(guildId, userId, client, serverConfigs, saveCon
           `Claims: ${claimCount}\n` +
           `${selectedPet.baseOrb} 🔮`
         )
-        .setColor('#FFD700')
+        .setColor(COLORS.GOLD)
         .setImage(selectedPet.image);
 
-      await targetChannel.send({ 
-        content: `<@${userId}>`, 
-        embeds: [embed] 
+      await targetChannel.send({
+        content: `<@${userId}>`,
+        embeds: [embed]
       }).catch(() => {});
     }
 
-    const petRoleId = config.petRoleId || null;
-    if (petRoleId) {
+    if (config.petRoleId) {
       const member = await guild.members.fetch(userId).catch(() => null);
-      const role = guild.roles.cache.get(petRoleId);
+      const role = guild.roles.cache.get(config.petRoleId);
       if (member && role) await member.roles.add(role).catch(() => {});
     }
-
   } catch (err) {
     console.error('Error triggering pet hatch event:', err);
   }
 }
 
-// 5. คำสั่ง /pet (แสดงการ์ด Canvas อย่างเดียว ไม่มีปุ่ม)
+// 5. คำสั่ง /pet
 const petCommand = new SlashCommandBuilder()
   .setName('pet')
   .setDescription('🐾 เปิดดูการ์ดสัตว์เลี้ยงของคุณ')
@@ -213,7 +210,7 @@ async function handlePetCommand(interaction, serverConfigs) {
   const targetUser = interaction.options.getUser('user') || interaction.user;
   const userId = targetUser.id;
   const config = serverConfigs[guildId] || {};
-  
+
   if (!config.levels) config.levels = {};
   if (!config.levels[userId]) assignInitialEgg(config, userId);
 
@@ -223,16 +220,16 @@ async function handlePetCommand(interaction, serverConfigs) {
   if (petEgg && petEgg.isHatched && petEgg.hatchedPet) {
     await interaction.deferReply({ ephemeral: true });
     const attachment = await generatePetCard(targetUser, petEgg);
-    
-    return await interaction.editReply({ 
-      files: [attachment], 
-      components: [] 
+
+    return await interaction.editReply({
+      files: [attachment],
+      components: []
     });
   }
 
   const embed = new EmbedBuilder()
     .setTitle(`🐾 Pet Status: ${targetUser.username}`)
-    .setColor('#66FFFF');
+    .setColor(COLORS.PRIMARY);
 
   if (!petEgg || !petEgg.hasEgg) {
     embed.setDescription('🥚 คุณไม่มีไข่ในครอบครอง สามารถไปกดซื้อได้ที่หน้าร้านค้า');
@@ -241,21 +238,20 @@ async function handlePetCommand(interaction, serverConfigs) {
     embed.setDescription(`🐣 ไข่กำลังฟัก...\n⏳ เวลาโดยประมาณ: ${mins} นาที\n\n💬 *พิมพ์แชท 2 ครั้งเพื่อเร่งเวลาฟัก!*`);
   }
 
-  await interaction.reply({ 
-    embeds: [embed], 
-    components: [], 
-    ephemeral: true 
+  await interaction.reply({
+    embeds: [embed],
+    components: [],
+    ephemeral: true
   });
 }
 
-// 6. คำสั่ง /setup-pet-shop (สำหรับแอดมินสร้างหน้าร้านถาวร พร้อมเช็กสิทธิ์ Admin ภายในตัว)
+// 6. คำสั่ง /setup-pet-shop
 const setupShopCommand = new SlashCommandBuilder()
   .setName('setup-pet-shop')
   .setDescription('🛠️ [Admin] ส่งข้อความหน้าร้านค้าสัตว์เลี้ยงถาวรลงในห้องนี้')
   .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
 async function handleSetupShopCommand(interaction) {
-  // 🛡️ เช็กสิทธิ์แอดมิน ป้องกันสมาชิกทั่วไปกดใช้คำสั่ง
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
     return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น!', ephemeral: true });
   }
@@ -268,8 +264,8 @@ async function handleSetupShopCommand(interaction) {
       `✨ *ลุ้นรับสัตว์เลี้ยงระดับ 1 ดาว ถึง 6 ดาว (Cosmic)*\n` +
       `💵 **ราคา:** \`500 Orbs\``
     )
-    .setColor('#FFD700')
-    .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1563060185633652816/image0.jpg?ex=6adc40bc&is=6adaef3c&hm=67a61c3443ccdddeefe9272b417ec4dc9cb24d1e5112da608b4076f8a8bf4a7b&');
+    .setColor(COLORS.GOLD)
+    .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1563060185633652816/image0.jpg');
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -282,10 +278,9 @@ async function handleSetupShopCommand(interaction) {
   await interaction.channel.send({ embeds: [embed], components: [row] });
 }
 
-// 7. จัดการปุ่มกดซื้อไข่จากหน้าร้าน (อนุญาตให้ซื้อทับไข่เก่าที่ติดบั๊กเวลาค้างได้)
+// 7. จัดการปุ่มกดซื้อไข่จากหน้าร้าน
 async function handlePetButton(interaction, serverConfigs, saveConfigs) {
-  const customId = interaction.customId;
-  if (customId !== 'buy_pet_egg_shop') return false;
+  if (interaction.customId !== 'buy_pet_egg_shop') return false;
 
   await interaction.deferReply({ ephemeral: true });
 
@@ -306,11 +301,8 @@ async function handlePetButton(interaction, serverConfigs, saveConfigs) {
     return await interaction.editReply({ content: `❌ Orbs ของคุณไม่พอ! (ต้องการ ${cost} Orbs แต่คุณมี ${userStat.orbs || 0} Orbs)` });
   }
 
-  // อนุญาตให้ซื้อทับได้ถ้าเป็นไข่เก่าที่เวลาค้างอยู่มากกว่า 60 วินาที
   if (userStat.petEgg && userStat.petEgg.hasEgg && !userStat.petEgg.isHatched) {
-    if (userStat.petEgg.remainingSeconds > 60) {
-      // ปล่อยผ่านเพื่อให้ซื้อทับไข่เก่าได้เลย
-    } else {
+    if (userStat.petEgg.remainingSeconds <= 60) {
       return await interaction.editReply({ content: `❌ คุณมีไข่ที่กำลังฟักอยู่แล้ว ต้องรอฟักให้เสร็จก่อน!` });
     }
   }
@@ -318,7 +310,7 @@ async function handlePetButton(interaction, serverConfigs, saveConfigs) {
   userStat.orbs -= cost;
   userStat.petEgg = {
     hasEgg: true,
-    remainingSeconds: 60, // รีเซ็ตเป็นไข่ทดสอบ (พิมพ์ 2 ครั้งฟัก)
+    remainingSeconds: 60,
     isHatched: false,
     hatchedPet: null,
     petLevel: 1,
@@ -328,7 +320,7 @@ async function handlePetButton(interaction, serverConfigs, saveConfigs) {
   await saveConfigs(serverConfigs);
 
   return await interaction.editReply({
-    content: `🎉 ใช้ ${cost} Orbs ซื้อไข่ใบใหม่สำเร็จ! (รีเซ็ตไข่เก่าเรียบร้อย) ไปที่ห้องแชทแล้วพิมพ์ข้อความ 2 ครั้งเพื่อฟักไข่ได้เลย!`
+    content: `🎉 ใช้ ${cost} Orbs ซื้อไข่ใบใหม่สำเร็จ! ไปที่ห้องแชทแล้วพิมพ์ข้อความ 2 ครั้งเพื่อฟักไข่ได้เลย!`
   });
 }
 
