@@ -108,7 +108,7 @@ async function progressPetXp(guildId, userId, xpAmount, client, serverConfigs, s
       if (targetChannel) {
         const pet = userStat.petEgg.hatchedPet;
         await targetChannel.send({ 
-          content: `[ZEN PET] ยินดีด้วยคุณ <@${userId}>! **${pet.name}**อัปขึ้นเป็น Level ${newLevel} แล้ว!` 
+          content: `[ZEN PET] ยินดีด้วยคุณ <@${userId}>! **${pet.name}**ของคุณ ${newLevel} แล้ว!` 
         }).catch(() => {});
       }
     } catch (err) {
@@ -248,16 +248,16 @@ async function handlePetCommand(interaction, serverConfigs) {
   });
 }
 
-// 6. คำสั่ง /setup-pet-shop (สำหรับแอดมินสร้างหน้าร้านถาวร)
+// 6. คำสั่ง /setup-pet-shop (สำหรับแอดมินสร้างหน้าร้านถาวร พร้อมเช็กสิทธิ์ Admin ภายในตัว)
 const setupShopCommand = new SlashCommandBuilder()
   .setName('setup-pet-shop')
   .setDescription('🛠️ [Admin] ส่งข้อความหน้าร้านค้าสัตว์เลี้ยงถาวรลงในห้องนี้')
   .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
 async function handleSetupShopCommand(interaction) {
-  // 🛡️ ป้องกันไม่ให้สมาชิกทั่วไปใช้คำสั่งนี้
+  // 🛡️ เช็กสิทธิ์แอดมิน ป้องกันสมาชิกทั่วไปกดใช้คำสั่ง
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-    return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้นที่จะใช้คำสั่งนี้ได้', ephemeral: true });
+    return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้นที่จะใช้คำสั่งนี้ได้!', ephemeral: true });
   }
 
   const embed = new EmbedBuilder()
@@ -266,12 +266,14 @@ async function handleSetupShopCommand(interaction) {
       `ยินดีต้อนรับสู่ร้านค้าสัตว์เลี้ยงประจำเซิร์ฟเวอร์!\n\n` +
       `📦 **Mystery Pet Egg (ไข่สัตว์เลี้ยงลึกลับ)**\n` +
       `✨ *ลุ้นรับสัตว์เลี้ยงระดับ 1 ดาว ถึง 6 ดาว (Cosmic)*\n` +
-      `💵 **ราคา:** \`500 Orbs`
+      `💵 **ราคา:** \`500 Orbs\`\n\n` +
+      
     )
     .setColor('#FFD700')
     .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1563060185633652816/image0.jpg?ex=6adc40bc&is=6adaef3c&hm=67a61c3443ccdddeefe9272b417ec4dc9cb24d1e5112da608b4076f8a8bf4a7b&')
     
-    ;
+      
+      ;
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
