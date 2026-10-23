@@ -1,18 +1,21 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { generatePetCard } = require('./canvas_card');
 
-// 📦 ฐานข้อมูลสัตว์เลี้ยง พร้อมรูปภาพประจำตัว
+// 📦 ฐานข้อมูลสัตว์เลี้ยง (6 ระดับ: 1 ดาว - 6 ดาว)
 const PET_DATABASE = [
-  { name: 'Tiny Slime', stars: 1, type: 'Common', baseOrb: 50, image: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg' },
-  { name: 'Lazy Cat', stars: 2, type: 'Uncommon', baseOrb: 100, image: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg' },
-  { name: 'Shadow Fox', stars: 3, type: 'Rare', baseOrb: 250, image: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg' },
-  { name: 'Fire Lion', stars: 4, type: 'Epic', baseOrb: 500, image: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg' },
-  { name: 'Golden Dragon', stars: 5, type: 'Legendary', baseOrb: 1000, image: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg' }
+  { name: 'Tiny Slime', stars: 1, type: 'Common', baseOrb: 50, image: 'https://cdn.discordapp.com/attachments/1559878908348997774/1563060183259811921/image0.jpg?ex=6adc40bb&is=6adaef3b&hm=1eaa4a8b0b722c702f5996d2866fe2dc5efd64c25444851614db0f1f7224327b&' },
+  { name: 'Lazy Cat', stars: 2, type: 'Uncommon', baseOrb: 100, image: 'https://cdn.discordapp.com/attachments/1559878908348997774/1563060183763259392/image0.jpg?ex=6adc40bc&is=6adaef3c&hm=7dbcbf4c2d9905f7bbbcd8aa24496fc59b8e24b26af6e04efcc91e98406ae166&' },
+  { name: 'Shadow Fox', stars: 3, type: 'Rare', baseOrb: 250, image: 'https://cdn.discordapp.com/attachments/1559878908348997774/1563060184123703317/image0.jpg?ex=6adc40bc&is=6adaef3c&hm=940fd89a6f453f737c56b95c17bfe8f87001ee5094a281dc8fd219167357fb49&' },
+  { name: 'Fire Lion', stars: 4, type: 'Epic', baseOrb: 500, image: 'https://cdn.discordapp.com/attachments/1559878908348997774/1563060184518103051/image0.jpg?ex=6adc40bc&is=6adaef3c&hm=8b6a9f84e75a5e0dc05c38dacb88669635aee6f4755cbf0c58cd95fcdf9ab2d6&' },
+  { name: 'Golden Dragon', stars: 5, type: 'Legendary', baseOrb: 1000, image: 'https://cdn.discordapp.com/attachments/1559878908348997774/1563060184962572338/image0.jpg?ex=6adc40bc&is=6adaef3c&hm=5c58e5139d070c9759e4199212f5a1931fb86c8b4ee7bdf58aedc96753d14c85&' },
+  { name: 'Rainbow Phoenix', stars: 6, type: 'Cosmic', baseOrb: 2500, image: 'https://cdn.discordapp.com/attachments/1559878908348997774/1563060186032377906/image0.jpg?ex=6adc40bc&is=6adaef3c&hm=2b6c8f6e959e1e37ccaff25800eca30e0335c2c53afa1973713776c203f96064&' }
 ];
 
+// 1. แจกไข่เริ่มต้น (ให้เฉพาะครั้งแรกที่เข้าเซิร์ฟเวอร์ และล็อกไม่ให้รับซ้ำฟรีหลังย่อยสลาย)
 function assignInitialEgg(config, userId) {
   if (!config.levels) config.levels = {};
   if (!config.levels[userId]) {
+
     config.levels[userId] = { xp: 0, level: 1, orbs: 0 };
   }
 
@@ -24,7 +27,7 @@ function assignInitialEgg(config, userId) {
     userStat.petEgg = {
       hasEgg: true,
       startTime: Date.now(),
-      durationMs: 60 * 1000, // 👈 [โหมดทดสอบ] 60 วินาที (ตัวจริงเปลี่ยนเป็น 86400 * 1000 สำหรับ 24 ชม.)
+      durationMs: 60 * 1000, // 👈 [โหมดทดสอบ] ตั้งไว้ 60 วินาที (ใช้งานจริงเปลี่ยนเป็น 86400 * 1000 สำหรับ 24 ชม.)
       isHatched: false,
       hatchedPet: null,
       petLevel: 1,
@@ -34,6 +37,7 @@ function assignInitialEgg(config, userId) {
   }
 }
 
+// 2. ตรวจสอบเวลาฟักไข่แบบเรียลไทม์ (เมื่อมีกิจกรรมแชท/เสียง)
 async function progressEggTime(guildId, userId, secondsToReduce, client, serverConfigs, saveConfigs) {
   const config = serverConfigs[guildId];
   if (!config || !config.levels || !config.levels[userId]) return;
@@ -52,6 +56,7 @@ async function progressEggTime(guildId, userId, secondsToReduce, client, serverC
   }
 }
 
+// 3. ระบบเก็บเลเวลสัตว์เลี้ยง
 function progressPetXp(guildId, userId, xpAmount, serverConfigs, saveConfigs) {
   const config = serverConfigs[guildId];
   if (!config || !config.levels || !config.levels[userId]) return;
@@ -74,6 +79,7 @@ function progressPetXp(guildId, userId, xpAmount, serverConfigs, saveConfigs) {
   saveConfigs(serverConfigs);
 }
 
+// 4. เหตุการณ์ไข่แตก (สุ่มกาชา 6 ระดับ พร้อมส่งการ์ด Canvas)
 async function triggerHatchEvent(guildId, userId, client, serverConfigs, saveConfigs) {
   const config = serverConfigs[guildId];
   const userStat = config.levels[userId];
@@ -83,13 +89,16 @@ async function triggerHatchEvent(guildId, userId, client, serverConfigs, saveCon
   userStat.petEgg.petLevel = 1;
   userStat.petEgg.petXp = 0;
 
+  // 🎲 ระบบสุ่มเรตติ้ง 6 ระดับ
   const rand = Math.random() * 100;
   let selectedPet;
-  if (rand < 50) selectedPet = PET_DATABASE[0];
-  else if (rand < 80) selectedPet = PET_DATABASE[1];
-  else if (rand < 95) selectedPet = PET_DATABASE[2];
-  else if (rand < 99) selectedPet = PET_DATABASE[3];
-  else selectedPet = PET_DATABASE[4];
+  
+  if (rand < 48) selectedPet = PET_DATABASE[0];        // 48% - Tiny Slime (1⭐)
+  else if (rand < 78) selectedPet = PET_DATABASE[1];   // 30% - Lazy Cat (2⭐)
+  else if (rand < 92) selectedPet = PET_DATABASE[2];   // 14% - Shadow Fox (3⭐)
+  else if (rand < 98) selectedPet = PET_DATABASE[3];   // 6%  - Fire Lion (4⭐)
+  else if (rand < 99.7) selectedPet = PET_DATABASE[4]; // 1.7% - Golden Dragon (5⭐)
+  else selectedPet = PET_DATABASE[5];                  // 0.3% - Rainbow Phoenix (6⭐)
 
   userStat.petEgg.hatchedPet = selectedPet;
   await saveConfigs(serverConfigs);
@@ -114,7 +123,7 @@ async function triggerHatchEvent(guildId, userId, client, serverConfigs, saveCon
 
     if (targetChannel) {
       const member = await guild.members.fetch(userId).catch(() => null);
-      const userObj = member ? member.user : { username: 'Adventurer' };
+      const userObj = member ? member.user : { username: 'Adventurer', displayAvatarURL: () => 'https://cdn.discordapp.com/embed/avatars/0.png' };
       
       const attachment = await generatePetCard(userObj, userStat.petEgg);
 
@@ -146,6 +155,7 @@ async function triggerHatchEvent(guildId, userId, client, serverConfigs, saveCon
   }
 }
 
+// 5. คำสั่ง /pet (เช็กสถานะ/เปิดดูการ์ด Canvas)
 const petCommand = new SlashCommandBuilder()
   .setName('pet')
   .setDescription('🐾 เปิดดูการ์ดสัตว์เลี้ยงของคุณ')
@@ -223,6 +233,7 @@ async function handlePetCommand(interaction, serverConfigs) {
   });
 }
 
+// 6. จัดการปุ่มกด (ย่อยสลาย / ซื้อไข่ใหม่)
 async function handlePetButton(interaction, serverConfigs, saveConfigs) {
   const customId = interaction.customId;
   if (!customId.startsWith('recycle_pet_') && !customId.startsWith('buy_new_egg_')) return false;
