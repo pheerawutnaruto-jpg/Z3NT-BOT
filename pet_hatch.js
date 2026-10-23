@@ -59,7 +59,7 @@ async function progressEggTime(guildId, userId, secondsToReduce, client, serverC
   }
 }
 
-// 3. ระบบเก็บเลเวลสัตว์เลี้ยง (ส่งข้อความธรรมดาเมื่อเลเวลอัป)
+// 3. ระบบเก็บเลเวลสัตว์เลี้ยง (ส่งข้อความแจ้งเตือนเลเวลอัปตามรูปแบบที่คุณต้องการ)
 async function progressPetXp(guildId, userId, xpAmount, client, serverConfigs, saveConfigs) {
   const config = serverConfigs[guildId];
   if (!config || !config.levels || !config.levels[userId]) return;
@@ -85,7 +85,7 @@ async function progressPetXp(guildId, userId, xpAmount, client, serverConfigs, s
 
   await saveConfigs(serverConfigs);
 
-  // ส่งข้อความธรรมดาแจ้งเตือนเลเวลอัปไปที่ช่องเดียวกัน
+  // ส่งข้อความแจ้งเตือนเลเวลอัปตามรูปแบบที่กำหนด
   if (leveledUp && client) {
     try {
       const guild = await client.guilds.fetch(guildId);
@@ -108,7 +108,7 @@ async function progressPetXp(guildId, userId, xpAmount, client, serverConfigs, s
       if (targetChannel) {
         const pet = userStat.petEgg.hatchedPet;
         await targetChannel.send({ 
-          content: `<@${userId}> [ZEN PET] ยินดีด้วย! สัตว์เลี้ยง **${pet.name}** ของคุณเลเวลอัปเป็น Level ${newLevel} แล้ว!` 
+          content: `[ZEN PET] ยินดีด้วยคุณ <@${userId}>! **${pet.name}**อัปขึ้นเป็น Level ${newLevel} แล้ว!` 
         }).catch(() => {});
       }
     } catch (err) {
@@ -160,7 +160,7 @@ async function triggerHatchEvent(guildId, userId, client, serverConfigs, saveCon
     if (targetChannel) {
       const starString = '⭐'.repeat(selectedPet.stars);
 
-      // นับจำนวนสมาชิกที่มีสัตว์เลี้ยงชื่อนี้ในเซิร์ฟเวอร์ (Claims)
+      // นับจำนวนสมาชิกที่มีสัตว์เลี้ยงชื่อนี้ในเซิร์ฟเวอร์ (Claims)[span_0](start_span)[span_0](end_span)
       let claimCount = 0;
       if (config.levels) {
         for (const id in config.levels) {
@@ -267,7 +267,7 @@ async function handleSetupShopCommand(interaction) {
     )
     .setColor('#FFD700')
     .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1563060185633652816/image0.jpg?ex=6adc40bc&is=6adaef3c&hm=67a61c3443ccdddeefe9272b417ec4dc9cb24d1e5112da608b4076f8a8bf4a7b&')
-    ;
+    .setFooter({ text: 'Zen Pet Storefront System' });
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
