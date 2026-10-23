@@ -1,8 +1,10 @@
+// license.js
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { DEVELOPER_ID, COLORS } = require('./constants');
 
 async function isServerPremium(guildId, serverConfigs) {
-  const config = serverConfigs[guildId];
-  if (!config || !config.premium) return false;
+  const config = serverConfigs?.[guildId];
+  if (!config || !config.premium || !config.premium.enabled) return false;
 
   if (config.premium.isLifetime) return true;
   if (config.premium.expiresAt && Date.now() < config.premium.expiresAt) return true;
@@ -25,7 +27,6 @@ const grantPremiumCommand = new SlashCommandBuilder()
   );
 
 async function handleGrantPremiumCommand(interaction, serverConfigs, saveConfigs) {
-  const DEVELOPER_ID = '795347337773580299'; 
   if (interaction.user.id !== DEVELOPER_ID) {
     return await interaction.reply({ content: '❌ เฉพาะผู้พัฒนาบอทเท่านั้นที่จะใช้คำสั่งนี้ได้ครับ!', ephemeral: true });
   }
@@ -57,11 +58,15 @@ async function handleGrantPremiumCommand(interaction, serverConfigs, saveConfigs
 
   const embed = new EmbedBuilder()
     .setTitle('💎 PREMIUM LICENSE ACTIVATED')
-    .setDescription(`เปิดสิทธิ์พรีเมียมสำเร็จเรียบร้อย!\n🌐 **Guild ID:** \`${targetGuildId}\`\n⏳ **ระยะเวลา:** ${isLifetime ? 'ตลอดชีพ (Lifetime)' : `${months} เดือน`}`)
-    .setColor('#00FF00')
+    .setDescription(
+      `เปิดสิทธิ์พรีเมียมสำเร็จเรียบร้อย!\n` +
+      `🌐 **Guild ID:** \`${targetGuildId}\`\n` +
+      `⏳ **ระยะเวลา:** ${isLifetime ? 'ตลอดชีพ (Lifetime)' : `${months} เดือน`}`
+    )
+    .setColor(COLORS.GREEN)
     .setTimestamp();
 
-  await interaction.reply({ embeds: [embed], ephemeral: true });
+  return await interaction.reply({ embeds: [embed], ephemeral: true });
 }
 
 module.exports = {
