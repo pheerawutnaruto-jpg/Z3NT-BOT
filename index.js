@@ -19,9 +19,7 @@ const {
   handleSetLevelCommand, 
   getLevelDashboardContent, 
   startVoiceXpCron, 
-  pendingRoleRewardImages,
-  setMemberLevelCommand,
-  handleSetMemberLevelCommand
+  pendingRoleRewardImages 
 } = require('./level');
 const { setupQuestCommand, handleSetupQuestCommand, handleQuestButton } = require('./quest');
 const { 
@@ -120,7 +118,6 @@ client.once('ready', async () => {
 
   const commands = [
     new SlashCommandBuilder().setName('ping').setDescription('เช็กความเร็วและสถานะของบอท'),
-    setMemberLevelCommand, // ⚙️ คำสั่งปรับลด/กำหนดเลเวลสมาชิก
     new SlashCommandBuilder().setName('set-welcome').setDescription('เปิดแผงควบคุมระบบต้อนรับ (Welcome Dashboard)'),
     new SlashCommandBuilder().setName('set-autorole').setDescription('ตั้งค่าระบบแจกยศอัตโนมัติสำหรับสมาชิกใหม่'),
     new SlashCommandBuilder().setName('set-security').setDescription('เปิดแผงควบคุมระบบป้องกันความปลอดภัยขั้นสูง'),
@@ -230,6 +227,7 @@ client.on('guildMemberAdd', async member => {
 
   if (!config) return;
 
+  // 🥚 แจกไข่เริ่มต้นอัตโนมัติทันทีที่สมาชิกใหม่เข้าเซิร์ฟเวอร์
   assignInitialEgg(config, member.user.id);
   await saveConfigs(serverConfigs);
 
@@ -254,10 +252,10 @@ client.on('guildMemberAdd', async member => {
     const attachment = await generateWelcomeCard(member);
 
     const embedConfig = config.embed || {
-      description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢8𝙚r!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!'
+      description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!'
     };
 
-    const finalDesc = (embedConfig.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚r!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!')
+    const finalDesc = (embedConfig.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!')
       .replace('{user}', `${member}`)
       .replace('{server}', member.guild.name);
 
@@ -285,11 +283,11 @@ client.on('interactionCreate', async interaction => {
         enabled: true, minXp: 15, maxXp: 25, cmdXp: 20, xpMultiplier: 100, channelId: null,
         levelUpMessage: 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว!',
         roleRewardMessage: '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!',
-        cardTitle: '📊 𝙕𝙀𝙉 𝘽O𝙏 • STATS CARD', cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**',
+        cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD', cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**',
         embedColor: '#66FFFF', statsCardImageUrl: '',
         voiceXpEnabled: false, voiceXpAmount: 10, roleRewards: {}
       },
-      embed: { description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚r!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!' },
+      embed: { description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!' },
       autoClear: { enabled: false, time: '06:00', channelId: null },
       mediaGuardChannels: [],
       showcaseChannelId: null,
@@ -303,7 +301,7 @@ client.on('interactionCreate', async interaction => {
   }
   if (!config.levels) config.levels = {};
   if (!config.levelConfig) {
-    config.levelConfig = { enabled: true, minXp: 15, maxXp: 25, cmdXp: 20, xpMultiplier: 100, channelId: null, levelUpMessage: 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว!', roleRewardMessage: '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!', cardTitle: '📊 𝙕𝙀𝙉 𝘽O𝙏 • STATS CARD', cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**', embedColor: '#66FFFF', statsCardImageUrl: '', voiceXpEnabled: false, voiceXpAmount: 10, roleRewards: {} };
+    config.levelConfig = { enabled: true, minXp: 15, maxXp: 25, cmdXp: 20, xpMultiplier: 100, channelId: null, levelUpMessage: 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว!', roleRewardMessage: '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!', cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD', cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**', embedColor: '#66FFFF', statsCardImageUrl: '', voiceXpEnabled: false, voiceXpAmount: 10, roleRewards: {} };
   }
   if (!config.levelConfig.roleRewardMessage) {
     config.levelConfig.roleRewardMessage = '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!';
@@ -336,12 +334,9 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isChatInputCommand() && interaction.commandName === 'ping') {
     return await interaction.reply({ content: 'Pong! 🏓 บอททำงานระบบ Slash Command ปกติบน Render ครับ 🚀', ephemeral: true });
   }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'set-user-level') {
-    return await handleSetMemberLevelCommand(interaction, serverConfigs, saveConfigs);
-  }
   if (interaction.isChatInputCommand() && interaction.commandName === 'bot-info') {
     const embed = new EmbedBuilder()
-      .setTitle('🤖 𝙕𝙀𝙉 𝘽O𝙏 • OFFICIAL PRESENTATION')
+      .setTitle('🤖 𝙕𝙀𝙉 𝘽𝙊𝙏 • OFFICIAL PRESENTATION')
       .setDescription(
         '**ระบบจัดการและปกป้องเซิร์ฟเวอร์แบบครบวงจร** ✨\n\n' +
         '🚀 **ฟีเจอร์เด่นภายในบอท:**\n' +
@@ -362,7 +357,7 @@ client.on('interactionCreate', async interaction => {
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'set-pet-role') {
     if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-      return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
+      return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น!', ephemeral: true });
     }
     const role = interaction.options.getRole('role');
     config.petRoleId = role.id;
@@ -371,7 +366,7 @@ client.on('interactionCreate', async interaction => {
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'set-pet-channel') {
     if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-      return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
+      return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น!', ephemeral: true });
     }
     const channel = interaction.options.getChannel('channel');
     config.petChannelId = channel.id;
@@ -380,7 +375,7 @@ client.on('interactionCreate', async interaction => {
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'init-old-eggs') {
     if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-      return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
+      return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น!', ephemeral: true });
     }
     
     await interaction.deferReply({ ephemeral: true });
@@ -479,7 +474,7 @@ client.on('interactionCreate', async interaction => {
       await interaction.channel.bulkDelete(messages, true);
       await interaction.editReply({ content: `🧹 ลบข้อความจำนวน **${amount}** เรียบร้อย!` });
     } catch (err) {
-      await interaction.editReply({ content: '❌ เกิดข้อผิดพลาด ไม่สามารถลบข้อความเก่าเกิน 14 วันได้' });
+      await interaction.editReply({ content: '❌ เกิดข้อผิดพลาด ไม่สามารถลบข้อความเก่าเกิน 14 วันได้!' });
     }
     return;
   }
@@ -621,7 +616,7 @@ client.on('interactionCreate', async interaction => {
         .setCustomId('welcomeDesc')
         .setLabel('ข้อความต้อนรับ (ใช้ {user} และ {server} ได้)')
         .setStyle(TextInputStyle.Paragraph)
-        .setValue(config.embed?.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚r!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!')
+        .setValue(config.embed?.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!')
         .setRequired(true);
       modal.addComponents(new ActionRowBuilder().addComponents(descInput));
       return await interaction.showModal(modal);
@@ -636,9 +631,9 @@ client.on('interactionCreate', async interaction => {
         if (channel) {
           const attachment = await generateWelcomeCard(interaction.member);
           const embedConfig = config.embed || {
-            description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚r!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!'
+            description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!'
           };
-          const finalDesc = (embedConfig.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚r!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!')
+          const finalDesc = (embedConfig.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!')
             .replace('{user}', `${interaction.user}`)
             .replace('{server}', interaction.guild.name);
           await channel.send({ content: finalDesc, files: [attachment] });
@@ -839,7 +834,7 @@ client.on('interactionCreate', async interaction => {
 function getDashboardContent(config) {
   const channelName = config.channelId ? `<#${config.channelId}>` : 'ยังไม่ได้เลือกช่อง';
   const statusText = config.welcomeEnabled ? '✅ เปิดอยู่' : '❌ ปิดอยู่';
-  const msgPreview = config.embed?.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚r!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!';
+  const msgPreview = config.embed?.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!';
 
   const embed = new EmbedBuilder()
     .setTitle('⚙️ ตั้งค่าระบบต้อนรับ (Welcome Canvas)')
