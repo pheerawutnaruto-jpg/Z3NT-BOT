@@ -1,8 +1,41 @@
+// canvas_card.js
 const { createCanvas, loadImage } = require('@napi-rs/canvas');
 const { AttachmentBuilder } = require('discord.js');
 
+// 🛡️ Helper Function: วาดสี่เหลี่ยมขอบมนแบบปลอดภัย (ป้องกัน roundRect พัง)
+function safeRoundRect(ctx, x, y, width, height, radius) {
+  ctx.beginPath();
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(x, y, width, height, radius);
+  } else {
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+  }
+  ctx.closePath();
+}
+
+// 🛡️ Helper Function: โหลดรูปภาพแบบมี Timeout ป้องกันลิงก์เสียทำให้บอทค้าง
+async function safeLoadImage(url) {
+  if (!url || typeof url !== 'string' || !url.trim().startsWith('http')) return null;
+  try {
+    return await Promise.race([
+      loadImage(url.trim()),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Image load timeout')), 5000))
+    ]);
+  } catch (e) {
+    return null;
+  }
+}
+
 // 📊 การ์ดเลเวลหลักของบอท
-async function generateProfileCard(user, userStat, lConfig) {
+async function generateProfileCard(user, userStat, lConfig = {}) {
   const canvas = createCanvas(930, 280);
   const ctx = canvas.getContext('2d');
 
@@ -11,56 +44,52 @@ async function generateProfileCard(user, userStat, lConfig) {
   const currentLevel = userStat.level || 1;
   const requiredXp = currentLevel * multiplier;
   const progress = Math.min(Math.max(currentXp / requiredXp, 0), 1);
+  const themeColor = lConfig.embedColor || '#66FFFF';
 
+  // 1. พื้นหลังเริ่มต้น
   ctx.fillStyle = '#1a1a2e';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  let bgUrl = userStat.customTheme || lConfig.statsCardImageUrl;
-  if (bgUrl && bgUrl.trim() !== '') {
-    try {
-      const bgImage = await loadImage(bgUrl.trim()).catch(() => null);
-      if (bgImage) {
-        ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
-      }
-    } catch (e) {
-      console.error('Failed to load custom background image:', e);
-    }
+  // 2. รูปพื้นหลัง (ถ้ามี)
+  const bgUrl = userStat.customTheme || lConfig.statsCardImageUrl;
+  const bgImage = await safeLoadImage(bgUrl);
+  if (bgImage) {
+    ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
   }
 
+  // 3. เลเยอร์กรองแสงและกรอบ
   ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
   ctx.fillRect(20, 20, canvas.width - 40, canvas.height - 40);
 
-  ctx.strokeStyle = lConfig.embedColor || '#66FFFF';
+  ctx.strokeStyle = themeColor;
   ctx.lineWidth = 3;
   ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
 
+  // 4. รูปโปรไฟล์ผู้ใช้
   const avatarUrl = user.displayAvatarURL({ extension: 'png', size: 256 });
-  try {
-    const avatar = await loadImage(avatarUrl).catch(() => null);
-    if (avatar) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(110, 140, 65, 0, Math.PI * 2, true);
-      ctx.closePath();
-      ctx.clip();
-      ctx.drawImage(avatar, 45, 75, 130, 130);
-      ctx.restore();
-    }
-
-    ctx.strokeStyle = lConfig.embedColor || '#66FFFF';
-    ctx.lineWidth = 4;
+  const avatar = await safeLoadImage(avatarUrl);
+  if (avatar) {
+    ctx.save();
     ctx.beginPath();
     ctx.arc(110, 140, 65, 0, Math.PI * 2, true);
-    ctx.stroke();
-  } catch (e) {
-    console.error('Failed to load user avatar:', e);
+    ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(avatar, 45, 75, 130, 130);
+    ctx.restore();
   }
 
+  ctx.strokeStyle = themeColor;
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(110, 140, 65, 0, Math.PI * 2, true);
+  ctx.stroke();
+
+  // 5. ข้อความและตัวเลข
   ctx.fillStyle = '#FFFFFF';
   ctx.font = 'bold 32px sans-serif';
   ctx.fillText(user.username, 210, 100);
 
-  ctx.fillStyle = lConfig.embedColor || '#66FFFF';
+  ctx.fillStyle = themeColor;
   ctx.font = 'bold 26px sans-serif';
   ctx.textAlign = 'right';
   ctx.fillText(`LEVEL ${currentLevel}`, canvas.width - 50, 95);
@@ -70,6 +99,7 @@ async function generateProfileCard(user, userStat, lConfig) {
   ctx.fillText(`XP: ${currentXp} / ${requiredXp}`, canvas.width - 50, 130);
   ctx.textAlign = 'left';
 
+  // 6. หลอด EXP
   const barX = 210;
   const barY = 170;
   const barWidth = 670;
@@ -77,14 +107,12 @@ async function generateProfileCard(user, userStat, lConfig) {
   const radius = 15;
 
   ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-  ctx.beginPath();
-  ctx.roundRect(barX, barY, barWidth, barHeight, radius);
+  safeRoundRect(ctx, barX, barY, barWidth, barHeight, radius);
   ctx.fill();
 
   if (progress > 0) {
-    ctx.fillStyle = lConfig.embedColor || '#66FFFF';
-    ctx.beginPath();
-    ctx.roundRect(barX, barY, Math.max(barWidth * progress, radius * 2), barHeight, radius);
+    ctx.fillStyle = themeColor;
+    safeRoundRect(ctx, barX, barY, Math.max(barWidth * progress, radius * 2), barHeight, radius);
     ctx.fill();
   }
 
@@ -98,23 +126,16 @@ async function generateProfileCard(user, userStat, lConfig) {
 }
 
 // 💰 การ์ดกระเป๋าเงิน (Wallet)
-async function generateWalletCard(user, userStat) {
+async function generateWalletCard(user, userStat = {}) {
   const canvas = createCanvas(930, 260);
   const ctx = canvas.getContext('2d');
 
   ctx.fillStyle = '#11111f';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  let bgUrl = userStat.customWalletTheme;
-  if (bgUrl && bgUrl.trim() !== '') {
-    try {
-      const bgImage = await loadImage(bgUrl.trim()).catch(() => null);
-      if (bgImage) {
-        ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
-      }
-    } catch (e) {
-      console.error('Failed to load wallet background:', e);
-    }
+  const bgImage = await safeLoadImage(userStat.customWalletTheme);
+  if (bgImage) {
+    ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
   }
 
   ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
@@ -125,24 +146,22 @@ async function generateWalletCard(user, userStat) {
   ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
 
   const avatarUrl = user.displayAvatarURL({ extension: 'png', size: 256 });
-  try {
-    const avatar = await loadImage(avatarUrl).catch(() => null);
-    if (avatar) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(110, 130, 55, 0, Math.PI * 2, true);
-      ctx.closePath();
-      ctx.clip();
-      ctx.drawImage(avatar, 55, 75, 110, 110);
-      ctx.restore();
-    }
-
-    ctx.strokeStyle = '#FFD700';
-    ctx.lineWidth = 3;
+  const avatar = await safeLoadImage(avatarUrl);
+  if (avatar) {
+    ctx.save();
     ctx.beginPath();
     ctx.arc(110, 130, 55, 0, Math.PI * 2, true);
-    ctx.stroke();
-  } catch (e) {}
+    ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(avatar, 55, 75, 110, 110);
+    ctx.restore();
+  }
+
+  ctx.strokeStyle = '#FFD700';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(110, 130, 55, 0, Math.PI * 2, true);
+  ctx.stroke();
 
   ctx.fillStyle = '#FFD700';
   ctx.font = 'bold 24px sans-serif';
@@ -164,7 +183,7 @@ async function generateWalletCard(user, userStat) {
   return new AttachmentBuilder(await canvas.encode('png'), { name: 'wallet-card.png' });
 }
 
-// 🐾 การ์ดสัตว์เลี้ยง (ใช้รูปสัตว์เลี้ยงเป็น Background รูปแบบเดียวกับการ์ดเลเวล)
+// 🐾 การ์ดสัตว์เลี้ยง
 async function generatePetCard(user, petEgg) {
   const canvas = createCanvas(930, 280);
   const ctx = canvas.getContext('2d');
@@ -174,54 +193,41 @@ async function generatePetCard(user, petEgg) {
   const petXp = petEgg.petXp || 0;
   const requiredXp = petLevel * 100;
   const progress = Math.min(Math.max(petXp / requiredXp, 0), 1);
-  const starString = '⭐'.repeat(pet.stars);
+  const starString = '⭐'.repeat(pet.stars || 1);
 
-  // 1. สีพื้นหลังตั้งต้น
   ctx.fillStyle = '#1a1a2e';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // 2. นำรูปภาพสัตว์เลี้ยงมาทำเป็นภาพพื้นหลังการ์ด
-  if (pet.image && pet.image.trim() !== '') {
-    try {
-      const petBgImage = await loadImage(pet.image.trim()).catch(() => null);
-      if (petBgImage) {
-        ctx.drawImage(petBgImage, 0, 0, canvas.width, canvas.height);
-      }
-    } catch (e) {
-      console.error('Failed to load pet background image:', e);
-    }
+  const petBgImage = await safeLoadImage(pet.image);
+  if (petBgImage) {
+    ctx.drawImage(petBgImage, 0, 0, canvas.width, canvas.height);
   }
 
-  // 3. เลเยอร์สีดำโปร่งแสงทับพื้นหลังให้อ่านง่าย
   ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
   ctx.fillRect(20, 20, canvas.width - 40, canvas.height - 40);
 
-  // 4. กรอบขอบการ์ดสีทอง
   ctx.strokeStyle = '#FFD700';
   ctx.lineWidth = 3;
   ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
 
-  // 5. วงกลมรูปอวตารเจ้าของสัตว์เลี้ยงด้านซ้าย
   const avatarUrl = user.displayAvatarURL({ extension: 'png', size: 256 });
-  try {
-    const avatar = await loadImage(avatarUrl).catch(() => null);
-    if (avatar) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(110, 140, 65, 0, Math.PI * 2, true);
-      ctx.closePath();
-      ctx.clip();
-      ctx.drawImage(avatar, 45, 75, 130, 130);
-      ctx.restore();
-    }
-    ctx.strokeStyle = '#FFD700';
-    ctx.lineWidth = 4;
+  const avatar = await safeLoadImage(avatarUrl);
+  if (avatar) {
+    ctx.save();
     ctx.beginPath();
     ctx.arc(110, 140, 65, 0, Math.PI * 2, true);
-    ctx.stroke();
-  } catch (e) {}
+    ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(avatar, 45, 75, 130, 130);
+    ctx.restore();
+  }
 
-  // 6. ชื่อสัตว์เลี้ยงและระดับดาว
+  ctx.strokeStyle = '#FFD700';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(110, 140, 65, 0, Math.PI * 2, true);
+  ctx.stroke();
+
   ctx.fillStyle = '#FFFFFF';
   ctx.font = 'bold 30px sans-serif';
   ctx.fillText(pet.name, 210, 95);
@@ -230,7 +236,6 @@ async function generatePetCard(user, petEgg) {
   ctx.font = '18px sans-serif';
   ctx.fillText(`${starString} (${pet.type})`, 210, 125);
 
-  // 7. เลเวลและค่า XP ด้านขวา
   ctx.fillStyle = '#00FFCC';
   ctx.font = 'bold 26px sans-serif';
   ctx.textAlign = 'right';
@@ -241,7 +246,6 @@ async function generatePetCard(user, petEgg) {
   ctx.fillText(`PET XP: ${petXp} / ${requiredXp}`, canvas.width - 50, 130);
   ctx.textAlign = 'left';
 
-  // 8. หลอด EXP ด้านล่าง
   const barX = 210;
   const barY = 170;
   const barWidth = 670;
@@ -249,14 +253,12 @@ async function generatePetCard(user, petEgg) {
   const radius = 15;
 
   ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-  ctx.beginPath();
-  ctx.roundRect(barX, barY, barWidth, barHeight, radius);
+  safeRoundRect(ctx, barX, barY, barWidth, barHeight, radius);
   ctx.fill();
 
   if (progress > 0) {
     ctx.fillStyle = '#FFD700';
-    ctx.beginPath();
-    ctx.roundRect(barX, barY, Math.max(barWidth * progress, radius * 2), barHeight, radius);
+    safeRoundRect(ctx, barX, barY, Math.max(barWidth * progress, radius * 2), barHeight, radius);
     ctx.fill();
   }
 
@@ -278,29 +280,25 @@ async function generateWelcomeCard(member) {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   ctx.fillStyle = 'rgba(20, 20, 35, 0.85)';
-  ctx.beginPath();
-  ctx.roundRect(20, 20, canvas.width - 40, canvas.height - 40, 20);
+  safeRoundRect(ctx, 20, 20, canvas.width - 40, canvas.height - 40, 20);
   ctx.fill();
 
   ctx.strokeStyle = '#66FFFF';
   ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.roundRect(20, 20, canvas.width - 40, canvas.height - 40, 20);
+  safeRoundRect(ctx, 20, 20, canvas.width - 40, canvas.height - 40, 20);
   ctx.stroke();
 
   const avatarUrl = member.user.displayAvatarURL({ extension: 'png', size: 256 });
-  try {
-    const avatar = await loadImage(avatarUrl).catch(() => null);
-    if (avatar) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(130, 160, 75, 0, Math.PI * 2, true);
-      ctx.closePath();
-      ctx.clip();
-      ctx.drawImage(avatar, 55, 85, 150, 150);
-      ctx.restore();
-    }
-  } catch (e) {}
+  const avatar = await safeLoadImage(avatarUrl);
+  if (avatar) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(130, 160, 75, 0, Math.PI * 2, true);
+    ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(avatar, 55, 85, 150, 150);
+    ctx.restore();
+  }
 
   ctx.fillStyle = '#66FFFF';
   ctx.font = 'bold 24px sans-serif';
