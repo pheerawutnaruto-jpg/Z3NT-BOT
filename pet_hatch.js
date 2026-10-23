@@ -1,11 +1,11 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 
 const PET_DATABASE = [
-  { name: 'สไลม์จิ๋ว', stars: 1, type: 'Common', orbValue: 50, image: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg' },
-  { name: 'แมวเหมียวขี้เซา', stars: 2, type: 'Uncommon', orbValue: 100, image: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg' },
-  { name: 'สุนัขจิ้งจอกนิลกาฬ', stars: 3, type: 'Rare', orbValue: 250, image: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg' },
-  { name: 'ราชสีห์เพลิง', stars: 4, type: 'Epic', orbValue: 500, image: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg' },
-  { name: 'มังกรทองบรรพกาล', stars: 5, type: 'Legendary', orbValue: 1000, image: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg' }
+  { name: 'สไลม์จิ๋ว', stars: 1, type: 'Common', baseOrb: 50, image: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg' },
+  { name: 'แมวเหมียวขี้เซา', stars: 2, type: 'Uncommon', baseOrb: 100, image: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg' },
+  { name: 'สุนัขจิ้งจอกนิลกาฬ', stars: 3, type: 'Rare', baseOrb: 250, image: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg' },
+  { name: 'ราชสีห์เพลิง', stars: 4, type: 'Epic', baseOrb: 500, image: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg' },
+  { name: 'มังกรทองบรรพกาล', stars: 5, type: 'Legendary', baseOrb: 1000, image: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg' }
 ];
 
 function assignInitialEgg(config, userId) {
@@ -20,14 +20,17 @@ function assignInitialEgg(config, userId) {
   if (!userStat.petEgg) {
     userStat.petEgg = {
       hasEgg: true,
-      totalSecondsNeeded: 60, // (ปรับเป็น 86400 ตอนใช้งานจริง)
+      totalSecondsNeeded: 60, // (ปรับเป็น 86400 เมื่อใช้งานจริง)
       remainingSeconds: 60,
       isHatched: false,
-      hatchedPet: null
+      hatchedPet: null,
+      petLevel: 1, // 🐾 เลเวลเริ่มต้นของสัตว์เลี้ยง
+      petXp: 0     // ✨ EXP ของสัตว์เลี้ยง
     };
   }
 }
 
+// 1. ลดเวลาไข่ (ช่วงยังเป็นไข่)
 async function progressEggTime(guildId, userId, secondsToReduce, client, serverConfigs, saveConfigs) {
   const config = serverConfigs[guildId];
   if (!config || !config.levels || !config.levels[userId]) return;
@@ -35,7 +38,13 @@ async function progressEggTime(guildId, userId, secondsToReduce, client, serverC
   const userStat = config.levels[userId];
   if (!userStat.petEgg) assignInitialEgg(config, userId);
 
-  if (userStat.petEgg.isHatched || !userStat.petEgg.hasEgg) return;
+  // ถ้าฟักเป็นตัวแล้ว ให้ข้ามไปเก็บ Pet XP แทน
+  if (userStat.petEgg.isHatched) {
+    progressPetXp(guildId, userId, 10, serverConfigs, saveConfigs); // ได้รับ Pet XP จากกิจกรรม
+    return;
+  }
+
+  if (!userStat.petEgg.hasEgg) return;
 
   userStat.petEgg.remainingSeconds = Math.max(0, userStat.petEgg.remainingSeconds - secondsToReduce);
 
@@ -46,12 +55,39 @@ async function progressEggTime(guildId, userId, secondsToReduce, client, serverC
   }
 }
 
+// 🐾 2. ระบบเก็บเลเวลสัตว์เลี้ยง (ทำงานอัตโนมัติเมื่อสัตว์เลี้ยงฟักแล้วและเจ้าของมีกิจกรรม)
+function progressPetXp(guildId, userId, xpAmount, serverConfigs, saveConfigs) {
+  const config = serverConfigs[guildId];
+  if (!config || !config.levels || !config.levels[userId]) return;
+
+  const userStat = config.levels[userId];
+  if (!userStat.petEgg || !userStat.petEgg.isHatched || !userStat.petEgg.hatchedPet) return;
+
+  if (userStat.petEgg.petLevel === undefined) userStat.petEgg.petLevel = 1;
+  if (userStat.petEgg.petXp === undefined) userStat.petEgg.petXp = 0;
+
+  userStat.petEgg.petXp += xpAmount;
+  let requiredPetXp = userStat.petEgg.petLevel * 100; // สูตรคำนวณ XP เลเวลสัตว์เลี้ยง
+
+  let leveledUp = false;
+  while (userStat.petEgg.petXp >= requiredPetXp) {
+    userStat.petEgg.petXp -= requiredPetXp;
+    userStat.petEgg.petLevel += 1;
+    leveledUp = true;
+    requiredPetXp = userStat.petEgg.petLevel * 100;
+  }
+
+  saveConfigs(serverConfigs);
+}
+
 async function triggerHatchEvent(guildId, userId, client, serverConfigs, saveConfigs) {
   const config = serverConfigs[guildId];
   const userStat = config.levels[userId];
   if (!userStat || userStat.petEgg.isHatched) return;
 
   userStat.petEgg.isHatched = true;
+  userStat.petEgg.petLevel = 1;
+  userStat.petEgg.petXp = 0;
 
   const rand = Math.random() * 100;
   let selectedPet;
@@ -89,9 +125,8 @@ async function triggerHatchEvent(guildId, userId, client, serverConfigs, saveCon
         .setDescription(
           `🎉 ยินดีด้วยครับคุณ <@${userId}>!\n` +
           `ไข่ปริศนาประจำตัวฟักออกมากลายเป็นเพื่อนคู่กายตัวใหม่แล้ว!\n\n` +
-          `🐾 **สัตว์เลี้ยง:** \`${selectedPet.name}\`\n` +
-          `✨ **ระดับ:** ${starString} (${selectedPet.type})\n` +
-          `♻️ **มูลค่าการย่อย:** \`${selectedPet.orbValue} Orbs\`\n\n` +
+          `🐾 **สัตว์เลี้ยง:** \`${selectedPet.name}\` (Lv.1)\n` +
+          `✨ **ระดับ:** ${starString} (${selectedPet.type})\n\n` +
           `🏰 *ระบบได้เปิดสิทธิ์เข้าห้อง **🐉・dragon-nest** ให้คุณแล้ว!*`
         )
         .setColor('#FFD700')
@@ -114,7 +149,7 @@ async function triggerHatchEvent(guildId, userId, client, serverConfigs, saveCon
   }
 }
 
-// 📜 คำสั่ง /pet สำหรับเช็กสถานะไข่/สัตว์เลี้ยง และปุ่มรีไซเคิล
+// 📜 คำสั่ง /pet (แสดงเลเวล EXP สัตว์เลี้ยง และปุ่มรีไซเคิล)
 const petCommand = new SlashCommandBuilder()
   .setName('pet')
   .setDescription('🐾 เปิดดูสถานะสัตว์เลี้ยงหรือไข่ประจำตัวของคุณ');
@@ -152,15 +187,24 @@ async function handlePetCommand(interaction, serverConfigs) {
   } else {
     const pet = petEgg.hatchedPet;
     const starString = '⭐'.repeat(pet.stars);
+    const petLevel = petEgg.petLevel || 1;
+    const petXp = petEgg.petXp || 0;
+    const reqXp = petLevel * 100;
+    
+    // คำนวณมูลค่า Orbs ตามเลเวลสัตว์เลี้ยง (เลเวลยิ่งสูง ย่อยได้ Orbs เยอะขึ้น!)
+    const totalOrbValue = (pet.baseOrb || 50) + ((petLevel - 1) * 20);
+
     embed.setDescription(
       `🎉 **สัตว์เลี้ยงปัจจุบันของคุณ:**\n` +
       `🐾 ชื่อ: \`${pet.name}\`\n` +
-      `✨ ระดับ: ${starString} (${pet.type})\n\n` +
+      `✨ ระดับ: ${starString} (${pet.type})\n` +
+      `📊 เลเวลสัตว์เลี้ยง: \`Level ${petLevel}\`\n` +
+      `📈 Pet EXP: \`${petXp} / ${reqXp} XP\`\n\n` +
       `💰 Orbs สะสมของคุณ: \`${userStat.orbs || 0} Orbs\`\n\n` +
-      `⚠️ *หากไม่ต้องการตัวนี้ สามารถกดปุ่มรีไซเคิลเพื่อเปลี่ยนเป็น Orbs ไปเปิดไข่ใหม่ได้!*`
+      `♻️ **มูลค่าการย่อยสลายปัจจุบัน:** \`${totalOrbValue} Orbs\` *(ยิ่งเวลสูงยิ่งได้เยอะ)*`
     );
     row.addComponents(
-      new ButtonBuilder().setCustomId('recycle_pet').setLabel(`♻️ ย่อยสลายรับ ${pet.orbValue} Orbs`).setStyle(ButtonStyle.Danger),
+      new ButtonBuilder().setCustomId('recycle_pet').setLabel(`♻️ ย่อยสลายรับ ${totalOrbValue} Orbs`).setStyle(ButtonStyle.Danger),
       new ButtonBuilder().setCustomId('buy_new_egg').setLabel('🎁 ซื้อไข่ใบใหม่ (500 Orbs)').setStyle(ButtonStyle.Success)
     );
   }
@@ -168,7 +212,6 @@ async function handlePetCommand(interaction, serverConfigs) {
   await interaction.reply({ embeds: [embed], components: row.components.length > 0 ? [row] : [], ephemeral: true });
 }
 
-// 🖱️ ระบบจัดการปุ่มกด (ย่อยสลาย หรือ ซื้อไข่ใหม่)
 async function handlePetButton(interaction, serverConfigs, saveConfigs) {
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
@@ -184,22 +227,22 @@ async function handlePetButton(interaction, serverConfigs, saveConfigs) {
     }
 
     const pet = userStat.petEgg.hatchedPet;
-    const earnedOrbs = pet.orbValue || 50;
+    const petLevel = userStat.petEgg.petLevel || 1;
+    const earnedOrbs = (pet.baseOrb || 50) + ((petLevel - 1) * 20);
+    
     userStat.orbs = (userStat.orbs || 0) + earnedOrbs;
-
-    // ล้างสถานะสัตว์เลี้ยงเก่า เพื่อให้กดรับ/ซื้อไข่ใหม่ได้
     userStat.petEgg = null; 
     await saveConfigs(serverConfigs);
 
     return await interaction.update({
-      content: `♻️ ย่อยสลาย **${pet.name} (${'⭐'.repeat(pet.stars)})** สำเร็จ!\n🎁 คุณได้รับ **+${earnedOrbs} Orbs** เรียบร้อยแล้ว!`,
+      content: `♻️ ย่อยสลาย **${pet.name} (Lv.${petLevel})** สำเร็จ!\n🎁 คุณได้รับ **+${earnedOrbs} Orbs** เข้ากระเป๋าเรียบร้อยแล้ว!`,
       embeds: [],
       components: []
     });
   }
 
   if (customId === 'buy_new_egg') {
-    const cost = 500; // ค่าไข่ใบใหม่
+    const cost = 500;
     if ((userStat.orbs || 0) < cost) {
       return await interaction.reply({ content: `❌ Orbs ของคุณไม่พอ! (ต้องการ ${cost} Orbs แต่คุณมี ${userStat.orbs || 0} Orbs)`, ephemeral: true });
     }
@@ -214,7 +257,9 @@ async function handlePetButton(interaction, serverConfigs, saveConfigs) {
       totalSecondsNeeded: 60, // (ปรับเป็น 86400 เมื่อใช้จริง)
       remainingSeconds: 60,
       isHatched: false,
-      hatchedPet: null
+      hatchedPet: null,
+      petLevel: 1,
+      petXp: 0
     };
 
     await saveConfigs(serverConfigs);
@@ -231,6 +276,7 @@ async function handlePetButton(interaction, serverConfigs, saveConfigs) {
 module.exports = {
   assignInitialEgg,
   progressEggTime,
+  progressPetXp,
   petCommand,
   handlePetCommand,
   handlePetButton
