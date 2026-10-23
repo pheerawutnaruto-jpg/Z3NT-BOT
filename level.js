@@ -2,6 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Butt
 const cron = require('node-cron');
 const { generateProfileCard } = require('./canvas_card');
 const { isServerPremium } = require('./license');
+// นำเข้าฟังก์ชันลดเวลาไข่และสะสม Pet XP จาก pet_hatch.js
 const { progressEggTime } = require('./pet_hatch');
 
 const pendingRoleRewardImages = new Map();
@@ -29,6 +30,7 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
   let finalAmount = amount;
   let isBoosted = false;
 
+  // 1. เช็กวันหมดอายุ XP Booster
   if (userStat.boostUntil && now < userStat.boostUntil) {
     finalAmount *= 2; 
     isBoosted = true;
@@ -47,6 +49,7 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
     }
   }
 
+  // 2. เช็กวันหมดอายุ Artist | 3d (เช่า 3 วัน)
   const artistRoleId = '1560136361015513108';
   const artistPermRoleId = '1560224726868295740';
   if (userStat.artistUntil && now >= userStat.artistUntil) {
@@ -69,6 +72,7 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
     }
   }
 
+  // 3. เช็กวันหมดอายุตั๋วหนัง 21 วัน และ 1 วัน
   const cinemaPermRoleId = '1560731553766707241';
   const cinemaTempRoleId = '1551006184272560148';
   if (userStat.cinemaPermUntil && now >= userStat.cinemaPermUntil) {
@@ -187,9 +191,10 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
     }
   }
 
+  // 🥚 🐾 เชื่อมโยงระบบลดเวลาไข่และสะสม Pet XP อัตโนมัติทุกครั้งที่ผู้ใช้พิมพ์แชทหรือคุยเสียง
   const clientInstance = isVoice ? clientOrMessage : (clientOrMessage.client || clientOrMessage.guild?.client);
   if (clientInstance) {
-    const secondsToReduce = 30;
+    const secondsToReduce = isVoice ? 30 : 30; // ลดครั้งละ 30 วิ (พิมพ์ 2 ครั้ง หรือคุยเสียงครบกำหนด ฟักทันที)
     await progressEggTime(guildId, userId, secondsToReduce, clientInstance, serverConfigs, saveConfigs);
   }
 
@@ -206,6 +211,7 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
   return true;
 }
 
+// ⏳ Cron Job ทำงานทุกๆ 1 นาที: แจก XP ห้องเสียง + เช็กถอดยศเช่าและตั๋วหนังที่หมดอายุจากฐานข้อมูล Redis
 function startVoiceXpCron(client, serverConfigs, saveConfigs) {
   cron.schedule('* * * * *', async () => {
     const now = Date.now();
@@ -241,6 +247,7 @@ function startVoiceXpCron(client, serverConfigs, saveConfigs) {
       for (const userId in config.levels) {
         const userStat = config.levels[userId];
 
+        // 1. ถอดยศ XP Booster เมื่อหมดเวลา
         if (userStat.boostUntil && now >= userStat.boostUntil) {
           userStat.boostUntil = 0;
           try {
@@ -248,10 +255,13 @@ function startVoiceXpCron(client, serverConfigs, saveConfigs) {
             if (member && member.roles.cache.has(boostRoleId)) {
               await member.roles.remove(boostRoleId).catch(() => {});
             }
-          } catch (err) {}
+          } catch (err) {
+            console.error('Error cron removing expired boost role:', err);
+          }
           globalUpdated = true;
         }
 
+        // 2. ถอดยศ Artist | 3d เมื่อหมดเวลา
         if (userStat.artistUntil && now >= userStat.artistUntil) {
           userStat.artistUntil = 0;
           try {
@@ -265,10 +275,13 @@ function startVoiceXpCron(client, serverConfigs, saveConfigs) {
                 userStat.customWalletTheme = '';
               }
             }
-          } catch (err) {}
+          } catch (err) {
+            console.error('Error cron removing expired artist role:', err);
+          }
           globalUpdated = true;
         }
 
+        // 3. ถอดยศตั๋วหนัง 21 วัน เมื่อหมดเวลา
         if (userStat.cinemaPermUntil && now >= userStat.cinemaPermUntil) {
           userStat.cinemaPermUntil = 0;
           try {
@@ -276,10 +289,13 @@ function startVoiceXpCron(client, serverConfigs, saveConfigs) {
             if (member && member.roles.cache.has(cinemaPermRoleId)) {
               await member.roles.remove(cinemaPermRoleId).catch(() => {});
             }
-          } catch (err) {}
+          } catch (err) {
+            console.error('Error cron removing expired 21-day cinema role:', err);
+          }
           globalUpdated = true;
         }
 
+        // 4. ถอดยศตั๋วหนัง 1 วัน เมื่อหมดเวลา
         if (userStat.cinemaTempUntil && now >= userStat.cinemaTempUntil) {
           userStat.cinemaTempUntil = 0;
           try {
@@ -287,7 +303,9 @@ function startVoiceXpCron(client, serverConfigs, saveConfigs) {
             if (member && member.roles.cache.has(cinemaTempRoleId)) {
               await member.roles.remove(cinemaTempRoleId).catch(() => {});
             }
-          } catch (err) {}
+          } catch (err) {
+            console.error('Error cron removing expired 1-day cinema role:', err);
+          }
           globalUpdated = true;
         }
       }
@@ -310,7 +328,7 @@ function handleLeveling(message, serverConfigs, saveConfigs) {
       enabled: true, minXp: 15, maxXp: 25, cmdXp: 20, xpMultiplier: 100, channelId: null,
       levelUpMessage: 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว!',
       roleRewardMessage: '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!',
-      cardTitle: '📊 𝙕𝙀𝙉 𝘽O𝙏 • STATS CARD',
+      cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD',
       cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**',
       embedColor: '#66FFFF',
       statsCardImageUrl: '',
@@ -358,7 +376,7 @@ async function handleLevelCommand(interaction, serverConfigs) {
 
   const config = serverConfigs[guildId] || {};
   const levels = config.levels || {};
-  const lConfig = config.levelConfig || { xpMultiplier: 100, cardTitle: '📊 𝙕𝙀𝙉 𝘽O𝙏 • STATS CARD', cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**', embedColor: '#66FFFF', statsCardImageUrl: '' };
+  const lConfig = config.levelConfig || { xpMultiplier: 100, cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD', cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**', embedColor: '#66FFFF', statsCardImageUrl: '' };
 
   const userStat = levels[userId] || { xp: 0, level: 1, customTheme: '' };
   const hasPremium = await isServerPremium(guildId, serverConfigs);
@@ -373,7 +391,7 @@ async function handleLevelCommand(interaction, serverConfigs) {
   const percentage = Math.min(Math.round((userStat.xp / requiredXp) * 10), 10);
   const progressBar = '█'.repeat(percentage) + '░'.repeat(10 - percentage);
 
-  const finalTitle = (lConfig.cardTitle || '📊 𝙕𝙀𝙉 𝘽O𝙏 • STATS CARD').replace('{user}', `<@${userId}>`);
+  const finalTitle = (lConfig.cardTitle || '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD').replace('{user}', `<@${userId}>`);
   const finalDesc = (lConfig.cardDescription || 'การ์ดข้อมูลเลเวลของ **{user}**').replace('{user}', `<@${userId}>`);
 
   const embed = new EmbedBuilder()
@@ -446,7 +464,7 @@ function getLevelDashboardContent(config) {
       enabled: true, minXp: 15, maxXp: 25, cmdXp: 20, xpMultiplier: 100, channelId: null,
       levelUpMessage: 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว!',
       roleRewardMessage: '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!',
-      cardTitle: '📊 𝙕𝙀𝙉 𝘽O𝙏 • STATS CARD',
+      cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD',
       cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**',
       embedColor: '#66FFFF',
       statsCardImageUrl: '',
@@ -514,49 +532,6 @@ async function handleSetLevelCommand(interaction, serverConfigs) {
   await interaction.reply({ ...getLevelDashboardContent(config), ephemeral: true });
 }
 
-const setMemberLevelCommand = new SlashCommandBuilder()
-  .setName('set-user-level')
-  .setDescription('⚙️ [Admin] กำหนดหรือปรับลดเลเวลของสมาชิก')
-  .addUserOption(option => 
-    option.setName('user')
-      .setDescription('เลือกสมาชิกที่ต้องการปรับเลเวล')
-      .setRequired(true)
-  )
-  .addIntegerOption(option => 
-    option.setName('level')
-      .setDescription('ระบุเลเวลที่ต้องการ (เช่น 49)')
-      .setRequired(true)
-  )
-  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
-
-async function handleSetMemberLevelCommand(interaction, serverConfigs, saveConfigs) {
-  if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-    return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
-  }
-
-  const guildId = interaction.guildId;
-  const targetUser = interaction.options.getUser('user');
-  const newLevel = interaction.Options ? interaction.options.getInteger('level') : interaction.options.getInteger('level');
-  const userId = targetUser.id;
-
-  if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
-  if (!serverConfigs[guildId].levels) serverConfigs[guildId].levels = {};
-  if (!serverConfigs[guildId].levels[userId]) {
-    serverConfigs[guildId].levels[userId] = { xp: 0, level: 1, orbs: 0 };
-  }
-
-  const userStat = serverConfigs[guildId].levels[userId];
-  userStat.level = interaction.options.getInteger('level');
-  userStat.xp = 0;
-
-  await saveConfigs(serverConfigs);
-
-  return await interaction.reply({ 
-    content: `✅ ปรับเลเวลของ <@${userId}> ให้เป็น **Level ${userStat.level}** เรียบร้อยแล้ว!`, 
-    ephemeral: true 
-  });
-}
-
 module.exports = { 
   handleLeveling, 
   handleCommandLeveling, 
@@ -568,7 +543,5 @@ module.exports = {
   handleSetLevelCommand, 
   getLevelDashboardContent, 
   startVoiceXpCron,
-  pendingRoleRewardImages,
-  setMemberLevelCommand,
-  handleSetMemberLevelCommand
+  pendingRoleRewardImages
 };
