@@ -20,7 +20,7 @@ function assignInitialEgg(config, userId) {
   if (!userStat.petEgg) {
     userStat.petEgg = {
       hasEgg: true,
-      totalSecondsNeeded: 86400, // 24 ชั่วโมง (หรือปรับลดเวลาเพื่อเทสได้ เช่น 60 วินาที)
+      totalSecondsNeeded: 86400, // 24 ชั่วโมง
       remainingSeconds: 86400,
       isHatched: false,
       hatchedPet: null
