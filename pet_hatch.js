@@ -11,52 +11,53 @@ const PET_DATABASE = [
   { name: 'Rainbow Phoenix', stars: 6, type: 'Cosmic', baseOrb: 2500, image: 'https://cdn.discordapp.com/attachments/1559878908348997774/1563060186032377906/image0.jpg?ex=6adc40bc&is=6adaef3c&hm=2b6c8f6e959e1e37ccaff25800eca30e0335c2c53afa1973713776c203f96064&' }
 ];
 
-// 1. แจกไข่เริ่มต้น (ให้เฉพาะครั้งแรกที่เข้าเซิร์ฟเวอร์ และล็อกไม่ให้รับซ้ำฟรีหลังย่อยสลาย)
 function assignInitialEgg(config, userId) {
   if (!config.levels) config.levels = {};
   if (!config.levels[userId]) {
-
     config.levels[userId] = { xp: 0, level: 1, orbs: 0 };
   }
 
   const userStat = config.levels[userId];
   if (userStat.orbs === undefined) userStat.orbs = 0;
-  if (userStat.hasReceivedInitialEgg) return;
 
   if (!userStat.petEgg) {
     userStat.petEgg = {
       hasEgg: true,
-      startTime: Date.now(),
-      durationMs: 60 * 1000, // 👈 [โหมดทดสอบ] ตั้งไว้ 60 วินาที (ใช้งานจริงเปลี่ยนเป็น 86400 * 1000 สำหรับ 24 ชม.)
+      totalSecondsNeeded: 60,
+      remainingSeconds: 60, // ตั้งไว้ 60 วินาที
       isHatched: false,
       hatchedPet: null,
       petLevel: 1,
       petXp: 0
     };
-    userStat.hasReceivedInitialEgg = true;
   }
 }
 
-// 2. ตรวจสอบเวลาฟักไข่แบบเรียลไทม์ (เมื่อมีกิจกรรมแชท/เสียง)
+// 💬 ระบบเร่งเวลาฟักด้วยการพิมพ์แชท (พิมพ์แค่ครั้งเดียว ไข่ลดเวลาหมดและฟักทันทีเพื่อการทดสอบ)
 async function progressEggTime(guildId, userId, secondsToReduce, client, serverConfigs, saveConfigs) {
   const config = serverConfigs[guildId];
   if (!config || !config.levels || !config.levels[userId]) return;
 
   const userStat = config.levels[userId];
-  if (!userStat.petEgg) return;
+  if (!userStat.petEgg) assignInitialEgg(config, userId);
 
   if (userStat.petEgg.isHatched) {
     progressPetXp(guildId, userId, 10, serverConfigs, saveConfigs);
     return;
   }
 
-  const elapsed = Date.now() - userStat.petEgg.startTime;
-  if (elapsed >= userStat.petEgg.durationMs && !userStat.petEgg.isHatched) {
+  if (!userStat.petEgg.hasEgg) return;
+
+  // ลดเวลาครั้งละ 60 วินาทีทันทีที่พิมพ์ (พิมพ์ปุ๊บ ฟักปั๊บ)
+  userStat.petEgg.remainingSeconds = Math.max(0, userStat.petEgg.remainingSeconds - 60);
+
+  if (userStat.petEgg.remainingSeconds <= 0 && !userStat.petEgg.isHatched) {
     await triggerHatchEvent(guildId, userId, client, serverConfigs, saveConfigs);
+  } else {
+    await saveConfigs(serverConfigs);
   }
 }
 
-// 3. ระบบเก็บเลเวลสัตว์เลี้ยง
 function progressPetXp(guildId, userId, xpAmount, serverConfigs, saveConfigs) {
   const config = serverConfigs[guildId];
   if (!config || !config.levels || !config.levels[userId]) return;
@@ -79,7 +80,7 @@ function progressPetXp(guildId, userId, xpAmount, serverConfigs, saveConfigs) {
   saveConfigs(serverConfigs);
 }
 
-// 4. เหตุการณ์ไข่แตก (สุ่มกาชา 6 ระดับ พร้อมส่งการ์ด Canvas)
+// 🌟 เหตุการณ์ไข่แตก (สุ่ม 6 ระดับ + ส่งการ์ด Canvas ดูผลลัพธ์)
 async function triggerHatchEvent(guildId, userId, client, serverConfigs, saveConfigs) {
   const config = serverConfigs[guildId];
   const userStat = config.levels[userId];
@@ -89,7 +90,6 @@ async function triggerHatchEvent(guildId, userId, client, serverConfigs, saveCon
   userStat.petEgg.petLevel = 1;
   userStat.petEgg.petXp = 0;
 
-  // 🎲 ระบบสุ่มเรตติ้ง 6 ระดับ
   const rand = Math.random() * 100;
   let selectedPet;
   
@@ -155,7 +155,7 @@ async function triggerHatchEvent(guildId, userId, client, serverConfigs, saveCon
   }
 }
 
-// 5. คำสั่ง /pet (เช็กสถานะ/เปิดดูการ์ด Canvas)
+// 📜 คำสั่ง /pet
 const petCommand = new SlashCommandBuilder()
   .setName('pet')
   .setDescription('🐾 เปิดดูการ์ดสัตว์เลี้ยงของคุณ')
@@ -212,14 +212,11 @@ async function handlePetCommand(interaction, serverConfigs) {
       row.addComponents(new ButtonBuilder().setCustomId(`buy_new_egg_${userId}`).setLabel('🎁 ซื้อไข่ใหม่ (500 Orbs)').setStyle(ButtonStyle.Success));
     }
   } else {
-    const elapsed = Date.now() - petEgg.startTime;
-    const remainingMs = Math.max(0, petEgg.durationMs - elapsed);
-    const minsLeft = Math.ceil(remainingMs / 60000);
-
+    const mins = Math.ceil(petEgg.remainingSeconds / 60);
     embed.setDescription(
-      `🐣 **สถานะ:** ไข่กำลังฟักตามเวลาจริง...\n` +
-      `⏳ **เวลาที่เหลือโดยประมาณ:** \`${minsLeft} นาที\`\n\n` +
-      `💬 *พิมพ์แชทหรือคุยเสียงเพื่อช่วยเพิ่ม Pet XP ให้สัตว์เลี้ยงหลังจากฟักเสร็จ!*`
+      `🐣 **สถานะ:** ไข่กำลังฟัก...\n` +
+      `⏳ **เวลาที่เหลือโดยประมาณ:** \`${mins} นาที\`\n\n` +
+      `💬 *พิมพ์แชท 1 ครั้งเพื่อเร่งเวลาฟักให้ไข่แตกทันทีเพื่อทดสอบระบบ!*`
     );
     if (isSelf) {
       row.addComponents(new ButtonBuilder().setCustomId(`buy_new_egg_${userId}`).setLabel('🎁 ซื้อไข่ใหม่ (500 Orbs)').setStyle(ButtonStyle.Success));
@@ -233,7 +230,7 @@ async function handlePetCommand(interaction, serverConfigs) {
   });
 }
 
-// 6. จัดการปุ่มกด (ย่อยสลาย / ซื้อไข่ใหม่)
+// 🖱️ จัดการปุ่มกด (ย่อยสลาย / ซื้อไข่ใหม่)
 async function handlePetButton(interaction, serverConfigs, saveConfigs) {
   const customId = interaction.customId;
   if (!customId.startsWith('recycle_pet_') && !customId.startsWith('buy_new_egg_')) return false;
@@ -285,8 +282,8 @@ async function handlePetButton(interaction, serverConfigs, saveConfigs) {
     userStat.orbs -= cost;
     userStat.petEgg = {
       hasEgg: true,
-      startTime: Date.now(),
-      durationMs: 60 * 1000,
+      totalSecondsNeeded: 60,
+      remainingSeconds: 60, // ซื้อไข่ใหม่แล้ว พิมพ์แชท 1 ครั้งฟักทันทีเพื่อเทสต่อได้เลย
       isHatched: false,
       hatchedPet: null,
       petLevel: 1,
@@ -298,7 +295,7 @@ async function handlePetButton(interaction, serverConfigs, saveConfigs) {
     await interaction.message.delete().catch(() => {});
 
     return await interaction.reply({
-      content: `🎉 ใช้ ${cost} Orbs ซื้อไข่ใบใหม่สำเร็จ! เริ่มนับเวลาฟักไข่เรียบร้อยแล้ว!`,
+      content: `🎉 ใช้ ${cost} Orbs ซื้อไข่ใบใหม่สำเร็จ! พิมพ์แชท 1 ครั้งเพื่อฟักดูผลลัพธ์ได้เลย!`,
       ephemeral: true
     });
   }
