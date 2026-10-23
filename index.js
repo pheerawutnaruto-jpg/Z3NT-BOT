@@ -60,6 +60,8 @@ const {
   handleSetupShowcaseCommand, 
   handleShowcaseMessage 
 } = require('./media_showcase');
+// นำเข้าฟังก์ชันระบบสัตว์เลี้ยงอัตโนมัติ
+const { assignInitialEgg } = require('./pet_hatch');
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
@@ -216,6 +218,10 @@ client.on('guildMemberAdd', async member => {
   const config = serverConfigs[guildId];
 
   if (!config) return;
+
+  // 🥚 แจกไข่เริ่มต้นอัตโนมัติทันทีที่สมาชิกใหม่เข้าเซิร์ฟเวอร์
+  assignInitialEgg(config, member.user.id);
+  await saveConfigs(serverConfigs);
 
   if (config.autoroleEnabled && config.autoroleId) {
     try {
