@@ -1,38 +1,40 @@
+// shop.js
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
 const { generateWalletCard } = require('./canvas_card');
 const { isServerPremium } = require('./license');
+const { ROLES, IMAGES, COLORS } = require('./constants');
 
 const userCooldowns = new Map();
 
 const IN_GAME_ITEMS = [
-  { 
-    id: 'gacha_box', 
-    name: '🎁 กาชาปอง', 
-    price: 15, 
+  {
+    id: 'gacha_box',
+    name: '🎁 กาชาปอง',
+    price: 15,
     type: 'gacha',
-    description: '• ลุ้นรับ Zen Coins สูงสุด 150 Coins!' 
+    description: '• ลุ้นรับ Zen Coins สูงสุด 150 Coins!'
   },
-  { 
-    id: 'xp_boost', 
-    name: '⚡ น้ำยาคูณ XP (1 ชม.)', 
-    price: 30, 
+  {
+    id: 'xp_boost',
+    name: '⚡ น้ำยาคูณ XP (1 ชม.)',
+    price: 30,
     type: 'buff',
-    roleId: '1559992075095773184', 
-    description: '• คูณ XP 2 เท่า พร้อมรับยศ Xp Booster' 
+    roleId: ROLES.XP_BOOSTER,
+    description: '• คูณ XP 2 เท่า พร้อมรับยศ Xp Booster'
   },
-  { 
-    id: 'role_artist_temp', 
-    name: '🎨 บัตรเช่า Artist (3 วัน)', 
-    price: 75, 
+  {
+    id: 'role_artist_temp',
+    name: '🎨 บัตรเช่า Artist (3 วัน)',
+    price: 75,
     type: 'role_temp',
-    roleId: '1560136361015513108',
-    description: '• รับยศ Artist และสิทธิ์เปลี่ยนการ์ด /level & /coins' 
+    roleId: ROLES.ARTIST_TEMP,
+    description: '• รับยศ Artist และสิทธิ์เปลี่ยนการ์ด /level & /coins'
   }
 ];
 
 const setupShopCommand = new SlashCommandBuilder()
   .setName('setup-in-game-shop')
-  .setDescription('💎 [PREMIUM] ส่งแผงป้ายหน้าร้านค้าในเกมถาวร (Storefront) ไปยังห้องนี้ (for Admin)');
+  .setDescription('💎 [PREMIUM] ส่งแผงป้ายหน้าร้านค้าในเกมถาวร (Storefront) ไปยังห้องนี้ (สำหรับ Admin)');
 
 const boostStatusCommand = new SlashCommandBuilder()
   .setName('boost-status')
@@ -44,7 +46,7 @@ const coinsCommand = new SlashCommandBuilder()
 
 const addCoinsCommand = new SlashCommandBuilder()
   .setName('add-coins')
-  .setDescription('💎 [PREMIUM] เติม Zen Coins ให้กับสมาชิก (for Admin)')
+  .setDescription('💎 [PREMIUM] เติม Zen Coins ให้กับสมาชิก (สำหรับ Admin)')
   .addUserOption(option => option.setName('user').setDescription('เลือกสมาชิกที่ต้องการเติมเหรียญ').setRequired(true))
   .addIntegerOption(option => option.setName('amount').setDescription('จำนวน Zen Coins ที่ต้องการเติม').setRequired(true));
 
@@ -52,7 +54,7 @@ async function handleCoinsCommand(interaction, serverConfigs) {
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
   const config = serverConfigs[guildId] || {};
-  const userStat = config.levels?.[userId] || { xp: 0, level: 1, orbs: 0 };
+  const userStat = config.levels?.[userId] || { xp: 0, level: 1, orbs: 0, customWalletTheme: '' };
   const hasPremium = await isServerPremium(guildId, serverConfigs);
 
   if (hasPremium) {
@@ -64,8 +66,8 @@ async function handleCoinsCommand(interaction, serverConfigs) {
   const userCoins = userStat.orbs || 0;
   const embed = new EmbedBuilder()
     .setTitle('💰 WALLET • ยอดเหรียญของคุณ')
-    .setDescription(`ยอด Zen Coins คงเหลือในกระเป๋าของ <@${userId}>:\n**${userCoins} Zen Coins**`)
-    .setColor('#FFD700')
+    .setDescription(`ยอด Zen Coins คงเหลือในกระเป๋าของ <@${userId}>:\n**${userCoins.toLocaleString()} Zen Coins**`)
+    .setColor(COLORS.GOLD)
     .setTimestamp();
 
   await interaction.reply({ embeds: [embed], ephemeral: true });
@@ -85,15 +87,19 @@ async function handleAddCoinsCommand(interaction, serverConfigs, saveConfigs) {
   if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
   if (!serverConfigs[guildId].levels) serverConfigs[guildId].levels = {};
   if (!serverConfigs[guildId].levels[userId]) {
-    serverConfigs[guildId].levels[userId] = { xp: 0, level: 1, orbs: 0, lastDaily: 0, boostUntil: 0, artistUntil: 0, customTheme: '', customWalletTheme: '' };
+    serverConfigs[guildId].levels[userId] = {
+      xp: 0, level: 1, orbs: 0, lastDaily: 0,
+      boostUntil: 0, artistUntil: 0, cinemaPermUntil: 0, cinemaTempUntil: 0,
+      customTheme: '', customWalletTheme: ''
+    };
   }
 
   const userStat = serverConfigs[guildId].levels[userId];
   userStat.orbs = Math.max(0, (userStat.orbs || 0) + amount);
   await saveConfigs(serverConfigs);
 
-  const actionText = amount >= 0 ? `เติม Zen Coins จำนวน **+${amount} Coins**` : `หัก Zen Coins จำนวน **${amount} Coins**`;
-  await interaction.reply({ content: `✅ ${actionText} ให้กับคุณ <@${userId}> สำเร็จแล้ว! (ยอดคงเหลือ: ${userStat.orbs} Coins)`, ephemeral: true });
+  const actionText = amount >= 0 ? `เติม Zen Coins จำนวน **+${amount.toLocaleString()} Coins**` : `หัก Zen Coins จำนวน **${amount.toLocaleString()} Coins**`;
+  await interaction.reply({ content: `✅ ${actionText} ให้กับคุณ <@${userId}> สำเร็จแล้ว! (ยอดคงเหลือ: ${userStat.orbs.toLocaleString()} Coins)`, ephemeral: true });
   return true;
 }
 
@@ -103,16 +109,14 @@ async function handleSetupShopCommand(interaction) {
     return true;
   }
 
-  const storefrontImageUrl = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560429209522806814/1792105478227.jpg';
-
   const embed = new EmbedBuilder()
     .setTitle('<a:emoji_103:1560417845903491112> 𝙕𝙀𝙉 𝘽𝙊𝙏 • IN-GAME STOREFRONT')
     .setDescription(
       'ยินดีต้อนรับสู่ศูนย์รวมไอเทม บัฟ และบัตรเช่ายศพิเศษประจำเซิร์ฟเวอร์!\n\n' +
       '📌 **วิธีใช้งาน:** คลิกปุ่มด้านล่างเพื่อเปิดหน้าต่างร้านค้าและใช้ Zen Coins เลือกซื้อสินค้าได้ทันทีครับ'
     )
-    .setImage(storefrontImageUrl)
-    .setColor('#FFD700');
+    .setImage(IMAGES.SHOP_STOREFRONT)
+    .setColor(COLORS.GOLD);
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -145,7 +149,7 @@ async function handleBoostStatusCommand(interaction, serverConfigs) {
   const embed = new EmbedBuilder()
     .setTitle('⚡ XP BOOSTER STATUS')
     .setDescription(`สถานะบัฟคูณ XP 2 เท่าของคุณ:\n⏳ คงเหลือเวลาอีกประมาณ **${remainingMins} นาที**`)
-    .setColor('#00FF00');
+    .setColor(COLORS.GREEN);
 
   await interaction.reply({ embeds: [embed], ephemeral: true });
   return true;
@@ -163,10 +167,10 @@ async function handleInGameShopPanel(interaction, serverConfigs) {
   const embed = new EmbedBuilder()
     .setTitle('🛒 𝙕𝙀𝙉 𝘽𝙊𝙏 • IN-GAME SHOP')
     .setDescription(
-      `<a:emoji_100:1560416789211516938> **ยอดเหรียญของคุณ:** \`${userCoins} Zen Coins\`\n\n` +
+      `<a:emoji_100:1560416789211516938> **ยอดเหรียญของคุณ:** \`${userCoins.toLocaleString()} Zen Coins\`\n\n` +
       'เลือกซื้อไอเทมหรือบัฟที่คุณต้องการได้จากรายการด้านล่างนี้เลยครับ:\n──────────────────────'
     )
-    .setColor('#FFD700');
+    .setColor(COLORS.GOLD);
 
   IN_GAME_ITEMS.forEach(item => {
     embed.addFields({
@@ -192,11 +196,18 @@ async function handleInGameShopPanel(interaction, serverConfigs) {
 }
 
 async function handleShopButton(interaction, serverConfigs, saveConfigs) {
-  if (interaction.customId === 'open_in_game_shop_panel') {
-    return await handleInGameShopPanel(interaction, serverConfigs);
+  const customId = interaction.customId;
+  if (customId !== 'open_in_game_shop_panel' && !customId.startsWith('buy_item_')) return false;
+
+  const guildId = interaction.guildId;
+  if (!(await isServerPremium(guildId, serverConfigs))) {
+    await interaction.reply({ content: '❌ ระบบร้านค้านี้ใช้งานได้เฉพาะเซิร์ฟเวอร์พรีเมียมเท่านั้นครับ!', ephemeral: true });
+    return true;
   }
 
-  if (!interaction.customId.startsWith('buy_item_')) return false;
+  if (customId === 'open_in_game_shop_panel') {
+    return await handleInGameShopPanel(interaction, serverConfigs);
+  }
 
   await interaction.deferReply({ ephemeral: true }).catch(() => {});
 
@@ -212,16 +223,14 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
   }
   userCooldowns.set(userId, now);
 
-  const guildId = interaction.guildId;
-  const itemId = interaction.customId.replace('buy_item_', '');
+  const itemId = customId.replace('buy_item_', '');
   const item = IN_GAME_ITEMS.find(i => i.id === itemId);
   if (!item) return true;
 
-  const artistPermRoleId = '1560224726868295740';
   if (item.id === 'role_artist_temp') {
     try {
       const member = await interaction.guild.members.fetch(userId);
-      if (member.roles.cache.has(artistPermRoleId)) {
+      if (member.roles.cache.has(ROLES.ARTIST_PERM)) {
         await interaction.editReply({ content: '❌ คุณมียศ **Artist ถาวร** อยู่แล้วครับ! ไม่จำเป็นต้องซื้อบัตรเช่า Artist | 3d เพิ่มเติม' });
         return true;
       }
@@ -231,14 +240,19 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
   if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
   if (!serverConfigs[guildId].levels) serverConfigs[guildId].levels = {};
   if (!serverConfigs[guildId].levels[userId]) {
-    serverConfigs[guildId].levels[userId] = { xp: 0, level: 1, orbs: 0, lastDaily: 0, boostUntil: 0, artistUntil: 0, customTheme: '' };
+    serverConfigs[guildId].levels[userId] = {
+      xp: 0, level: 1, orbs: 0, lastDaily: 0,
+      boostUntil: 0, artistUntil: 0, cinemaPermUntil: 0, cinemaTempUntil: 0,
+      customTheme: '', customWalletTheme: ''
+    };
   }
 
   const userStat = serverConfigs[guildId].levels[userId];
   const userCoins = userStat.orbs || 0;
 
   if (item.type === 'role_temp' && userStat.artistUntil && userStat.artistUntil > now) {
-    await interaction.editReply({ content: `⚠️ คุณยังมีสิทธิ์ Artist ใช้งานอยู่ (เหลือเวลาอีกประมาณ ${Math.ceil((userStat.artistUntil - now) / (1000 * 60 * 60 * 24))} วัน) ไม่สามารถซื้อซ้ำซ้อนได้ครับ!` });
+    const remainingDays = Math.ceil((userStat.artistUntil - now) / (1000 * 60 * 60 * 24));
+    await interaction.editReply({ content: `⚠️ คุณยังมีสิทธิ์ Artist ใช้งานอยู่ (เหลือเวลาอีกประมาณ ${remainingDays} วัน) ไม่สามารถซื้อซ้ำซ้อนได้ครับ!` });
     return true;
   }
 
@@ -261,11 +275,11 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
     userStat.orbs += roll.reward;
     await saveConfigs(serverConfigs);
 
-    await interaction.editReply({ content: `🎁 **ผลการสุ่มกาชาปอง:**\n${roll.text}\n(ยอด Zen Coins ปัจจุบันของคุณ: ${userStat.orbs} Coins)` });
+    await interaction.editReply({ content: `🎁 **ผลการสุ่มกาชาปอง:**\n${roll.text}\n(ยอด Zen Coins ปัจจุบันของคุณ: ${userStat.orbs.toLocaleString()} Coins)` });
     return true;
-  } 
-  
-  else if (item.type === 'buff') {
+  }
+
+  if (item.type === 'buff') {
     const oneHour = 60 * 60 * 1000;
     userStat.boostUntil = (userStat.boostUntil && userStat.boostUntil > now ? userStat.boostUntil : now) + oneHour;
     await saveConfigs(serverConfigs);
@@ -276,11 +290,11 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
       if (role) await member.roles.add(role);
     } catch (err) {}
 
-    await interaction.editReply({ content: `⚡ เปิดใช้งานน้ำยาคูณ XP สำเร็จ! คุณได้รับสิทธิ์คูณ XP 2 เท่า นาน 1 ชั่วโมงเต็ม (คงเหลือ ${userStat.orbs} Coins)` });
+    await interaction.editReply({ content: `⚡ เปิดใช้งานน้ำยาคูณ XP สำเร็จ! คุณได้รับสิทธิ์คูณ XP 2 เท่า นาน 1 ชั่วโมงเต็ม (คงเหลือ ${userStat.orbs.toLocaleString()} Coins)` });
     return true;
-  } 
-  
-  else if (item.type === 'role_temp') {
+  }
+
+  if (item.type === 'role_temp') {
     const threeDays = 3 * 24 * 60 * 60 * 1000;
     userStat.artistUntil = (userStat.artistUntil && userStat.artistUntil > now ? userStat.artistUntil : now) + threeDays;
     await saveConfigs(serverConfigs);
@@ -291,7 +305,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
       if (role) await member.roles.add(role);
     } catch (err) {}
 
-    await interaction.editReply({ content: `🎉 เช่าสำเร็จ! คุณได้รับยศ Artist และสิทธิ์แต่งการ์ดส่วนตัวเป็นเวลา 3 วันเต็ม! (คงเหลือ ${userStat.orbs} Coins)` });
+    await interaction.editReply({ content: `🎉 เช่าสำเร็จ! คุณได้รับยศ Artist และสิทธิ์แต่งการ์ดส่วนตัวเป็นเวลา 3 วันเต็ม! (คงเหลือ ${userStat.orbs.toLocaleString()} Coins)` });
     return true;
   }
 
