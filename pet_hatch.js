@@ -59,7 +59,7 @@ async function progressEggTime(guildId, userId, secondsToReduce, client, serverC
   }
 }
 
-// 3. ระบบเก็บเลเวลสัตว์เลี้ยง (ส่งข้อความแจ้งเตือนเลเวลอัปตามรูปแบบที่คุณต้องการ)
+// 3. ระบบเก็บเลเวลสัตว์เลี้ยง (ส่งข้อความธรรมดาเมื่อเลเวลอัป)
 async function progressPetXp(guildId, userId, xpAmount, client, serverConfigs, saveConfigs) {
   const config = serverConfigs[guildId];
   if (!config || !config.levels || !config.levels[userId]) return;
@@ -108,7 +108,7 @@ async function progressPetXp(guildId, userId, xpAmount, client, serverConfigs, s
       if (targetChannel) {
         const pet = userStat.petEgg.hatchedPet;
         await targetChannel.send({ 
-          content: `[ZEN PET] ยินดีด้วยคุณ <@${userId}>! **${pet.name}** ของคุณ Level ${newLevel} แล้ว!` 
+          content: `[ZEN PET] ยินดีด้วยคุณ <@${userId}>! **${pet.name}**อัปขึ้นเป็น Level ${newLevel} แล้ว!` 
         }).catch(() => {});
       }
     } catch (err) {
@@ -160,7 +160,6 @@ async function triggerHatchEvent(guildId, userId, client, serverConfigs, saveCon
     if (targetChannel) {
       const starString = '⭐'.repeat(selectedPet.stars);
 
-      // นับจำนวนสมาชิกที่มีสัตว์เลี้ยงชื่อนี้ในเซิร์ฟเวอร์ (Claims)[span_0](start_span)[span_0](end_span)
       let claimCount = 0;
       if (config.levels) {
         for (const id in config.levels) {
@@ -280,7 +279,7 @@ async function handleSetupShopCommand(interaction) {
   await interaction.channel.send({ embeds: [embed], components: [row] });
 }
 
-// 7. จัดการปุ่มกดซื้อไข่จากหน้าร้าน (ป้องกัน Error 10062 ด้วย deferReply)
+// 7. จัดการปุ่มกดซื้อไข่จากหน้าร้าน (อนุญาตให้ซื้อทับไข่เก่าที่ติดบั๊กเวลาค้างได้)
 async function handlePetButton(interaction, serverConfigs, saveConfigs) {
   const customId = interaction.customId;
   if (customId !== 'buy_pet_egg_shop') return false;
@@ -304,14 +303,19 @@ async function handlePetButton(interaction, serverConfigs, saveConfigs) {
     return await interaction.editReply({ content: `❌ Orbs ของคุณไม่พอ! (ต้องการ ${cost} Orbs แต่คุณมี ${userStat.orbs || 0} Orbs)` });
   }
 
+  // อนุญาตให้ซื้อทับได้ถ้าเป็นไข่เก่าที่เวลาค้างอยู่มากกว่า 60 วินาที
   if (userStat.petEgg && userStat.petEgg.hasEgg && !userStat.petEgg.isHatched) {
-    return await interaction.editReply({ content: `❌ คุณมีไข่ที่กำลังฟักอยู่แล้ว ต้องรอฟักให้เสร็จก่อน!` });
+    if (userStat.petEgg.remainingSeconds > 60) {
+      // ปล่อยผ่านเพื่อให้ซื้อทับไข่เก่าได้เลย
+    } else {
+      return await interaction.editReply({ content: `❌ คุณมีไข่ที่กำลังฟักอยู่แล้ว ต้องรอฟักให้เสร็จก่อน!` });
+    }
   }
 
   userStat.orbs -= cost;
   userStat.petEgg = {
     hasEgg: true,
-    remainingSeconds: 60,
+    remainingSeconds: 60, // รีเซ็ตเป็นไข่ทดสอบ (พิมพ์ 2 ครั้งฟัก)
     isHatched: false,
     hatchedPet: null,
     petLevel: 1,
@@ -321,7 +325,7 @@ async function handlePetButton(interaction, serverConfigs, saveConfigs) {
   await saveConfigs(serverConfigs);
 
   return await interaction.editReply({
-    content: `🎉 ใช้ ${cost} Orbs ซื้อไข่ใบใหม่สำเร็จ! ไปที่ห้องแชทแล้วพิมพ์ข้อความ 2 ครั้งเพื่อฟักไข่ได้เลย!`
+    content: `🎉 ใช้ ${cost} Orbs ซื้อไข่ใบใหม่สำเร็จ! (รีเซ็ตไข่เก่าเรียบร้อย) ไปที่ห้องแชทแล้วพิมพ์ข้อความ 2 ครั้งเพื่อฟักไข่ได้เลย!`
   });
 }
 
