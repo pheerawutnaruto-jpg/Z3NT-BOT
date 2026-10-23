@@ -2,7 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Butt
 const cron = require('node-cron');
 const { generateProfileCard } = require('./canvas_card');
 const { isServerPremium } = require('./license');
-// นำเข้าฟังก์ชันลดเวลาไข่จาก pet_hatch.js
+// นำเข้าฟังก์ชันลดเวลาไข่และสะสม Pet XP จาก pet_hatch.js
 const { progressEggTime } = require('./pet_hatch');
 
 const pendingRoleRewardImages = new Map();
@@ -191,7 +191,7 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
     }
   }
 
-  // 🥚 ลดเวลาฟักไข่อัตโนมัติ: พิมพ์แชทรอบละ 10 นาที (600 วินาที) / อยู่ห้องเสียงรอบละ 2 นาที (120 วินาที)
+  // 🥚 ลดเวลาไข่ / สะสม Pet XP อัตโนมัติเมื่อผู้ใช้มีกิจกรรม (พิมพ์แชทหรือคุยเสียง)
   const clientInstance = clientOrMessage.client || (isVoice ? clientOrMessage : clientOrMessage.client);
   if (clientInstance) {
     const secondsToReduce = isVoice ? 120 : 600;
