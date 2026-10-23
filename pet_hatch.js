@@ -1,15 +1,15 @@
 const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 
-// รายชื่อสัตว์เลี้ยง 5 ระดับดาว
+// รายชื่อสัตว์เลี้ยง 5 ระดับดาว พร้อมรูปการ์ด
 const PET_DATABASE = [
-  { name: 'สไลม์จิ๋ว', stars: 1, type: 'Common' },
-  { name: 'แมวเหมียวขี้เซา', stars: 2, type: 'Uncommon' },
-  { name: 'สุนัขจิ้งจอกนิลกาฬ', stars: 3, type: 'Rare' },
-  { name: 'ราชสีห์เพลิง', stars: 4, type: 'Epic' },
-  { name: 'มังกรทองบรรพกาล', stars: 5, type: 'Legendary' }
+  { name: 'สไลม์จิ๋ว', stars: 1, type: 'Common', image: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg' },
+  { name: 'แมวเหมียวขี้เซา', stars: 2, type: 'Uncommon', image: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg' },
+  { name: 'สุนัขจิ้งจอกนิลกาฬ', stars: 3, type: 'Rare', image: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg' },
+  { name: 'ราชสีห์เพลิง', stars: 4, type: 'Epic', image: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg' },
+  { name: 'มังกรทองบรรพกาล', stars: 5, type: 'Legendary', image: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg' }
 ];
 
-// 1. ฟังก์ชันแจกไข่เริ่มต้นเมื่อสมาชิกเข้าเซิร์ฟเวอร์
+// 1. ฟังก์ชันแจกไข่เริ่มต้น
 function assignInitialEgg(config, userId) {
   if (!config.levels) config.levels = {};
   if (!config.levels[userId]) {
@@ -20,26 +20,31 @@ function assignInitialEgg(config, userId) {
   if (!userStat.petEgg) {
     userStat.petEgg = {
       hasEgg: true,
-      totalSecondsNeeded: 86400, // 24 ชั่วโมง
-      remainingSeconds: 86400,
+      totalSecondsNeeded: 60, // 👈 [โหมดทดสอบ] ตั้งไว้ 60 วินาที (พอใช้งานจริงค่อยเปลี่ยนกลับเป็น 86400)
+      remainingSeconds: 60,   // 👈 [โหมดทดสอบ] ตั้งไว้ 60 วินาที
       isHatched: false,
       hatchedPet: null
     };
   }
 }
 
-// 2. ฟังก์ชันลดเวลาไข่จากกิจกรรม (พิมพ์แชท / คุยเสียง)
+// 2. ฟังก์ชันลดเวลาไข่ + ระบบ Safety Net อัตโนมัติ
 async function progressEggTime(guildId, userId, secondsToReduce, client, serverConfigs, saveConfigs) {
   const config = serverConfigs[guildId];
   if (!config || !config.levels || !config.levels[userId]) return;
 
   const userStat = config.levels[userId];
-  if (!userStat.petEgg || userStat.petEgg.isHatched || !userStat.petEgg.hasEgg) return;
 
-  // ลดเวลาตามกิจกรรม
+  // 🛡️ Safety Net: ถ้าใครยังไม่มีไข่ (ไม่ว่าจะสมาชิกใหม่หรือสมาชิกเก่า) ระบบจะเสกไข่ให้ทันทีที่เขาเริ่มพิมพ์แชทหรือคุยเสียง
+  if (!userStat.petEgg) {
+    assignInitialEgg(config, userId);
+  }
+
+  if (userStat.petEgg.isHatched || !userStat.petEgg.hasEgg) return;
+
+  // ลดเวลา (ในโหมดเทส พิมพ์แค่ไม่กี่ข้อความเวลาก็จะหมดทันที)
   userStat.petEgg.remainingSeconds = Math.max(0, userStat.petEgg.remainingSeconds - secondsToReduce);
 
-  // ถ้าเวลาหมด ฟักไข่อัตโนมัติทันที
   if (userStat.petEgg.remainingSeconds <= 0 && !userStat.petEgg.isHatched) {
     await triggerHatchEvent(guildId, userId, client, serverConfigs, saveConfigs);
   } else {
@@ -47,7 +52,7 @@ async function progressEggTime(guildId, userId, secondsToReduce, client, serverC
   }
 }
 
-// 3. ฟังก์ชันเหตุการณ์ไข่แตก (Hatch Event & เซอร์ไพรส์)
+// 3. ฟังก์ชันเหตุการณ์ไข่แตก (Hatch Event)
 async function triggerHatchEvent(guildId, userId, client, serverConfigs, saveConfigs) {
   const config = serverConfigs[guildId];
   const userStat = config.levels[userId];
@@ -71,7 +76,6 @@ async function triggerHatchEvent(guildId, userId, client, serverConfigs, saveCon
     const guild = await client.guilds.fetch(guildId);
     if (!guild) return;
 
-    // หาห้องสำหรับประกาศข้อความ
     let targetChannel = guild.systemChannel;
     if (!targetChannel && config.levelConfig?.channelId) {
       targetChannel = guild.channels.cache.get(config.levelConfig.channelId);
@@ -89,9 +93,10 @@ async function triggerHatchEvent(guildId, userId, client, serverConfigs, saveCon
           `ไข่ปริศนาประจำตัวฟักออกมากลายเป็นเพื่อนคู่กายตัวใหม่แล้ว!\n\n` +
           `🐾 **สัตว์เลี้ยงที่ได้รับ:** \`${selectedPet.name}\`\n` +
           `✨ **ระดับความหายาก:** ${starString} (${selectedPet.type})\n\n` +
-          `🏰 *ระบบได้มอบยศและเปิดสิทธิ์เข้าห้องลับให้คุณเรียบร้อยแล้ว!*`
+          `🏰 *ระบบได้มอบยศและเปิดสิทธิ์เข้าห้อง **🐉・dragon-nest** ให้คุณเรียบร้อยแล้ว!*`
         )
         .setColor('#FFD700')
+        .setImage(selectedPet.image)
         .setTimestamp()
         .setFooter({ text: 'Zen Pet Automatic System' });
 
