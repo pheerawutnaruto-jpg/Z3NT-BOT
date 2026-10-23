@@ -163,6 +163,104 @@ async function generateWalletCard(user, userStat) {
   return new AttachmentBuilder(await canvas.encode('png'), { name: 'wallet-card.png' });
 }
 
+// 🐾 ฟังก์ชันสร้างการ์ดสัตว์เลี้ยง Canvas (Pet Profile Card)
+async function generatePetCard(user, petEgg) {
+  const canvas = createCanvas(930, 280);
+  const ctx = canvas.getContext('2d');
+
+  const pet = petEgg.hatchedPet;
+  const petLevel = petEgg.petLevel || 1;
+  const petXp = petEgg.petXp || 0;
+  const requiredXp = petLevel * 100;
+  const progress = Math.min(Math.max(petXp / requiredXp, 0), 1);
+  const starString = '⭐'.repeat(pet.stars);
+
+  // พื้นหลังธีมแฟนตาซีดาร์ก
+  ctx.fillStyle = '#11111f';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+  ctx.fillRect(20, 20, canvas.width - 40, canvas.height - 40);
+
+  // กรอบสีทองพรีเมียมสำหรับสัตว์เลี้ยง
+  ctx.strokeStyle = '#FFD700';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+
+  // รูปอวตารผู้เลี้ยง
+  const avatarUrl = user.displayAvatarURL({ extension: 'png', size: 256 });
+  try {
+    const avatar = await loadImage(avatarUrl).catch(() => null);
+    if (avatar) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(110, 140, 65, 0, Math.PI * 2, true);
+      ctx.closePath();
+      ctx.clip();
+      ctx.drawImage(avatar, 45, 75, 130, 130);
+      ctx.restore();
+    }
+
+    ctx.strokeStyle = '#FFD700';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(110, 140, 65, 0, Math.PI * 2, true);
+    ctx.stroke();
+  } catch (e) {
+    console.error('Failed to load user avatar for pet card:', e);
+  }
+
+  // ข้อมูลสัตว์เลี้ยง
+  ctx.fillStyle = '#FFD700';
+  ctx.font = 'bold 22px sans-serif';
+  ctx.fillText('ZEN PET COMPANION', 210, 75);
+
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = 'bold 30px sans-serif';
+  ctx.fillText(pet.name, 210, 120);
+
+  ctx.fillStyle = '#FFD700';
+  ctx.font = 'bold 20px sans-serif';
+  ctx.fillText(`${starString} (${pet.type})`, 210, 150);
+
+  ctx.fillStyle = '#00FFCC';
+  ctx.font = 'bold 24px sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText(`LEVEL ${petLevel}`, canvas.width - 50, 95);
+
+  ctx.fillStyle = '#AAAAAA';
+  ctx.font = '18px sans-serif';
+  ctx.fillText(`PET XP: ${petXp} / ${requiredXp}`, canvas.width - 50, 130);
+  ctx.textAlign = 'left';
+
+  // หลอด Pet EXP
+  const barX = 210;
+  const barY = 180;
+  const barWidth = 670;
+  const barHeight = 26;
+  const radius = 13;
+
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+  ctx.beginPath();
+  ctx.roundRect(barX, barY, barWidth, barHeight, radius);
+  ctx.fill();
+
+  if (progress > 0) {
+    ctx.fillStyle = '#FFD700';
+    ctx.beginPath();
+    ctx.roundRect(barX, barY, Math.max(barWidth * progress, radius * 2), barHeight, radius);
+    ctx.fill();
+  }
+
+  ctx.fillStyle = '#000000';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(`${Math.floor(progress * 100)}%`, barX + (barWidth / 2), barY + 18);
+  ctx.textAlign = 'left';
+
+  return new AttachmentBuilder(await canvas.encode('png'), { name: 'pet-card.png' });
+}
+
 async function generateWelcomeCard(member) {
   const canvas = createCanvas(930, 320);
   const ctx = canvas.getContext('2d');
@@ -236,4 +334,4 @@ async function generateWelcomeCard(member) {
   return new AttachmentBuilder(await canvas.encode('png'), { name: 'welcome-card.png' });
 }
 
-module.exports = { generateProfileCard, generateWalletCard, generateWelcomeCard };
+module.exports = { generateProfileCard, generateWalletCard, generatePetCard, generateWelcomeCard };
