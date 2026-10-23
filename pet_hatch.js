@@ -257,7 +257,7 @@ const setupShopCommand = new SlashCommandBuilder()
 async function handleSetupShopCommand(interaction) {
   // 🛡️ เช็กสิทธิ์แอดมิน ป้องกันสมาชิกทั่วไปกดใช้คำสั่ง
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-    return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้นที่จะใช้คำสั่งนี้ได้!', ephemeral: true });
+    return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น!', ephemeral: true });
   }
 
   const embed = new EmbedBuilder()
