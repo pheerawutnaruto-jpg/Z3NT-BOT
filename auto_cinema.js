@@ -1,5 +1,8 @@
+// auto_cinema.js
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder } = require('discord.js');
 const cron = require('node-cron');
+const { ROLES, IMAGES, COLORS } = require('./constants');
+const { isServerPremium } = require('./license');
 
 const autoCinemaCommand = new SlashCommandBuilder()
   .setName('auto-cinema')
@@ -18,9 +21,9 @@ async function handleAutoCinemaCommand(interaction, serverConfigs) {
       timeStr: '20:00',
       showTimeStr: '20:00',
       channelId: null,
-      roleId: '1560731553766707241',
+      roleId: ROLES.CINEMA_PERM,
       title: 'ภาพยนตร์รอบพิเศษประจำวัน',
-      imageUrl: 'https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg'
+      imageUrl: IMAGES.DEFAULT_CINEMA
     };
   }
 
@@ -29,13 +32,13 @@ async function handleAutoCinemaCommand(interaction, serverConfigs) {
 
 function getAutoCinemaDashboard(config) {
   const channelText = config.channelId ? `<#${config.channelId}>` : 'ยังไม่ได้เลือกห้อง';
-  const roleText = `<@&${config.roleId || '1560731553766707241'}>`;
+  const roleText = `<@&${config.roleId || ROLES.CINEMA_PERM}>`;
   const statusText = config.enabled ? '✅ เปิดใช้งานอยู่' : '❌ ปิดใช้งานอยู่';
 
   const embed = new EmbedBuilder()
     .setTitle('⏰ 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼 • NOW SHOWING CONTROL PANEL')
     .setDescription('แผงควบคุมรอบฉาย NOW SHOWING สามารถตั้งเวลาส่งอัตโนมัติ ชื่อเรื่อง เวลาฉาย รูปภาพ และทดลองส่งได้ที่นี่ครับ')
-    .setColor('#FF0000')
+    .setColor(COLORS.RED)
     .addFields(
       { name: '📥 สถานะระบบ', value: statusText, inline: true },
       { name: '⏰ เวลาส่งอัตโนมัติ (Cron HH:MM)', value: `\`${config.timeStr || '20:00'}\``, inline: true },
@@ -62,7 +65,7 @@ function getAutoCinemaDashboard(config) {
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId('autocinema_test_send')
-      .setLabel('🚀 ทดลองส่งข้อความทันที (เห็นคนเดียว)')
+      .setLabel('🚀 ทดลองส่งเข้าห้องจริง (ลบใน 20 นาที)')
       .setStyle(ButtonStyle.Secondary)
   );
 
@@ -84,23 +87,24 @@ function setupAutoCinemaCron(guildId, timeStr, channelId, client, serverConfigs)
     delete activeAutoCinemaCrons[guildId];
   }
 
-  const [hour, minute] = timeStr.split(':');
+  const [hour, minute] = (timeStr || '').split(':');
   if (!hour || !minute) return;
 
   const cronExpression = `${minute} ${hour} * * *`;
 
   activeAutoCinemaCrons[guildId] = cron.schedule(cronExpression, async () => {
     try {
-      const guild = await client.guilds.fetch(guildId).catch(() => null);
-      if (!guild) return;
-      const channel = await guild.channels.fetch(channelId).catch(() => null);
-      if (!channel || !channel.isTextBased()) return;
+      if (!(await isServerPremium(guildId, serverConfigs))) return;
 
       const config = serverConfigs[guildId]?.autoCinema;
       if (!config || !config.enabled) return;
 
-      const defaultImage = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg';
-      const imageUrl = (config.imageUrl && config.imageUrl.trim() !== '') ? config.imageUrl.trim() : defaultImage;
+      const guild = client.guilds.cache.get(guildId) || await client.guilds.fetch(guildId).catch(() => null);
+      if (!guild) return;
+      const channel = await guild.channels.fetch(channelId).catch(() => null);
+      if (!channel || !channel.isTextBased()) return;
+
+      const imageUrl = (config.imageUrl && config.imageUrl.trim() !== '') ? config.imageUrl.trim() : IMAGES.DEFAULT_CINEMA;
 
       const embed = new EmbedBuilder()
         .setTitle('🍿 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼 • NOW SHOWING')
@@ -108,24 +112,19 @@ function setupAutoCinemaCron(guildId, timeStr, channelId, client, serverConfigs)
           `🎬 **ชื่อเรื่อง:** ${config.title}\n` +
           `⏰ **เวลาฉาย:** ${config.showTimeStr || config.timeStr}`
         )
-        .setColor('#FF0000')
+        .setColor(COLORS.RED)
         .setImage(imageUrl)
-        .setFooter({ text: `วันที่ฉาย: ${new Date().toLocaleDateString('th-TH')}` });
+        .setFooter({ text: `วันที่ฉาย: ${new Date().toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok' })}` });
 
-      const sentMsg = await channel.send({ 
-        content: `<@&${config.roleId || '1560731553766707241'}>`, 
+      const sentMsg = await channel.send({
+        content: `<@&${config.roleId || ROLES.CINEMA_PERM}>`,
         embeds: [embed]
       });
 
-      // ⏰ ตั้งเวลาลบข้อความอัตโนมัติใน 20 นาที (20 * 60 * 1000 ms)
       setTimeout(async () => {
         try {
-          if (sentMsg && !sentMsg.deleted) {
-            await sentMsg.delete().catch(() => {});
-          }
-        } catch (e) {
-          console.error('Error deleting auto-cinema message after 20 mins:', e);
-        }
+          if (sentMsg) await sentMsg.delete().catch(() => {});
+        } catch (e) {}
       }, 20 * 60 * 1000);
 
       console.log(`✅ ส่ง Auto-Cinema NOW SHOWING สำเร็จสำหรับ Guild ${guildId} เวลา ${timeStr} (จะลบใน 20 นาที)`);
@@ -138,7 +137,7 @@ function setupAutoCinemaCron(guildId, timeStr, channelId, client, serverConfigs)
 function loadAllAutoCinemaCrons(client, serverConfigs) {
   for (const guildId in serverConfigs) {
     const config = serverConfigs[guildId];
-    if (config && config.autoCinema && config.autoCinema.enabled && config.autoCinema.timeStr && config.autoCinema.channelId) {
+    if (config?.autoCinema?.enabled && config.autoCinema.timeStr && config.autoCinema.channelId) {
       setupAutoCinemaCron(guildId, config.autoCinema.timeStr, config.autoCinema.channelId, client, serverConfigs);
     }
   }
@@ -146,12 +145,15 @@ function loadAllAutoCinemaCrons(client, serverConfigs) {
 
 async function handleAutoCinemaButton(interaction, serverConfigs, saveConfigs, client) {
   const id = interaction.customId;
+  const autoCinemaBtns = ['autocinema_toggle', 'autocinema_edit_info', 'autocinema_edit_role', 'autocinema_test_send'];
+  if (!autoCinemaBtns.includes(id)) return false;
+
   const guildId = interaction.guildId;
   if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
   if (!serverConfigs[guildId].autoCinema) {
     serverConfigs[guildId].autoCinema = {
-      enabled: false, timeStr: '20:00', showTimeStr: '20:00', channelId: null, roleId: '1560731553766707241',
-      title: 'ภาพยนตร์รอบพิเศษประจำวัน', imageUrl: 'https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg'
+      enabled: false, timeStr: '20:00', showTimeStr: '20:00', channelId: null, roleId: ROLES.CINEMA_PERM,
+      title: 'ภาพยนตร์รอบพิเศษประจำวัน', imageUrl: IMAGES.DEFAULT_CINEMA
     };
   }
   const config = serverConfigs[guildId].autoCinema;
@@ -167,7 +169,8 @@ async function handleAutoCinemaButton(interaction, serverConfigs, saveConfigs, c
       delete activeAutoCinemaCrons[guildId];
     }
 
-    return await interaction.update(getAutoCinemaDashboard(config));
+    await interaction.update(getAutoCinemaDashboard(config)).catch(() => {});
+    return true;
   }
 
   if (id === 'autocinema_edit_info') {
@@ -178,34 +181,39 @@ async function handleAutoCinemaButton(interaction, serverConfigs, saveConfigs, c
     const imageInput = new TextInputBuilder().setCustomId('imageInput').setLabel('ลิงก์รูปภาพโปสเตอร์ (Image URL)').setStyle(TextInputStyle.Short).setValue(config.imageUrl || '').setRequired(false);
 
     modal.addComponents(
-      new ActionRowBuilder().addComponents(timeInput), 
-      new ActionRowBuilder().addComponents(showTimeInput), 
-      new ActionRowBuilder().addComponents(titleInput), 
+      new ActionRowBuilder().addComponents(timeInput),
+      new ActionRowBuilder().addComponents(showTimeInput),
+      new ActionRowBuilder().addComponents(titleInput),
       new ActionRowBuilder().addComponents(imageInput)
     );
-    return await interaction.showModal(modal);
+    await interaction.showModal(modal).catch(() => {});
+    return true;
   }
 
   if (id === 'autocinema_edit_role') {
     const modal = new ModalBuilder().setCustomId('autoCinemaRoleModal').setTitle('เปลี่ยนยศประกาศ NOW SHOWING');
-    const roleInput = new TextInputBuilder().setCustomId('roleIdInput').setLabel('ระบุ Role ID ที่ต้องการแท็ก').setStyle(TextInputStyle.Short).setValue(config.roleId || '1560731553766707241').setRequired(true);
+    const roleInput = new TextInputBuilder().setCustomId('roleIdInput').setLabel('ระบุ Role ID ที่ต้องการแท็ก').setStyle(TextInputStyle.Short).setValue(config.roleId || ROLES.CINEMA_PERM).setRequired(true);
     modal.addComponents(new ActionRowBuilder().addComponents(roleInput));
-    return await interaction.showModal(modal);
+    await interaction.showModal(modal).catch(() => {});
+    return true;
   }
 
   if (id === 'autocinema_test_send') {
     if (!config.channelId) {
-      return await interaction.reply({ content: '❌ กรุณาเลือกห้องส่งประกาศจากเมนูด้านล่างแผงควบคุมก่อนทดลองส่งครับ!', ephemeral: true });
+      await interaction.reply({ content: '❌ กรุณาเลือกห้องส่งประกาศจากเมนูด้านล่างแผงควบคุมก่อนทดลองส่งครับ!', ephemeral: true });
+      return true;
     }
+
+    await interaction.deferReply({ ephemeral: true }).catch(() => {});
 
     try {
       const channel = await interaction.guild.channels.fetch(config.channelId).catch(() => null);
       if (!channel || !channel.isTextBased()) {
-        return await interaction.reply({ content: '❌ ไม่พบห้องที่เลือก กรุณาเลือกห้องใหม่อีกครั้งครับ', ephemeral: true });
+        await interaction.editReply({ content: '❌ ไม่พบห้องที่เลือก กรุณาเลือกห้องใหม่อีกครั้งครับ' });
+        return true;
       }
 
-      const defaultImage = 'https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg';
-      const imageUrl = (config.imageUrl && config.imageUrl.trim() !== '') ? config.imageUrl.trim() : defaultImage;
+      const imageUrl = (config.imageUrl && config.imageUrl.trim() !== '') ? config.imageUrl.trim() : IMAGES.DEFAULT_CINEMA;
 
       const embed = new EmbedBuilder()
         .setTitle('🍿 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼 • NOW SHOWING')
@@ -213,31 +221,27 @@ async function handleAutoCinemaButton(interaction, serverConfigs, saveConfigs, c
           `🎬 **ชื่อเรื่อง:** ${config.title}\n` +
           `⏰ **เวลาฉาย:** ${config.showTimeStr || config.timeStr}`
         )
-        .setColor('#FF0000')
+        .setColor(COLORS.RED)
         .setImage(imageUrl)
-        .setFooter({ text: `วันที่ฉาย: ${new Date().toLocaleDateString('th-TH')}` });
+        .setFooter({ text: `วันที่ฉาย: ${new Date().toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok' })}` });
 
-      // หากกดทดลองส่งแบบเห็นจริงในห้อง (หรือถ้าใช้แบบเดิมที่เห็นคนเดียว ถ้าอยากให้ส่งเข้าห้องจริงแล้วลบใน 20 นาที สามารถใช้ตัวนี้ได้ครับ)
-      const sentMsg = await channel.send({ 
-        content: `🧪 **[ทดลองส่งเข้าห้องจริง] (ข้อความนี้จะหายไปเองใน 20 นาที):** <@&${config.roleId || '1560731553766707241'}>`, 
+      const sentMsg = await channel.send({
+        content: `🧪 **[ทดลองส่งเข้าห้องจริง] (ข้อความนี้จะหายไปเองใน 20 นาที):** <@&${config.roleId || ROLES.CINEMA_PERM}>`,
         embeds: [embed]
       });
 
-      // ⏰ ตั้งเวลาลบข้อความทดลองในห้องจริง 20 นาที
       setTimeout(async () => {
         try {
-          if (sentMsg && !sentMsg.deleted) {
-            await sentMsg.delete().catch(() => {});
-          }
-        } catch (e) {
-          console.error('Error deleting test auto-cinema message after 20 mins:', e);
-        }
+          if (sentMsg) await sentMsg.delete().catch(() => {});
+        } catch (e) {}
       }, 20 * 60 * 1000);
 
-      return await interaction.reply({ content: `✅ ส่งข้อความทดลองไปยังห้อง <#${config.channelId}> เรียบร้อยแล้ว! (ข้อความจะหายไปใน 20 นาที)`, ephemeral: true });
+      await interaction.editReply({ content: `✅ ส่งข้อความทดลองไปยังห้อง <#${config.channelId}> เรียบร้อยแล้ว! (ข้อความจะหายไปใน 20 นาที)` });
+      return true;
     } catch (err) {
       console.error('Error testing auto cinema:', err);
-      return await interaction.reply({ content: '❌ เกิดข้อผิดพลาดในการทดลองส่ง กรุณาตรวจสอบสิทธิ์ของบอทครับ', ephemeral: true });
+      await interaction.editReply({ content: '❌ เกิดข้อผิดพลาดในการทดลองส่ง กรุณาตรวจสอบสิทธิ์ของบอทครับ' });
+      return true;
     }
   }
 
@@ -245,29 +249,27 @@ async function handleAutoCinemaButton(interaction, serverConfigs, saveConfigs, c
 }
 
 async function handleAutoCinemaSelect(interaction, serverConfigs, saveConfigs, client) {
+  if (interaction.customId !== 'autocinema_select_channel') return false;
+
   const guildId = interaction.guildId;
   if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
 
-  if (interaction.customId === 'autocinema_select_channel') {
-    const channelId = interaction.values[0];
-    if (!serverConfigs[guildId].autoCinema) {
-      serverConfigs[guildId].autoCinema = {
-        enabled: false, timeStr: '20:00', showTimeStr: '20:00', roleId: '1560731553766707241',
-        title: 'ภาพยนตร์รอบพิเศษประจำวัน', imageUrl: 'https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg'
-      };
-    }
-    serverConfigs[guildId].autoCinema.channelId = channelId;
-    await saveConfigs(serverConfigs);
+  const channelId = interaction.values[0];
+  if (!serverConfigs[guildId].autoCinema) {
+    serverConfigs[guildId].autoCinema = {
+      enabled: false, timeStr: '20:00', showTimeStr: '20:00', roleId: ROLES.CINEMA_PERM,
+      title: 'ภาพยนตร์รอบพิเศษประจำวัน', imageUrl: IMAGES.DEFAULT_CINEMA
+    };
+  }
+  serverConfigs[guildId].autoCinema.channelId = channelId;
+  await saveConfigs(serverConfigs);
 
-    if (serverConfigs[guildId].autoCinema.enabled && serverConfigs[guildId].autoCinema.timeStr) {
-      setupAutoCinemaCron(guildId, serverConfigs[guildId].autoCinema.timeStr, channelId, client, serverConfigs);
-    }
-
-    await interaction.update(getAutoCinemaDashboard(serverConfigs[guildId].autoCinema));
-    return true;
+  if (serverConfigs[guildId].autoCinema.enabled && serverConfigs[guildId].autoCinema.timeStr) {
+    setupAutoCinemaCron(guildId, serverConfigs[guildId].autoCinema.timeStr, channelId, client, serverConfigs);
   }
 
-  return false;
+  await interaction.update(getAutoCinemaDashboard(serverConfigs[guildId].autoCinema)).catch(() => {});
+  return true;
 }
 
 async function handleAutoCinemaModal(interaction, serverConfigs, saveConfigs, client) {
@@ -277,7 +279,7 @@ async function handleAutoCinemaModal(interaction, serverConfigs, saveConfigs, cl
   if (interaction.customId === 'autoCinemaInfoModal') {
     if (!serverConfigs[guildId].autoCinema) serverConfigs[guildId].autoCinema = {};
     const config = serverConfigs[guildId].autoCinema;
-    
+
     const timeVal = interaction.fields.getTextInputValue('timeInput').trim();
     if (/^([01]\d|2[0-3]):([0-5]\d)$/.test(timeVal)) {
       config.timeStr = timeVal;
@@ -295,16 +297,18 @@ async function handleAutoCinemaModal(interaction, serverConfigs, saveConfigs, cl
       setupAutoCinemaCron(guildId, config.timeStr, config.channelId, client, serverConfigs);
     }
 
-    return await interaction.reply({ content: '✅ บันทึกการตั้งค่า NOW SHOWING เรียบร้อยแล้ว!', ephemeral: true });
+    await interaction.reply({ content: '✅ บันทึกการตั้งค่า NOW SHOWING เรียบร้อยแล้ว!', ephemeral: true });
+    return true;
   }
 
   if (interaction.customId === 'autoCinemaRoleModal') {
     if (!serverConfigs[guildId].autoCinema) serverConfigs[guildId].autoCinema = {};
     const config = serverConfigs[guildId].autoCinema;
-    
+
     config.roleId = interaction.fields.getTextInputValue('roleIdInput').trim();
     await saveConfigs(serverConfigs);
-    return await interaction.reply({ content: `✅ เปลี่ยนยศประกาศ NOW SHOWING เป็น <@&${config.roleId}> เรียบร้อยแล้ว!`, ephemeral: true });
+    await interaction.reply({ content: `✅ เปลี่ยนยศประกาศ NOW SHOWING เป็น <@&${config.roleId}> เรียบร้อยแล้ว!`, ephemeral: true });
+    return true;
   }
 
   return false;
