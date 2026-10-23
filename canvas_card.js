@@ -1,6 +1,7 @@
 const { createCanvas, loadImage } = require('@napi-rs/canvas');
 const { AttachmentBuilder } = require('discord.js');
 
+// 📊 การ์ดเลเวลหลักของบอท
 async function generateProfileCard(user, userStat, lConfig) {
   const canvas = createCanvas(930, 280);
   const ctx = canvas.getContext('2d');
@@ -18,8 +19,12 @@ async function generateProfileCard(user, userStat, lConfig) {
   if (bgUrl && bgUrl.trim() !== '') {
     try {
       const bgImage = await loadImage(bgUrl.trim()).catch(() => null);
-      if (bgImage) ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
-    } catch (e) {}
+      if (bgImage) {
+        ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+      }
+    } catch (e) {
+      console.error('Failed to load custom background image:', e);
+    }
   }
 
   ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
@@ -41,12 +46,15 @@ async function generateProfileCard(user, userStat, lConfig) {
       ctx.drawImage(avatar, 45, 75, 130, 130);
       ctx.restore();
     }
+
     ctx.strokeStyle = lConfig.embedColor || '#66FFFF';
     ctx.lineWidth = 4;
     ctx.beginPath();
     ctx.arc(110, 140, 65, 0, Math.PI * 2, true);
     ctx.stroke();
-  } catch (e) {}
+  } catch (e) {
+    console.error('Failed to load user avatar:', e);
+  }
 
   ctx.fillStyle = '#FFFFFF';
   ctx.font = 'bold 32px sans-serif';
@@ -62,7 +70,12 @@ async function generateProfileCard(user, userStat, lConfig) {
   ctx.fillText(`XP: ${currentXp} / ${requiredXp}`, canvas.width - 50, 130);
   ctx.textAlign = 'left';
 
-  const barX = 210, barY = 170, barWidth = 670, barHeight = 30, radius = 15;
+  const barX = 210;
+  const barY = 170;
+  const barWidth = 670;
+  const barHeight = 30;
+  const radius = 15;
+
   ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
   ctx.beginPath();
   ctx.roundRect(barX, barY, barWidth, barHeight, radius);
@@ -79,10 +92,12 @@ async function generateProfileCard(user, userStat, lConfig) {
   ctx.font = 'bold 16px sans-serif';
   ctx.textAlign = 'center';
   ctx.fillText(`${Math.floor(progress * 100)}%`, barX + (barWidth / 2), barY + 20);
+  ctx.textAlign = 'left';
 
   return new AttachmentBuilder(await canvas.encode('png'), { name: 'profile-card.png' });
 }
 
+// 💰 การ์ดกระเป๋าเงิน (Wallet)
 async function generateWalletCard(user, userStat) {
   const canvas = createCanvas(930, 260);
   const ctx = canvas.getContext('2d');
@@ -94,8 +109,12 @@ async function generateWalletCard(user, userStat) {
   if (bgUrl && bgUrl.trim() !== '') {
     try {
       const bgImage = await loadImage(bgUrl.trim()).catch(() => null);
-      if (bgImage) ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
-    } catch (e) {}
+      if (bgImage) {
+        ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+      }
+    } catch (e) {
+      console.error('Failed to load wallet background:', e);
+    }
   }
 
   ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
@@ -117,6 +136,7 @@ async function generateWalletCard(user, userStat) {
       ctx.drawImage(avatar, 55, 75, 110, 110);
       ctx.restore();
     }
+
     ctx.strokeStyle = '#FFD700';
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -144,7 +164,7 @@ async function generateWalletCard(user, userStat) {
   return new AttachmentBuilder(await canvas.encode('png'), { name: 'wallet-card.png' });
 }
 
-// 🐾 การ์ดสัตว์เลี้ยง Canvas (รูปแบบเดียวกับการ์ดเลเวลหลัก: ใช้รูปสัตว์เลี้ยงเป็นภาพพื้นหลังการ์ด)
+// 🐾 การ์ดสัตว์เลี้ยง (ใช้รูปสัตว์เลี้ยงเป็น Background รูปแบบเดียวกับการ์ดเลเวล)
 async function generatePetCard(user, petEgg) {
   const canvas = createCanvas(930, 280);
   const ctx = canvas.getContext('2d');
@@ -156,11 +176,11 @@ async function generatePetCard(user, petEgg) {
   const progress = Math.min(Math.max(petXp / requiredXp, 0), 1);
   const starString = '⭐'.repeat(pet.stars);
 
-  // 1. สีพื้นหลังตั้งต้น (กรณีโหลดรูปภาพสัตว์เลี้ยงไม่สำเร็จ)
+  // 1. สีพื้นหลังตั้งต้น
   ctx.fillStyle = '#1a1a2e';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // 2. 🖼️ ดึงรูปภาพของสัตว์เลี้ยงตัวนั้นมาทำเป็นภาพพื้นหลังการ์ด (เหมือนการ์ดเลเวลสมาชิก)
+  // 2. นำรูปภาพสัตว์เลี้ยงมาทำเป็นภาพพื้นหลังการ์ด
   if (pet.image && pet.image.trim() !== '') {
     try {
       const petBgImage = await loadImage(pet.image.trim()).catch(() => null);
@@ -172,16 +192,16 @@ async function generatePetCard(user, petEgg) {
     }
   }
 
-  // 3. ทับด้วยเลเยอร์สีดำโปร่งแสง เพื่อให้อ่านตัวหนังสือได้ชัดเจนสวยงาม
+  // 3. เลเยอร์สีดำโปร่งแสงทับพื้นหลังให้อ่านง่าย
   ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
   ctx.fillRect(20, 20, canvas.width - 40, canvas.height - 40);
 
-  // 4. กรอบขอบการ์ดสีทองพรีเมียม
+  // 4. กรอบขอบการ์ดสีทอง
   ctx.strokeStyle = '#FFD700';
   ctx.lineWidth = 3;
   ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
 
-  // 5. 👤 วงกลมรูปอวตารผู้เลี้ยง (เจ้าของสัตว์เลี้ยง) ด้านซ้าย
+  // 5. วงกลมรูปอวตารเจ้าของสัตว์เลี้ยงด้านซ้าย
   const avatarUrl = user.displayAvatarURL({ extension: 'png', size: 256 });
   try {
     const avatar = await loadImage(avatarUrl).catch(() => null);
@@ -201,7 +221,7 @@ async function generatePetCard(user, petEgg) {
     ctx.stroke();
   } catch (e) {}
 
-  // 6. 📝 ข้อความชื่อสัตว์เลี้ยง และ Rarity ดาว
+  // 6. ชื่อสัตว์เลี้ยงและระดับดาว
   ctx.fillStyle = '#FFFFFF';
   ctx.font = 'bold 30px sans-serif';
   ctx.fillText(pet.name, 210, 95);
@@ -210,7 +230,7 @@ async function generatePetCard(user, petEgg) {
   ctx.font = '18px sans-serif';
   ctx.fillText(`${starString} (${pet.type})`, 210, 125);
 
-  // 7. 📊 เลเวลและค่า XP ด้านขวาบนของการ์ด
+  // 7. เลเวลและค่า XP ด้านขวา
   ctx.fillStyle = '#00FFCC';
   ctx.font = 'bold 26px sans-serif';
   ctx.textAlign = 'right';
@@ -221,7 +241,7 @@ async function generatePetCard(user, petEgg) {
   ctx.fillText(`PET XP: ${petXp} / ${requiredXp}`, canvas.width - 50, 130);
   ctx.textAlign = 'left';
 
-  // 8. 📈 หลอด EXP ด้านล่าง
+  // 8. หลอด EXP ด้านล่าง
   const barX = 210;
   const barY = 170;
   const barWidth = 670;
@@ -249,6 +269,7 @@ async function generatePetCard(user, petEgg) {
   return new AttachmentBuilder(await canvas.encode('png'), { name: 'pet-card.png' });
 }
 
+// 🚪 การ์ดต้อนรับ (Welcome Card)
 async function generateWelcomeCard(member) {
   const canvas = createCanvas(930, 320);
   const ctx = canvas.getContext('2d');
