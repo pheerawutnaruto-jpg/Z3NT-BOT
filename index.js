@@ -122,6 +122,9 @@ client.once('ready', async () => {
     new SlashCommandBuilder().setName('set-autorole').setDescription('ตั้งค่าระบบแจกยศอัตโนมัติสำหรับสมาชิกใหม่'),
     new SlashCommandBuilder().setName('set-security').setDescription('เปิดแผงควบคุมระบบป้องกันความปลอดภัยขั้นสูง'),
     new SlashCommandBuilder().setName('bot-info').setDescription('✨ แสดงข้อมูลและหน้าพรีเซนต์แนะนำตัวของ Zen Bot'),
+    new SlashCommandBuilder().setName('set-pet-role').setDescription('🐾 กำหนด ID ของยศที่จะแจกเมื่อไข่สัตว์เลี้ยงแตก')
+      .addRoleOption(option => option.setName('role').setDescription('เลือกยศห้องลับที่สร้างไว้').setRequired(true)),
+    new SlashCommandBuilder().setName('init-old-eggs').setDescription('🥚 [สคริปต์ชั่วคราว] แจกไข่ให้สมาชิกเก่าทุกคนในเซิร์ฟเวอร์'),
     levelCommand,
     leaderboardCommand,
     setupQuestCommand,
@@ -282,7 +285,8 @@ client.on('interactionCreate', async interaction => {
       embed: { description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!' },
       autoClear: { enabled: false, time: '06:00', channelId: null },
       mediaGuardChannels: [],
-      showcaseChannelId: null
+      showcaseChannelId: null,
+      petRoleId: null
     };
   }
   const config = serverConfigs[guildId];
@@ -344,6 +348,47 @@ client.on('interactionCreate', async interaction => {
       .setFooter({ text: 'Powered by Zen Bot Technology' });
 
     return await interaction.reply({ embeds: [embed], ephemeral: true });
+  }
+  if (interaction.isChatInputCommand() && interaction.commandName === 'set-pet-role') {
+    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+      return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
+    }
+    const role = interaction.options.getRole('role');
+    config.petRoleId = role.id;
+    await saveConfigs(serverConfigs);
+    return await interaction.reply({ content: `✅ ตั้งค่ายศสัตว์เลี้ยงเรียบร้อยแล้ว! บอทจะแจกยศ **${role.name}** ให้คนที่ไข่แตก`, ephemeral: true });
+  }
+  if (interaction.isChatInputCommand() && interaction.commandName === 'init-old-eggs') {
+    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+      return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
+    }
+    
+    await interaction.deferReply({ ephemeral: true });
+    const guild = interaction.guild;
+    await guild.members.fetch();
+    
+    let count = 0;
+    guild.members.cache.forEach(member => {
+      if (member.user.bot) return;
+      if (!config.levels) config.levels = {};
+      if (!config.levels[member.id]) {
+        config.levels[member.id] = { xp: 0, level: 1, orbs: 0 };
+      }
+      const userStat = config.levels[member.id];
+      if (!userStat.petEgg) {
+        userStat.petEgg = {
+          hasEgg: true,
+          totalSecondsNeeded: 86400,
+          remainingSeconds: 86400,
+          isHatched: false,
+          hatchedPet: null
+        };
+        count++;
+      }
+    });
+
+    await saveConfigs(serverConfigs);
+    return await interaction.editReply({ content: `✅ แจกไข่ให้สมาชิกเก่าสำเร็จทั้งหมด **${count}** คน! (คุณสามารถลบคำสั่งนี้ออกจากโค้ดได้แล้ว)` });
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'level') {
     return await handleLevelCommand(interaction, serverConfigs);
