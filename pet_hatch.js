@@ -266,8 +266,7 @@ async function handleSetupShopCommand(interaction) {
       `ยินดีต้อนรับสู่ร้านค้าสัตว์เลี้ยงประจำเซิร์ฟเวอร์!\n\n` +
       `📦 **Mystery Pet Egg (ไข่สัตว์เลี้ยงลึกลับ)**\n` +
       `✨ *ลุ้นรับสัตว์เลี้ยงระดับ 1 ดาว ถึง 6 ดาว (Cosmic)*\n` +
-      `💵 **ราคา:** \`500 Orbs\`\n\n` +
-      `👇 **กดปุ่มด้านล่างเพื่อซื้อไข่ได้ทันที!**`
+      `💵 **ราคา:** \`500 Orbs`
     )
     .setColor('#FFD700')
     .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1563060185633652816/image0.jpg?ex=6adc40bc&is=6adaef3c&hm=67a61c3443ccdddeefe9272b417ec4dc9cb24d1e5112da608b4076f8a8bf4a7b&')
