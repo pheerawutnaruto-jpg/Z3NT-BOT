@@ -271,7 +271,8 @@ async function handleSetupShopCommand(interaction) {
     )
     .setColor('#FFD700')
     .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1563060185633652816/image0.jpg?ex=6adc40bc&is=6adaef3c&hm=67a61c3443ccdddeefe9272b417ec4dc9cb24d1e5112da608b4076f8a8bf4a7b&')
-    .setFooter({ text: 'Zen Pet Storefront System' });
+    
+    ;
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
