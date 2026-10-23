@@ -6,14 +6,16 @@ function handleLeveling(message, serverConfigs, saveConfigs) {
   const guildId = message.guild.id;
   if (!serverConfigs[guildId]) serverConfigs[guildId] = { levels: {} };
 
-  // เรียกใช้ระบบฟักไข่ / เพิ่ม XP สัตว์เลี้ยงทุกครั้งที่พิมพ์แชท
+  // เรียกเช็กเวลาฟักไข่และเพิ่ม Pet XP ทุกครั้งที่พิมพ์แชท
   progressEggTime(guildId, message.author.id, 60, message.client, serverConfigs, saveConfigs);
 
-  // โค้ดระบบเลเวลปกติของคุณ (เช่น เพิ่ม XP ให้ User)
-  const userStat = serverConfigs[guildId].levels[message.author.id] || { xp: 0, level: 1, orbs: 0 };
-  userStat.xp += 15; // ตัวอย่างการบวก XP
-  
-  // บันทึกข้อมูล
+  // ระบบเลเวลสมาชิกปกติ
+  if (!serverConfigs[guildId].levels[message.author.id]) {
+    serverConfigs[guildId].levels[message.author.id] = { xp: 0, level: 1, orbs: 0 };
+  }
+  const userStat = serverConfigs[guildId].levels[message.author.id];
+  userStat.xp += 15;
+
   saveConfigs(serverConfigs);
 }
 
