@@ -60,8 +60,8 @@ const {
   handleSetupShowcaseCommand, 
   handleShowcaseMessage 
 } = require('./media_showcase');
-// นำเข้าฟังก์ชันระบบสัตว์เลี้ยงอัตโนมัติ
-const { assignInitialEgg } = require('./pet_hatch');
+// นำเข้าฟังก์ชันระบบสัตว์เลี้ยงอัตโนมัติและจัดการสัตว์เลี้ยง
+const { assignInitialEgg, petCommand, handlePetCommand, handlePetButton } = require('./pet_hatch');
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
@@ -124,7 +124,9 @@ client.once('ready', async () => {
     new SlashCommandBuilder().setName('bot-info').setDescription('✨ แสดงข้อมูลและหน้าพรีเซนต์แนะนำตัวของ Zen Bot'),
     new SlashCommandBuilder().setName('set-pet-role').setDescription('🐾 กำหนด ID ของยศที่จะแจกเมื่อไข่สัตว์เลี้ยงแตก')
       .addRoleOption(option => option.setName('role').setDescription('เลือกยศห้องลับที่สร้างไว้').setRequired(true)),
-    new SlashCommandBuilder().setName('init-old-eggs').setDescription('🥚 [สคริปต์ชั่วคราว] แจกไข่ให้สมาชิกเก่าทุกคนในเซิร์ฟเวอร์'),
+    new SlashCommandBuilder().setName('set-pet-channel').setDescription('📢 กำหนดห้องสำหรับประกาศเมื่อไข่สัตว์เลี้ยงแตก')
+      .addChannelOption(option => option.setName('channel').setDescription('เลือกห้องสำหรับประกาศไข่แตก').addChannelTypes(ChannelType.GuildText).setRequired(true)),
+    petCommand,
     levelCommand,
     leaderboardCommand,
     setupQuestCommand,
@@ -286,7 +288,8 @@ client.on('interactionCreate', async interaction => {
       autoClear: { enabled: false, time: '06:00', channelId: null },
       mediaGuardChannels: [],
       showcaseChannelId: null,
-      petRoleId: null
+      petRoleId: null,
+      petChannelId: null
     };
   }
   const config = serverConfigs[guildId];
@@ -358,37 +361,17 @@ client.on('interactionCreate', async interaction => {
     await saveConfigs(serverConfigs);
     return await interaction.reply({ content: `✅ ตั้งค่ายศสัตว์เลี้ยงเรียบร้อยแล้ว! บอทจะแจกยศ **${role.name}** ให้คนที่ไข่แตก`, ephemeral: true });
   }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'init-old-eggs') {
+  if (interaction.isChatInputCommand() && interaction.commandName === 'set-pet-channel') {
     if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
       return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
     }
-    
-    await interaction.deferReply({ ephemeral: true });
-    const guild = interaction.guild;
-    await guild.members.fetch();
-    
-    let count = 0;
-    guild.members.cache.forEach(member => {
-      if (member.user.bot) return;
-      if (!config.levels) config.levels = {};
-      if (!config.levels[member.id]) {
-        config.levels[member.id] = { xp: 0, level: 1, orbs: 0 };
-      }
-      const userStat = config.levels[member.id];
-      if (!userStat.petEgg) {
-        userStat.petEgg = {
-          hasEgg: true,
-          totalSecondsNeeded: 86400,
-          remainingSeconds: 86400,
-          isHatched: false,
-          hatchedPet: null
-        };
-        count++;
-      }
-    });
-
+    const channel = interaction.options.getChannel('channel');
+    config.petChannelId = channel.id;
     await saveConfigs(serverConfigs);
-    return await interaction.editReply({ content: `✅ แจกไข่ให้สมาชิกเก่าสำเร็จทั้งหมด **${count}** คน! (คุณสามารถลบคำสั่งนี้ออกจากโค้ดได้แล้ว)` });
+    return await interaction.reply({ content: `✅ ตั้งค่าห้องประกาศสัตว์เลี้ยงเรียบร้อยแล้ว! บอทจะส่งประกาศไปที่ห้อง <#${channel.id}>`, ephemeral: true });
+  }
+  if (interaction.isChatInputCommand() && interaction.commandName === 'pet') {
+    return await handlePetCommand(interaction, serverConfigs);
   }
   if (interaction.isChatInputCommand() && interaction.commandName === 'level') {
     return await handleLevelCommand(interaction, serverConfigs);
@@ -480,6 +463,9 @@ client.on('interactionCreate', async interaction => {
 
   if (interaction.isButton()) {
     const id = interaction.customId;
+
+    const handledPetBtn = await handlePetButton(interaction, serverConfigs, saveConfigs);
+    if (handledPetBtn) return;
 
     const handledCinemaBtn = await handleCinemaButton(interaction, serverConfigs, saveConfigs, client);
     if (handledCinemaBtn) return;
