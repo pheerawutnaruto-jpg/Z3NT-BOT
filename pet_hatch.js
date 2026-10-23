@@ -2,11 +2,11 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommand
 const { generatePetCard } = require('./canvas_card');
 
 const PET_DATABASE = [
-  { name: 'Tiny Slime', stars: 1, type: 'Common', baseOrb: 50, image: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg' },
-  { name: 'Lazy Cat', stars: 2, type: 'Uncommon', baseOrb: 100, image: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg' },
-  { name: 'Shadow Fox', stars: 3, type: 'Rare', baseOrb: 250, image: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg' },
-  { name: 'Fire Lion', stars: 4, type: 'Epic', baseOrb: 500, image: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg' },
-  { name: 'Golden Dragon', stars: 5, type: 'Legendary', baseOrb: 1000, image: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg' }
+  { name: 'Tiny Slime', stars: 1, type: 'Common', baseOrb: 50 },
+  { name: 'Lazy Cat', stars: 2, type: 'Uncommon', baseOrb: 100 },
+  { name: 'Shadow Fox', stars: 3, type: 'Rare', baseOrb: 250 },
+  { name: 'Fire Lion', stars: 4, type: 'Epic', baseOrb: 500 },
+  { name: 'Golden Dragon', stars: 5, type: 'Legendary', baseOrb: 1000 }
 ];
 
 function assignInitialEgg(config, userId) {
@@ -21,7 +21,7 @@ function assignInitialEgg(config, userId) {
   if (!userStat.petEgg) {
     userStat.petEgg = {
       hasEgg: true,
-      totalSecondsNeeded: 60, // (ปรับเป็น 86400 เมื่อใช้งานจริง)
+      totalSecondsNeeded: 60,
       remainingSeconds: 60,
       isHatched: false,
       hatchedPet: null,
@@ -76,6 +76,7 @@ function progressPetXp(guildId, userId, xpAmount, serverConfigs, saveConfigs) {
   saveConfigs(serverConfigs);
 }
 
+// 🌟 เหตุการณ์ไข่แตก (ใช้ Canvas Card สวยๆ แทนรูปแบนเนอร์เก่า)
 async function triggerHatchEvent(guildId, userId, client, serverConfigs, saveConfigs) {
   const config = serverConfigs[guildId];
   const userStat = config.levels[userId];
@@ -115,6 +116,12 @@ async function triggerHatchEvent(guildId, userId, client, serverConfigs, saveCon
     }
 
     if (targetChannel) {
+      const member = await guild.members.fetch(userId).catch(() => null);
+      const userObj = member ? member.user : { username: 'Adventurer', displayAvatarURL: () => 'https://cdn.discordapp.com/embed/avatars/0.png' };
+      
+      // 🎨 สร้างการ์ด Canvas สัตว์เลี้ยงสำหรับประกาศไข่แตก
+      const attachment = await generatePetCard(userObj, userStat.petEgg);
+
       const starString = '⭐'.repeat(selectedPet.stars);
       const embed = new EmbedBuilder()
         .setTitle('🌟 [ZEN PET HATCHING] ไข่ปริศนาฟักออกมาแล้ว! 🐣')
@@ -126,11 +133,11 @@ async function triggerHatchEvent(guildId, userId, client, serverConfigs, saveCon
           `🏰 *ระบบได้เปิดสิทธิ์เข้าห้อง **🐉・dragon-nest** ให้คุณแล้ว!*`
         )
         .setColor('#FFD700')
-        .setImage(selectedPet.image)
+        .setImage('attachment://pet-card.png') // 🖼️ โชว์การ์ด Canvas ที่เรนเดอร์สดๆ
         .setTimestamp()
         .setFooter({ text: 'Zen Pet Automatic System' });
 
-      await targetChannel.send({ embeds: [embed] }).catch(() => {});
+      await targetChannel.send({ embeds: [embed], files: [attachment] }).catch(() => {});
     }
 
     const petRoleId = config.petRoleId || null;
@@ -145,7 +152,6 @@ async function triggerHatchEvent(guildId, userId, client, serverConfigs, saveCon
   }
 }
 
-// 📜 คำสั่ง /pet (รองรับการเลือกดูเพื่อนสมาชิกคนอื่นได้ และแสดงผลสาธารณะ)
 const petCommand = new SlashCommandBuilder()
   .setName('pet')
   .setDescription('🐾 เปิดดูสถานะสัตว์เลี้ยงหรือไข่ประจำตัวของคุณ')
@@ -168,9 +174,8 @@ async function handlePetCommand(interaction, serverConfigs) {
   const petEgg = userStat.petEgg;
   const isSelf = interaction.user.id === userId;
 
-  // ถ้าสัตว์เลี้ยงฟักแล้ว ส่งการ์ด Canvas ออกไปแบบสาธารณะ (ให้คนอื่นเห็นด้วย)
   if (petEgg && petEgg.isHatched && petEgg.hatchedPet) {
-    await interaction.deferReply(); // ไม่ใส่ ephemeral เพื่อให้ทุกคนเห็น
+    await interaction.deferReply();
     const attachment = await generatePetCard(targetUser, petEgg);
     
     const pet = petEgg.hatchedPet;
@@ -178,7 +183,6 @@ async function handlePetCommand(interaction, serverConfigs) {
     const totalOrbValue = (pet.baseOrb || 50) + ((petLevel - 1) * 20);
 
     const row = new ActionRowBuilder();
-    // ปุ่มจัดการจะแสดงเฉพาะเจ้าของโปรไฟล์เท่านั้น
     if (isSelf) {
       row.addComponents(
         new ButtonBuilder().setCustomId(`recycle_pet_${userId}`).setLabel(`♻️ ย่อยสลายรับ ${totalOrbValue} Orbs`).setStyle(ButtonStyle.Danger),
@@ -192,7 +196,6 @@ async function handlePetCommand(interaction, serverConfigs) {
     });
   }
 
-  // ถ้ายังเป็นไข่ หรือยังไม่มีไข่ ส่ง Embed แบบสาธารณะ
   const embed = new EmbedBuilder()
     .setTitle(`🐾 𝙕𝙀𝙉 𝗣𝗘𝗧 • สถานะไข่ของ ${targetUser.username}`)
     .setColor('#66FFFF')
@@ -219,7 +222,6 @@ async function handlePetCommand(interaction, serverConfigs) {
   });
 }
 
-// 🖱️ ระบบปุ่มกด (ตรวจสอบเจ้าของปุ่มเพื่อความปลอดภัย)
 async function handlePetButton(interaction, serverConfigs, saveConfigs) {
   const customId = interaction.customId;
   if (!customId.startsWith('recycle_pet_') && !customId.startsWith('buy_new_egg_')) return false;
@@ -250,10 +252,11 @@ async function handlePetButton(interaction, serverConfigs, saveConfigs) {
     userStat.petEgg = null; 
     await saveConfigs(serverConfigs);
 
-    return await interaction.update({
+    await interaction.message.delete().catch(() => {});
+
+    return await interaction.reply({
       content: `♻️ ย่อยสลาย **${pet.name} (Lv.${petLevel})** สำเร็จ!\n🎁 คุณได้รับ **+${earnedOrbs} Orbs** เข้ากระเป๋าเรียบร้อยแล้ว!`,
-      files: [],
-      components: []
+      ephemeral: true
     });
   }
 
@@ -279,10 +282,12 @@ async function handlePetButton(interaction, serverConfigs, saveConfigs) {
     };
 
     await saveConfigs(serverConfigs);
-    return await interaction.update({
+
+    await interaction.message.delete().catch(() => {});
+
+    return await interaction.reply({
       content: `🎉 ใช้ ${cost} Orbs ซื้อไข่ใบใหม่สำเร็จ! ไข่ใบใหม่ถูกส่งเข้าคลังเรียบร้อยแล้ว พิมพ์แชทเพื่อฟักได้เลย!`,
-      files: [],
-      components: []
+      ephemeral: true
     });
   }
 
