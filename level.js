@@ -191,10 +191,10 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
     }
   }
 
-  // 🥚 ลดเวลาไข่ / สะสม Pet XP อัตโนมัติเมื่อผู้ใช้มีกิจกรรม (พิมพ์แชทหรือคุยเสียง)
-  const clientInstance = clientOrMessage.client || (isVoice ? clientOrMessage : clientOrMessage.client);
+  // 🥚 🐾 เชื่อมโยงระบบลดเวลาไข่และสะสม Pet XP อัตโนมัติทุกครั้งที่ผู้ใช้พิมพ์แชทหรือคุยเสียง
+  const clientInstance = isVoice ? clientOrMessage : (clientOrMessage.client || clientOrMessage.guild?.client);
   if (clientInstance) {
-    const secondsToReduce = isVoice ? 120 : 600;
+    const secondsToReduce = isVoice ? 30 : 30; // ลดครั้งละ 30 วิ (พิมพ์ 2 ครั้ง หรือคุยเสียงครบกำหนด ฟักทันที)
     await progressEggTime(guildId, userId, secondsToReduce, clientInstance, serverConfigs, saveConfigs);
   }
 
