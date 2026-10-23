@@ -144,7 +144,7 @@ async function generateWalletCard(user, userStat) {
   return new AttachmentBuilder(await canvas.encode('png'), { name: 'wallet-card.png' });
 }
 
-// 🐾 การ์ดสัตว์เลี้ยง Canvas (ใช้รูปภาพสัตว์เลี้ยงชนิดนั้นมาทำเป็นพื้นหลังการ์ดเลเวล)
+// 🐾 การ์ดสัตว์เลี้ยง Canvas (รูปแบบเดียวกับการ์ดเลเวลหลัก: ใช้รูปสัตว์เลี้ยงเป็นภาพพื้นหลังการ์ด)
 async function generatePetCard(user, petEgg) {
   const canvas = createCanvas(930, 280);
   const ctx = canvas.getContext('2d');
@@ -156,30 +156,32 @@ async function generatePetCard(user, petEgg) {
   const progress = Math.min(Math.max(petXp / requiredXp, 0), 1);
   const starString = '⭐'.repeat(pet.stars);
 
-  // 1. พื้นหลังเริ่มต้น
-  ctx.fillStyle = '#11111f';
+  // 1. สีพื้นหลังตั้งต้น (กรณีโหลดรูปภาพสัตว์เลี้ยงไม่สำเร็จ)
+  ctx.fillStyle = '#1a1a2e';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // 2. 🖼️ ดึงรูปภาพประจำตัวของสัตว์เลี้ยงตัวนั้นมาทำเป็นพื้นหลังการ์ด
+  // 2. 🖼️ ดึงรูปภาพของสัตว์เลี้ยงตัวนั้นมาทำเป็นภาพพื้นหลังการ์ด (เหมือนการ์ดเลเวลสมาชิก)
   if (pet.image && pet.image.trim() !== '') {
     try {
       const petBgImage = await loadImage(pet.image.trim()).catch(() => null);
       if (petBgImage) {
         ctx.drawImage(petBgImage, 0, 0, canvas.width, canvas.height);
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error('Failed to load pet background image:', e);
+    }
   }
 
-  // 3. เลเยอร์โปร่งแสงทับพื้นหลังเพื่อให้ตัวหนังสืออ่านง่ายขึ้น (สไตล์เดียวกับการ์ดเลเวล)
+  // 3. ทับด้วยเลเยอร์สีดำโปร่งแสง เพื่อให้อ่านตัวหนังสือได้ชัดเจนสวยงาม
   ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
   ctx.fillRect(20, 20, canvas.width - 40, canvas.height - 40);
 
-  // 4. กรอบขอบการ์ดสีทอง
+  // 4. กรอบขอบการ์ดสีทองพรีเมียม
   ctx.strokeStyle = '#FFD700';
   ctx.lineWidth = 3;
   ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
 
-  // 5. 👤 อวตารเจ้าของสัตว์เลี้ยงฝั่งซ้าย
+  // 5. 👤 วงกลมรูปอวตารผู้เลี้ยง (เจ้าของสัตว์เลี้ยง) ด้านซ้าย
   const avatarUrl = user.displayAvatarURL({ extension: 'png', size: 256 });
   try {
     const avatar = await loadImage(avatarUrl).catch(() => null);
@@ -199,28 +201,33 @@ async function generatePetCard(user, petEgg) {
     ctx.stroke();
   } catch (e) {}
 
-  // 6. ข้อมูลชื่อสัตว์เลี้ยงและระดับดาว
+  // 6. 📝 ข้อความชื่อสัตว์เลี้ยง และ Rarity ดาว
   ctx.fillStyle = '#FFFFFF';
   ctx.font = 'bold 30px sans-serif';
-  ctx.fillText(pet.name, 210, 90);
+  ctx.fillText(pet.name, 210, 95);
 
   ctx.fillStyle = '#FFD700';
-  ctx.font = 'bold 18px sans-serif';
-  ctx.fillText(`OWNER: ${user.username.toUpperCase()} • ${starString} (${pet.type})`, 210, 122);
+  ctx.font = '18px sans-serif';
+  ctx.fillText(`${starString} (${pet.type})`, 210, 125);
 
-  // 7. เลเวลและค่า XP ขวาสุด
-  ctx.fillStyle = '#FFD700';
+  // 7. 📊 เลเวลและค่า XP ด้านขวาบนของการ์ด
+  ctx.fillStyle = '#00FFCC';
   ctx.font = 'bold 26px sans-serif';
   ctx.textAlign = 'right';
-  ctx.fillText(`LEVEL ${petLevel}`, canvas.width - 50, 90);
+  ctx.fillText(`LEVEL ${petLevel}`, canvas.width - 50, 95);
 
   ctx.fillStyle = '#AAAAAA';
-  ctx.font = '18px sans-serif';
-  ctx.fillText(`PET XP: ${petXp} / ${requiredXp}`, canvas.width - 50, 122);
+  ctx.font = '20px sans-serif';
+  ctx.fillText(`PET XP: ${petXp} / ${requiredXp}`, canvas.width - 50, 130);
   ctx.textAlign = 'left';
 
-  // 8. หลอด EXP ด้านล่าง
-  const barX = 210, barY = 170, barWidth = 670, barHeight = 30, radius = 15;
+  // 8. 📈 หลอด EXP ด้านล่าง
+  const barX = 210;
+  const barY = 170;
+  const barWidth = 670;
+  const barHeight = 30;
+  const radius = 15;
+
   ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
   ctx.beginPath();
   ctx.roundRect(barX, barY, barWidth, barHeight, radius);
@@ -233,10 +240,11 @@ async function generatePetCard(user, petEgg) {
     ctx.fill();
   }
 
-  ctx.fillStyle = '#000000';
+  ctx.fillStyle = '#FFFFFF';
   ctx.font = 'bold 16px sans-serif';
   ctx.textAlign = 'center';
   ctx.fillText(`${Math.floor(progress * 100)}%`, barX + (barWidth / 2), barY + 20);
+  ctx.textAlign = 'left';
 
   return new AttachmentBuilder(await canvas.encode('png'), { name: 'pet-card.png' });
 }
