@@ -108,7 +108,7 @@ async function progressPetXp(guildId, userId, xpAmount, client, serverConfigs, s
       if (targetChannel) {
         const pet = userStat.petEgg.hatchedPet;
         await targetChannel.send({ 
-          content: `[ZEN PET] ยินดีด้วยคุณ <@${userId}>! **${pet.name}** ของคุณ Level ${newLevel} แล้ว!` 
+          content: `[ZEN PET] ยินดีด้วยคุณ <@${userId}>! **${pet.name}** ของคุณ **Level ${newLevel}** แล้ว!` 
         }).catch(() => {});
       }
     } catch (err) {
