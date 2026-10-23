@@ -820,7 +820,8 @@ client.on('interactionCreate', async interaction => {
       return await interaction.reply({ content: `📌 กรุณาเลือกยศสำหรับ Level ${targetLevel}:`, components: [row], ephemeral: true });
     }
     if (interaction.customId === 'deleteRoleRewardModal') {
-      const targetLevel = interaction.fields.getTextInputValue('deleteRoleRewardModal').trim();
+      // ✅ แก้ไขให้ดึงค่าจาก field 'targetLevel' ให้ถูกต้องตรงกับตอนสร้าง Modal
+      const targetLevel = interaction.fields.getTextInputValue('targetLevel').trim();
       if (!config.levelConfig.roleRewards || !config.levelConfig.roleRewards[targetLevel]) {
         return await interaction.reply({ content: `❌ ไม่พบข้อมูลยศรางวัลสำหรับ Level ${targetLevel} ครับ!`, ephemeral: true });
       }
