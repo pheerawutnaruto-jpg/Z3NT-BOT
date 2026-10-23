@@ -1,13 +1,75 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, RoleSelectMenuBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
+// level.js
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelSelectMenuBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
 const cron = require('node-cron');
 const { generateProfileCard } = require('./canvas_card');
 const { isServerPremium } = require('./license');
-// นำเข้าฟังก์ชันลดเวลาไข่และสะสม Pet XP จาก pet_hatch.js
 const { progressEggTime } = require('./pet_hatch');
+const { ROLES, COLORS } = require('./constants');
 
 const pendingRoleRewardImages = new Map();
 
-async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConfigs, saveConfigs, isVoice = false, shouldSave = true) {
+// 🛡️ Helper: ตรวจสอบและถอดยศเช่า/ตั๋วหนังที่หมดอายุ (ใช้ร่วมกันทั้งตอนพิมพ์และใน Cron)
+async function checkAndRemoveExpiredRoles(guild, userId, userStat, now) {
+  let updated = false;
+
+  // 1. เช็กวันหมดอายุ XP Booster
+  if (userStat.boostUntil && now >= userStat.boostUntil) {
+    userStat.boostUntil = 0;
+    updated = true;
+    if (guild) {
+      const member = await guild.members.fetch(userId).catch(() => null);
+      if (member && member.roles.cache.has(ROLES.XP_BOOSTER)) {
+        await member.roles.remove(ROLES.XP_BOOSTER).catch(() => {});
+      }
+    }
+  }
+
+  // 2. เช็กวันหมดอายุ Artist | 3d (เช่า 3 วัน)
+  if (userStat.artistUntil && now >= userStat.artistUntil) {
+    userStat.artistUntil = 0;
+    updated = true;
+    if (guild) {
+      const member = await guild.members.fetch(userId).catch(() => null);
+      if (member) {
+        if (member.roles.cache.has(ROLES.ARTIST_TEMP)) {
+          await member.roles.remove(ROLES.ARTIST_TEMP).catch(() => {});
+        }
+        if (!member.roles.cache.has(ROLES.ARTIST_PERM)) {
+          userStat.customTheme = '';
+          userStat.customWalletTheme = '';
+        }
+      }
+    }
+  }
+
+  // 3. เช็กวันหมดอายุตั๋วหนัง 21 วัน
+  if (userStat.cinemaPermUntil && now >= userStat.cinemaPermUntil) {
+    userStat.cinemaPermUntil = 0;
+    updated = true;
+    if (guild) {
+      const member = await guild.members.fetch(userId).catch(() => null);
+      if (member && member.roles.cache.has(ROLES.CINEMA_PERM)) {
+        await member.roles.remove(ROLES.CINEMA_PERM).catch(() => {});
+      }
+    }
+  }
+
+  // 4. เช็กวันหมดอายุตั๋วหนัง 1 วัน
+  if (userStat.cinemaTempUntil && now >= userStat.cinemaTempUntil) {
+    userStat.cinemaTempUntil = 0;
+    updated = true;
+    if (guild) {
+      const member = await guild.members.fetch(userId).catch(() => null);
+      if (member && member.roles.cache.has(ROLES.CINEMA_TEMP)) {
+        await member.roles.remove(ROLES.CINEMA_TEMP).catch(() => {});
+      }
+    }
+  }
+
+  return updated;
+}
+
+async function giveXpToUser(guildId, userId, amount, contextObj, serverConfigs, saveConfigs, isVoice = false, shouldSave = true) {
   if (!serverConfigs[guildId]) return false;
 
   const config = serverConfigs[guildId];
@@ -15,87 +77,30 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
 
   if (!config.levels) config.levels = {};
   if (!config.levels[userId]) {
-    config.levels[userId] = { 
-      xp: 0, level: 1, orbs: 0, lastDaily: 0, 
-      boostUntil: 0, artistUntil: 0, cinemaPermUntil: 0, cinemaTempUntil: 0, 
-      customTheme: '', customWalletTheme: '' 
+    config.levels[userId] = {
+      xp: 0, level: 1, orbs: 0, lastDaily: 0,
+      boostUntil: 0, artistUntil: 0, cinemaPermUntil: 0, cinemaTempUntil: 0,
+      customTheme: '', customWalletTheme: ''
     };
   }
 
   const userStat = config.levels[userId];
   const multiplier = Math.max(10, config.levelConfig.xpMultiplier || 100);
   const now = Date.now();
-  const guild = isVoice ? clientOrMessage : clientOrMessage.guild;
+
+  // แยกแยะ guild และ client ให้ชัดเจนไม่ว่า contextObj จะเป็น Guild, Message หรือ Interaction
+  const guild = isVoice ? contextObj : contextObj?.guild;
+  const clientInstance = guild?.client || contextObj?.client;
+
+  // ตรวจสอบยศที่หมดอายุ
+  await checkAndRemoveExpiredRoles(guild, userId, userStat, now);
 
   let finalAmount = amount;
   let isBoosted = false;
 
-  // 1. เช็กวันหมดอายุ XP Booster
   if (userStat.boostUntil && now < userStat.boostUntil) {
-    finalAmount *= 2; 
+    finalAmount *= 2;
     isBoosted = true;
-  } else if (userStat.boostUntil && now >= userStat.boostUntil) {
-    userStat.boostUntil = 0;
-    if (guild) {
-      try {
-        const member = await guild.members.fetch(userId).catch(() => null);
-        const boostRoleId = '1559992075095773184';
-        if (member && member.roles.cache.has(boostRoleId)) {
-          await member.roles.remove(boostRoleId).catch(() => {});
-        }
-      } catch (err) {
-        console.error('Error removing expired boost role:', err);
-      }
-    }
-  }
-
-  // 2. เช็กวันหมดอายุ Artist | 3d (เช่า 3 วัน)
-  const artistRoleId = '1560136361015513108';
-  const artistPermRoleId = '1560224726868295740';
-  if (userStat.artistUntil && now >= userStat.artistUntil) {
-    userStat.artistUntil = 0;
-    if (guild) {
-      try {
-        const member = await guild.members.fetch(userId).catch(() => null);
-        if (member) {
-          if (member.roles.cache.has(artistRoleId)) {
-            await member.roles.remove(artistRoleId).catch(() => {});
-          }
-          if (!member.roles.cache.has(artistPermRoleId)) {
-            userStat.customTheme = '';
-            userStat.customWalletTheme = '';
-          }
-        }
-      } catch (err) {
-        console.error('Error removing expired artist role:', err);
-      }
-    }
-  }
-
-  // 3. เช็กวันหมดอายุตั๋วหนัง 21 วัน และ 1 วัน
-  const cinemaPermRoleId = '1560731553766707241';
-  const cinemaTempRoleId = '1551006184272560148';
-  if (userStat.cinemaPermUntil && now >= userStat.cinemaPermUntil) {
-    userStat.cinemaPermUntil = 0;
-    if (guild) {
-      try {
-        const member = await guild.members.fetch(userId).catch(() => null);
-        if (member && member.roles.cache.has(cinemaPermRoleId)) {
-          await member.roles.remove(cinemaPermRoleId).catch(() => {});
-        }
-      } catch (err) {}
-    }
-  }
-  if (userStat.cinemaTempUntil && now >= userStat.cinemaTempUntil) {
-    userStat.cinemaTempUntil = 0;
-    if (guild) {
-      try {
-        const member = await guild.members.fetch(userId).catch(() => null);
-        if (member && member.roles.cache.has(cinemaTempRoleId)) {
-          await member.roles.remove(cinemaTempRoleId).catch(() => {});
-        }
-      } catch (err) {}
-    }
   }
 
   userStat.xp += finalAmount;
@@ -109,77 +114,64 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
     requiredXp = userStat.level * multiplier;
   }
 
-  if (leveledUp) {
-    let boostText = isBoosted ? ' *(⚡ กำลังใช้งาน XP Booster x2)*' : '';
+  if (leveledUp && guild) {
+    const boostText = isBoosted ? ' *(⚡ กำลังใช้งาน XP Booster x2)*' : '';
     const customMsg = (config.levelConfig.levelUpMessage || 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว!')
       .replace('{user}', `<@${userId}>`)
       .replace('{level}', userStat.level) + boostText;
 
     let targetChannel = null;
-
-    if (isVoice) {
-      if (guild && config.levelConfig.channelId) {
-        targetChannel = guild.channels.cache.get(config.levelConfig.channelId);
-      }
-      if (!targetChannel && guild) {
-        targetChannel = guild.systemChannel;
-      }
-    } else {
-      const messageOrInteraction = clientOrMessage;
-      if (config.levelConfig.channelId) {
-        targetChannel = guild.channels.cache.get(config.levelConfig.channelId);
-      }
-      if (!targetChannel) {
-        targetChannel = messageOrInteraction.channel;
-      }
+    if (config.levelConfig.channelId) {
+      targetChannel = guild.channels.cache.get(config.levelConfig.channelId);
+    }
+    if (!targetChannel) {
+      targetChannel = isVoice ? guild.systemChannel : contextObj?.channel;
     }
 
-    if (guild) {
-      try {
-        const member = await guild.members.fetch(userId).catch(() => null);
-        if (member && config.levelConfig.roleRewards) {
-          const rewardData = config.levelConfig.roleRewards[userStat.level];
-          if (rewardData) {
-            const rewardRoleId = typeof rewardData === 'object' ? rewardData.roleId : rewardData;
-            const rewardImgUrl = typeof rewardData === 'object' ? rewardData.imageUrl : '';
+    try {
+      const member = await guild.members.fetch(userId).catch(() => null);
+      if (member && config.levelConfig.roleRewards) {
+        const rewardData = config.levelConfig.roleRewards[userStat.level];
+        if (rewardData) {
+          const rewardRoleId = typeof rewardData === 'object' ? rewardData.roleId : rewardData;
+          const rewardImgUrl = typeof rewardData === 'object' ? rewardData.imageUrl : '';
 
-            const roleToGive = guild.roles.cache.get(rewardRoleId);
-            if (roleToGive) {
-              const allRewardRoleIds = Object.values(config.levelConfig.roleRewards).map(r => typeof r === 'object' ? r.roleId : r);
-              for (const oldRoleId of allRewardRoleIds) {
-                if (oldRoleId !== rewardRoleId && member.roles.cache.has(oldRoleId)) {
-                  await member.roles.remove(oldRoleId).catch(() => {});
+          const roleToGive = guild.roles.cache.get(rewardRoleId);
+          if (roleToGive) {
+            const allRewardRoleIds = Object.values(config.levelConfig.roleRewards).map(r => typeof r === 'object' ? r.roleId : r);
+            for (const oldRoleId of allRewardRoleIds) {
+              if (oldRoleId !== rewardRoleId && member.roles.cache.has(oldRoleId)) {
+                await member.roles.remove(oldRoleId).catch(() => {});
+              }
+            }
+
+            await member.roles.add(roleToGive).catch(() => {});
+            if (targetChannel) {
+              const customRewardMsg = (config.levelConfig.roleRewardMessage || '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!')
+                .replace('{user}', `<@${userId}>`)
+                .replace('{role}', `<@&${rewardRoleId}>`)
+                .replace('{level}', userStat.level);
+
+              const embed = new EmbedBuilder()
+                .setTitle('👑 ยศรางวัลเลเวลอัปพิเศษ!')
+                .setDescription(customRewardMsg)
+                .setColor(config.levelConfig.embedColor || COLORS.PRIMARY);
+
+              if (rewardImgUrl && rewardImgUrl.trim() !== '') {
+                const urls = rewardImgUrl.split(/,|\n/).map(s => s.trim()).filter(Boolean);
+                if (urls.length > 0) {
+                  const randomImg = urls[Math.floor(Math.random() * urls.length)];
+                  embed.setImage(randomImg);
                 }
               }
 
-              await member.roles.add(roleToGive).catch(() => {});
-              if (targetChannel) {
-                const customRewardMsg = (config.levelConfig.roleRewardMessage || '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!')
-                  .replace('{user}', `<@${userId}>`)
-                  .replace('{role}', `<@&${rewardRoleId}>`)
-                  .replace('{level}', userStat.level);
-
-                const embed = new EmbedBuilder()
-                  .setTitle('👑 ยศรางวัลเลเวลอัปพิเศษ!')
-                  .setDescription(customRewardMsg)
-                  .setColor(config.levelConfig.embedColor || '#66FFFF');
-
-                if (rewardImgUrl && rewardImgUrl.trim() !== '') {
-                  const urls = rewardImgUrl.split(/,|\n/).map(s => s.trim()).filter(Boolean);
-                  if (urls.length > 0) {
-                    const randomImg = urls[Math.floor(Math.random() * urls.length)];
-                    embed.setImage(randomImg);
-                  }
-                }
-
-                await targetChannel.send({ embeds: [embed] }).catch(() => {});
-              }
+              await targetChannel.send({ embeds: [embed] }).catch(() => {});
             }
           }
         }
-      } catch (err) {
-        console.error('Error assigning level role reward:', err);
       }
+    } catch (err) {
+      console.error('Error assigning level role reward:', err);
     }
 
     if (targetChannel) {
@@ -191,19 +183,17 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
     }
   }
 
-  // 🥚 🐾 เชื่อมโยงระบบลดเวลาไข่และสะสม Pet XP อัตโนมัติทุกครั้งที่ผู้ใช้พิมพ์แชทหรือคุยเสียง
-  const clientInstance = isVoice ? clientOrMessage : (clientOrMessage.client || clientOrMessage.guild?.client);
+  // 🥚 🐾 ลดเวลาไข่และสะสม Pet XP (ส่ง shouldSave = false เพื่อมารวมเซฟครั้งเดียวด้านล่าง)
   if (clientInstance) {
-    const secondsToReduce = isVoice ? 30 : 30; // ลดครั้งละ 30 วิ (พิมพ์ 2 ครั้ง หรือคุยเสียงครบกำหนด ฟักทันที)
-    await progressEggTime(guildId, userId, secondsToReduce, clientInstance, serverConfigs, saveConfigs);
+    await progressEggTime(guildId, userId, 30, clientInstance, serverConfigs, saveConfigs, false);
   }
 
   if (shouldSave) {
     await saveConfigs(serverConfigs);
   }
 
-  if (isBoosted && !isVoice && clientOrMessage.channel) {
-    clientOrMessage.channel.send({ content: `⚡ <@${userId}> ได้รับ XP +${finalAmount} [XP Boost x2]` }).then(msg => {
+  if (isBoosted && !isVoice && contextObj?.channel) {
+    contextObj.channel.send({ content: `⚡ <@${userId}> ได้รับ XP +${finalAmount} [XP Boost x2]` }).then(msg => {
       setTimeout(() => msg.delete().catch(() => {}), 4000);
     }).catch(() => {});
   }
@@ -211,16 +201,10 @@ async function giveXpToUser(guildId, userId, amount, clientOrMessage, serverConf
   return true;
 }
 
-// ⏳ Cron Job ทำงานทุกๆ 1 นาที: แจก XP ห้องเสียง + เช็กถอดยศเช่าและตั๋วหนังที่หมดอายุจากฐานข้อมูล Redis
+// ⏳ Cron Job ทำงานทุกๆ 1 นาที: แจก XP ห้องเสียง + เช็กถอดยศที่หมดอายุ
 function startVoiceXpCron(client, serverConfigs, saveConfigs) {
   cron.schedule('* * * * *', async () => {
     const now = Date.now();
-    const boostRoleId = '1559992075095773184';
-    const artistRoleId = '1560136361015513108';
-    const artistPermRoleId = '1560224726868295740';
-    const cinemaPermRoleId = '1560731553766707241';
-    const cinemaTempRoleId = '1551006184272560148';
-
     let globalUpdated = false;
 
     for (const guildId in serverConfigs) {
@@ -234,7 +218,7 @@ function startVoiceXpCron(client, serverConfigs, saveConfigs) {
       if (hasPremium && config.levelConfig && config.levelConfig.enabled && config.levelConfig.voiceXpEnabled) {
         const xpPerMin = config.levelConfig.voiceXpAmount || 10;
         const voiceChannels = guild.channels.cache.filter(c => c.type === ChannelType.GuildVoice);
-        
+
         for (const [, channel] of voiceChannels) {
           for (const [, member] of channel.members) {
             if (member.user.bot) continue;
@@ -244,70 +228,11 @@ function startVoiceXpCron(client, serverConfigs, saveConfigs) {
         }
       }
 
+      // ตรวจสอบยศที่หมดอายุของสมาชิกทุกคนในเซิร์ฟเวอร์
       for (const userId in config.levels) {
         const userStat = config.levels[userId];
-
-        // 1. ถอดยศ XP Booster เมื่อหมดเวลา
-        if (userStat.boostUntil && now >= userStat.boostUntil) {
-          userStat.boostUntil = 0;
-          try {
-            const member = await guild.members.fetch(userId).catch(() => null);
-            if (member && member.roles.cache.has(boostRoleId)) {
-              await member.roles.remove(boostRoleId).catch(() => {});
-            }
-          } catch (err) {
-            console.error('Error cron removing expired boost role:', err);
-          }
-          globalUpdated = true;
-        }
-
-        // 2. ถอดยศ Artist | 3d เมื่อหมดเวลา
-        if (userStat.artistUntil && now >= userStat.artistUntil) {
-          userStat.artistUntil = 0;
-          try {
-            const member = await guild.members.fetch(userId).catch(() => null);
-            if (member) {
-              if (member.roles.cache.has(artistRoleId)) {
-                await member.roles.remove(artistRoleId).catch(() => {});
-              }
-              if (!member.roles.cache.has(artistPermRoleId)) {
-                userStat.customTheme = '';
-                userStat.customWalletTheme = '';
-              }
-            }
-          } catch (err) {
-            console.error('Error cron removing expired artist role:', err);
-          }
-          globalUpdated = true;
-        }
-
-        // 3. ถอดยศตั๋วหนัง 21 วัน เมื่อหมดเวลา
-        if (userStat.cinemaPermUntil && now >= userStat.cinemaPermUntil) {
-          userStat.cinemaPermUntil = 0;
-          try {
-            const member = await guild.members.fetch(userId).catch(() => null);
-            if (member && member.roles.cache.has(cinemaPermRoleId)) {
-              await member.roles.remove(cinemaPermRoleId).catch(() => {});
-            }
-          } catch (err) {
-            console.error('Error cron removing expired 21-day cinema role:', err);
-          }
-          globalUpdated = true;
-        }
-
-        // 4. ถอดยศตั๋วหนัง 1 วัน เมื่อหมดเวลา
-        if (userStat.cinemaTempUntil && now >= userStat.cinemaTempUntil) {
-          userStat.cinemaTempUntil = 0;
-          try {
-            const member = await guild.members.fetch(userId).catch(() => null);
-            if (member && member.roles.cache.has(cinemaTempRoleId)) {
-              await member.roles.remove(cinemaTempRoleId).catch(() => {});
-            }
-          } catch (err) {
-            console.error('Error cron removing expired 1-day cinema role:', err);
-          }
-          globalUpdated = true;
-        }
+        const roleExpired = await checkAndRemoveExpiredRoles(guild, userId, userStat, now);
+        if (roleExpired) globalUpdated = true;
       }
     }
 
@@ -330,7 +255,7 @@ function handleLeveling(message, serverConfigs, saveConfigs) {
       roleRewardMessage: '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!',
       cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD',
       cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**',
-      embedColor: '#66FFFF',
+      embedColor: COLORS.PRIMARY,
       statsCardImageUrl: '',
       voiceXpEnabled: false, voiceXpAmount: 10,
       roleRewards: {}
@@ -376,7 +301,7 @@ async function handleLevelCommand(interaction, serverConfigs) {
 
   const config = serverConfigs[guildId] || {};
   const levels = config.levels || {};
-  const lConfig = config.levelConfig || { xpMultiplier: 100, cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD', cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**', embedColor: '#66FFFF', statsCardImageUrl: '' };
+  const lConfig = config.levelConfig || { xpMultiplier: 100, cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD', cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**', embedColor: COLORS.PRIMARY, statsCardImageUrl: '' };
 
   const userStat = levels[userId] || { xp: 0, level: 1, customTheme: '' };
   const hasPremium = await isServerPremium(guildId, serverConfigs);
@@ -385,8 +310,8 @@ async function handleLevelCommand(interaction, serverConfigs) {
     await interaction.deferReply();
     const attachment = await generateProfileCard(targetUser, userStat, lConfig);
     return await interaction.editReply({ files: [attachment] });
-  } 
-  
+  }
+
   const requiredXp = userStat.level * Math.max(10, lConfig.xpMultiplier || 100);
   const percentage = Math.min(Math.round((userStat.xp / requiredXp) * 10), 10);
   const progressBar = '█'.repeat(percentage) + '░'.repeat(10 - percentage);
@@ -397,7 +322,7 @@ async function handleLevelCommand(interaction, serverConfigs) {
   const embed = new EmbedBuilder()
     .setTitle(finalTitle)
     .setDescription(finalDesc)
-    .setColor(lConfig.embedColor || '#66FFFF')
+    .setColor(lConfig.embedColor || COLORS.PRIMARY)
     .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
     .addFields(
       { name: 'เลเวล (Level)', value: `\` Level ${userStat.level} \``, inline: true },
@@ -448,7 +373,7 @@ async function handleLeaderboardCommand(interaction, serverConfigs) {
   const embed = new EmbedBuilder()
     .setTitle('🏆 LEADERBOARD • 10 อันดับสูงสุด')
     .setDescription(description)
-    .setColor(config.levelConfig?.embedColor || '#66FFFF')
+    .setColor(config.levelConfig?.embedColor || COLORS.PRIMARY)
     .setTimestamp();
 
   await interaction.reply({ embeds: [embed] });
@@ -466,7 +391,7 @@ function getLevelDashboardContent(config) {
       roleRewardMessage: '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!',
       cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD',
       cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**',
-      embedColor: '#66FFFF',
+      embedColor: COLORS.PRIMARY,
       statsCardImageUrl: '',
       voiceXpEnabled: false, voiceXpAmount: 10,
       roleRewards: {}
@@ -478,7 +403,7 @@ function getLevelDashboardContent(config) {
   const statusText = lc.enabled ? '✅ เปิดอยู่' : '❌ ปิดอยู่';
   const voiceStatus = lc.voiceXpEnabled ? `✅ เปิดอยู่ (${lc.voiceXpAmount} XP/นาที)` : '❌ ปิดอยู่';
   const channelName = lc.channelId ? `<#${lc.channelId}>` : 'ส่งในห้องที่พิมพ์';
-  
+
   let rewardsList = Object.entries(lc.roleRewards)
     .sort((a, b) => parseInt(a[0]) - parseInt(b[0]))
     .map(([lvl, data]) => {
@@ -491,7 +416,7 @@ function getLevelDashboardContent(config) {
   const embed = new EmbedBuilder()
     .setTitle('⚙️ แผงควบคุมระบบเลเวล (Level Dashboard)')
     .setDescription('จัดการสถานะ เลือกห้องแจ้งเตือน ปรับเรต XP และตั้งค่าข้อความได้จากปุ่มด้านล่าง')
-    .setColor('#5865F2')
+    .setColor(COLORS.DISCORD_BLURPLE)
     .addFields(
       { name: '📥 สถานะเลเวลแชท', value: statusText, inline: true },
       { name: '🎙️ ระบบ XP ห้องเสียง', value: voiceStatus, inline: true },
@@ -532,16 +457,16 @@ async function handleSetLevelCommand(interaction, serverConfigs) {
   await interaction.reply({ ...getLevelDashboardContent(config), ephemeral: true });
 }
 
-module.exports = { 
-  handleLeveling, 
-  handleCommandLeveling, 
-  levelCommand, 
-  handleLevelCommand, 
+module.exports = {
+  handleLeveling,
+  handleCommandLeveling,
+  levelCommand,
+  handleLevelCommand,
   leaderboardCommand,
   handleLeaderboardCommand,
-  setLevelCommand, 
-  handleSetLevelCommand, 
-  getLevelDashboardContent, 
+  setLevelCommand,
+  handleSetLevelCommand,
+  getLevelDashboardContent,
   startVoiceXpCron,
   pendingRoleRewardImages
 };
