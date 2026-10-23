@@ -126,12 +126,11 @@ async function triggerHatchEvent(guildId, userId, client, serverConfigs, saveCon
         .setDescription(
           `Owner: <@${userId}>\n` +
           `Rarity: ${starString} (${selectedPet.type})\n` +
-          `Level: 1 (XP: 0 / 100)\n\n` +
-          `🏰 *ปลดล็อกสิทธิ์เข้าห้อง **🐉・dragon-nest** แล้ว*`
+          `Level: 1 (XP: 0 / 100)
         )
         .setColor('#FFD700')
         .setImage(selectedPet.image)
-        .setFooter({ text: 'Zen Pet System' });
+        .setFooter({ text: 'Zen Pet' });
 
       await targetChannel.send({ embeds: [embed] }).catch(() => {});
     }
