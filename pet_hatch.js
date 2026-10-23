@@ -44,13 +44,13 @@ async function progressEggTime(guildId, userId, secondsToReduce, client, serverC
   if (!userStat.petEgg) assignInitialEgg(config, userId);
 
   if (userStat.petEgg.isHatched) {
-    progressPetXp(guildId, userId, 10, serverConfigs, saveConfigs);
+    await progressPetXp(guildId, userId, 10, client, serverConfigs, saveConfigs);
     return;
   }
 
   if (!userStat.petEgg.hasEgg) return;
 
-  userStat.petEgg.remainingSeconds = Math.max(0, userStat.petEgg.remainingSeconds - 30); // 👈 ลดครั้งละ 30 วิ (พิมพ์ 2 ครั้งหมด)
+  userStat.petEgg.remainingSeconds = Math.max(0, userStat.petEgg.remainingSeconds - 30);
 
   if (userStat.petEgg.remainingSeconds <= 0 && !userStat.petEgg.isHatched) {
     await triggerHatchEvent(guildId, userId, client, serverConfigs, saveConfigs);
@@ -59,8 +59,8 @@ async function progressEggTime(guildId, userId, secondsToReduce, client, serverC
   }
 }
 
-// 3. ระบบเก็บเลเวลสัตว์เลี้ยง
-function progressPetXp(guildId, userId, xpAmount, serverConfigs, saveConfigs) {
+// 3. ระบบเก็บเลเวลสัตว์เลี้ยง (ส่งข้อความธรรมดาเมื่อเลเวลอัป)
+async function progressPetXp(guildId, userId, xpAmount, client, serverConfigs, saveConfigs) {
   const config = serverConfigs[guildId];
   if (!config || !config.levels || !config.levels[userId]) return;
 
@@ -72,17 +72,52 @@ function progressPetXp(guildId, userId, xpAmount, serverConfigs, saveConfigs) {
 
   userStat.petEgg.petXp += xpAmount;
   let requiredPetXp = userStat.petEgg.petLevel * 100;
+  let leveledUp = false;
+  let newLevel = userStat.petEgg.petLevel;
 
   while (userStat.petEgg.petXp >= requiredPetXp) {
     userStat.petEgg.petXp -= requiredPetXp;
     userStat.petEgg.petLevel += 1;
+    newLevel = userStat.petEgg.petLevel;
+    leveledUp = true;
     requiredPetXp = userStat.petEgg.petLevel * 100;
   }
 
-  saveConfigs(serverConfigs);
+  await saveConfigs(serverConfigs);
+
+  // ส่งข้อความธรรมดาแจ้งเตือนเลเวลอัปไปที่ช่องเดียวกัน
+  if (leveledUp && client) {
+    try {
+      const guild = await client.guilds.fetch(guildId);
+      if (!guild) return;
+
+      let targetChannel = null;
+      if (config.petChannelId) {
+        targetChannel = guild.channels.cache.get(config.petChannelId);
+      }
+      if (!targetChannel) {
+        targetChannel = guild.channels.cache.find(c => 
+          c.type === 0 && 
+          !c.name.toLowerCase().includes('staff') && 
+          !c.name.toLowerCase().includes('admin') && 
+          !c.name.toLowerCase().includes('log') && 
+          c.permissionsFor(guild.members.me).has(PermissionFlagsBits.SendMessages)
+        );
+      }
+
+      if (targetChannel) {
+        const pet = userStat.petEgg.hatchedPet;
+        await targetChannel.send({ 
+          content: `<@${userId}> [ZEN PET] ยินดีด้วย! สัตว์เลี้ยง **${pet.name}** ของคุณเลเวลอัปเป็น Level ${newLevel} แล้ว!` 
+        }).catch(() => {});
+      }
+    } catch (err) {
+      console.error('Error sending pet level up notification:', err);
+    }
+  }
 }
 
-// 4. เหตุการณ์ไข่แตก (สุ่ม 6 ระดับ + ส่ง Embed สไตล์ Mudae)
+// 4. เหตุการณ์ไข่แตก (สุ่ม 6 ระดับ + ส่ง Embed สไตล์ Mudae แบบไร้ Footer)
 async function triggerHatchEvent(guildId, userId, client, serverConfigs, saveConfigs) {
   const config = serverConfigs[guildId];
   const userStat = config.levels[userId];
@@ -127,16 +162,17 @@ async function triggerHatchEvent(guildId, userId, client, serverConfigs, saveCon
       const embed = new EmbedBuilder()
         .setTitle(selectedPet.name)
         .setDescription(
-          `Owner: <@${userId}>\n` +
+          `Zen Pet\n` +
           `Rarity: ${starString} (${selectedPet.type})\n` +
-          `Level: 1 (XP: 0 / 100)\n\n` +
-          `🏰 *ปลดล็อกสิทธิ์เข้าห้อง **🐉・dragon-nest** แล้ว*`
+          `Level: 1 (XP: 0 / 100)`
         )
         .setColor('#FFD700')
-        .setImage(selectedPet.image)
-        .setFooter({ text: 'Zen Pet System' });
+        .setImage(selectedPet.image);
 
-      await targetChannel.send({ embeds: [embed] }).catch(() => {});
+      await targetChannel.send({ 
+        content: `<@${userId}>`, 
+        embeds: [embed] 
+      }).catch(() => {});
     }
 
     const petRoleId = config.petRoleId || null;
