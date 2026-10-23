@@ -117,7 +117,7 @@ async function progressPetXp(guildId, userId, xpAmount, client, serverConfigs, s
   }
 }
 
-// 4. เหตุการณ์ไข่แตก (สุ่ม 6 ระดับ + ส่ง Embed สไตล์ Mudae แบบไร้ Footer)
+// 4. เหตุการณ์ไข่แตก (แสดงชื่อ Rarity, Claims จำนวนคนที่มี, และ Base Orb 🔮)
 async function triggerHatchEvent(guildId, userId, client, serverConfigs, saveConfigs) {
   const config = serverConfigs[guildId];
   const userStat = config.levels[userId];
@@ -159,12 +159,24 @@ async function triggerHatchEvent(guildId, userId, client, serverConfigs, saveCon
 
     if (targetChannel) {
       const starString = '⭐'.repeat(selectedPet.stars);
+
+      // นับจำนวนสมาชิกที่มีสัตว์เลี้ยงชื่อนี้ในเซิร์ฟเวอร์ (Claims)
+      let claimCount = 0;
+      if (config.levels) {
+        for (const id in config.levels) {
+          const st = config.levels[id];
+          if (st.petEgg && st.petEgg.isHatched && st.petEgg.hatchedPet && st.petEgg.hatchedPet.name === selectedPet.name) {
+            claimCount++;
+          }
+        }
+      }
+
       const embed = new EmbedBuilder()
         .setTitle(selectedPet.name)
         .setDescription(
-          `Zen Pet\n` +
           `Rarity: ${starString} (${selectedPet.type})\n` +
-          `Level: 1 (XP: 0 / 100)`
+          `Claims: ${claimCount}\n` +
+          `${selectedPet.baseOrb} 🔮`
         )
         .setColor('#FFD700')
         .setImage(selectedPet.image);
