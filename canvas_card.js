@@ -183,94 +183,6 @@ async function generateWalletCard(user, userStat = {}) {
   return new AttachmentBuilder(await canvas.encode('png'), { name: 'wallet-card.png' });
 }
 
-// 🐾 การ์ดสัตว์เลี้ยง
-async function generatePetCard(user, petEgg) {
-  const canvas = createCanvas(930, 280);
-  const ctx = canvas.getContext('2d');
-
-  const pet = petEgg.hatchedPet;
-  const petLevel = petEgg.petLevel || 1;
-  const petXp = petEgg.petXp || 0;
-  const requiredXp = petLevel * 100;
-  const progress = Math.min(Math.max(petXp / requiredXp, 0), 1);
-  const starString = '⭐'.repeat(pet.stars || 1);
-
-  ctx.fillStyle = '#1a1a2e';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const petBgImage = await safeLoadImage(pet.image);
-  if (petBgImage) {
-    ctx.drawImage(petBgImage, 0, 0, canvas.width, canvas.height);
-  }
-
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
-  ctx.fillRect(20, 20, canvas.width - 40, canvas.height - 40);
-
-  ctx.strokeStyle = '#FFD700';
-  ctx.lineWidth = 3;
-  ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
-
-  const avatarUrl = user.displayAvatarURL({ extension: 'png', size: 256 });
-  const avatar = await safeLoadImage(avatarUrl);
-  if (avatar) {
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(110, 140, 65, 0, Math.PI * 2, true);
-    ctx.closePath();
-    ctx.clip();
-    ctx.drawImage(avatar, 45, 75, 130, 130);
-    ctx.restore();
-  }
-
-  ctx.strokeStyle = '#FFD700';
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.arc(110, 140, 65, 0, Math.PI * 2, true);
-  ctx.stroke();
-
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = 'bold 30px sans-serif';
-  ctx.fillText(pet.name, 210, 95);
-
-  ctx.fillStyle = '#FFD700';
-  ctx.font = '18px sans-serif';
-  ctx.fillText(`${starString} (${pet.type})`, 210, 125);
-
-  ctx.fillStyle = '#00FFCC';
-  ctx.font = 'bold 26px sans-serif';
-  ctx.textAlign = 'right';
-  ctx.fillText(`LEVEL ${petLevel}`, canvas.width - 50, 95);
-
-  ctx.fillStyle = '#AAAAAA';
-  ctx.font = '20px sans-serif';
-  ctx.fillText(`PET XP: ${petXp} / ${requiredXp}`, canvas.width - 50, 130);
-  ctx.textAlign = 'left';
-
-  const barX = 210;
-  const barY = 170;
-  const barWidth = 670;
-  const barHeight = 30;
-  const radius = 15;
-
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-  safeRoundRect(ctx, barX, barY, barWidth, barHeight, radius);
-  ctx.fill();
-
-  if (progress > 0) {
-    ctx.fillStyle = '#FFD700';
-    safeRoundRect(ctx, barX, barY, Math.max(barWidth * progress, radius * 2), barHeight, radius);
-    ctx.fill();
-  }
-
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = 'bold 16px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(`${Math.floor(progress * 100)}%`, barX + (barWidth / 2), barY + 20);
-  ctx.textAlign = 'left';
-
-  return new AttachmentBuilder(await canvas.encode('png'), { name: 'pet-card.png' });
-}
-
 // 🚪 การ์ดต้อนรับ (Welcome Card)
 async function generateWelcomeCard(member) {
   const canvas = createCanvas(930, 320);
@@ -315,4 +227,4 @@ async function generateWelcomeCard(member) {
   return new AttachmentBuilder(await canvas.encode('png'), { name: 'welcome-card.png' });
 }
 
-module.exports = { generateProfileCard, generateWalletCard, generatePetCard, generateWelcomeCard };
+module.exports = { generateProfileCard, generateWalletCard, generateWelcomeCard };
