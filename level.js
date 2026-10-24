@@ -3,7 +3,6 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Butt
 const cron = require('node-cron');
 const { generateProfileCard } = require('./canvas_card');
 const { isServerPremium } = require('./license');
-const { progressEggTime } = require('./pet_hatch');
 const { ROLES, COLORS } = require('./constants');
 
 const pendingRoleRewardImages = new Map();
@@ -90,7 +89,6 @@ async function giveXpToUser(guildId, userId, amount, contextObj, serverConfigs, 
 
   // แยกแยะ guild และ client ให้ชัดเจนไม่ว่า contextObj จะเป็น Guild, Message หรือ Interaction
   const guild = isVoice ? contextObj : contextObj?.guild;
-  const clientInstance = guild?.client || contextObj?.client;
 
   // ตรวจสอบยศที่หมดอายุ
   await checkAndRemoveExpiredRoles(guild, userId, userStat, now);
@@ -181,11 +179,6 @@ async function giveXpToUser(guildId, userId, amount, contextObj, serverConfigs, 
         }
       }).catch(() => {});
     }
-  }
-
-  // 🥚 🐾 ลดเวลาไข่และสะสม Pet XP (ส่ง shouldSave = false เพื่อมารวมเซฟครั้งเดียวด้านล่าง)
-  if (clientInstance) {
-    await progressEggTime(guildId, userId, 30, clientInstance, serverConfigs, saveConfigs, false);
   }
 
   if (shouldSave) {
