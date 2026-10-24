@@ -1,4 +1,7 @@
+// artist_card.js
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, PermissionFlagsBits } = require('discord.js');
+const { ROLES, IMAGES, COLORS } = require('./constants');
+const { isServerPremium } = require('./license');
 
 const setupArtistCommand = new SlashCommandBuilder()
   .setName('setup-artist-card')
@@ -12,9 +15,9 @@ async function handleSetupArtistCommand(interaction) {
 
   const embed = new EmbedBuilder()
     .setTitle('🎨 𝙕𝙀𝙉 𝘽𝙊𝙏 • ARTIST CARD CUSTOMIZER')
-    .setDescription('สำหรับสมาชิกที่มียศ **Artist** หรือ **Aritist | 3d** กดปุ่มด้านล่างเพื่อเลือกเปลี่ยนพื้นหลังการ์ด `/level` หรือกระเป๋าเงิน `/coins` ส่วนตัวของคุณได้ทันที!\n──────────────────────')
-    .setColor('#FF69B4')
-    .setImage('https://cdn.discordapp.com/attachments/1550576199829430382/1559721936588636220/IMG_7335.jpg');
+    .setDescription('สำหรับสมาชิกที่มียศ **Artist** หรือ **Artist | 3d** กดปุ่มด้านล่างเพื่อเลือกเปลี่ยนพื้นหลังการ์ด `/level` หรือกระเป๋าเงิน `/coins` ส่วนตัวของคุณได้ทันที!\n──────────────────────')
+    .setColor(COLORS.PINK)
+    .setImage(IMAGES.ARTIST_BANNER);
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -36,23 +39,25 @@ async function handleArtistButton(interaction, serverConfigs) {
   if (interaction.customId !== 'open_artist_level_card_modal' && interaction.customId !== 'open_artist_wallet_card_modal') return false;
 
   const guildId = interaction.guildId;
-  const userId = interaction.user.id;
-  const artistRoleId = '1560224726868295740';
-  const artist3dRoleId = '1560136361015513108';
+  if (!(await isServerPremium(guildId, serverConfigs))) {
+    await interaction.reply({ content: '❌ ฟีเจอร์นี้ใช้งานได้เฉพาะเซิร์ฟเวอร์พรีเมียมเท่านั้นครับ!', ephemeral: true });
+    return true;
+  }
 
+  const userId = interaction.user.id;
   const member = interaction.member;
   const config = serverConfigs[guildId] || {};
   const userStat = config.levels?.[userId] || {};
   const now = Date.now();
 
-  const hasArtistRole = member.roles.cache.has(artistRoleId);
-  const hasArtist3dRole = member.roles.cache.has(artist3dRoleId);
+  const hasArtistRole = member.roles.cache.has(ROLES.ARTIST_PERM);
+  const hasArtist3dRole = member.roles.cache.has(ROLES.ARTIST_TEMP);
   const hasTempAccess = userStat.artistUntil && userStat.artistUntil > now;
 
   if (!hasArtistRole && !hasArtist3dRole && !hasTempAccess) {
-    await interaction.reply({ 
-      content: '❌ คุณไม่มีสิทธิ์ใช้งาน! เฉพาะผู้ที่มี **ยศ Artist** หรือ **Aritist | 3d** เท่านั้นที่จะเปลี่ยนพื้นหลังการ์ดได้', 
-      ephemeral: true 
+    await interaction.reply({
+      content: '❌ คุณไม่มีสิทธิ์ใช้งาน! เฉพาะผู้ที่มี **ยศ Artist** หรือ **Artist | 3d** เท่านั้นที่จะเปลี่ยนพื้นหลังการ์ดได้',
+      ephemeral: true
     });
     return true;
   }
@@ -92,7 +97,11 @@ async function handleArtistModalSubmit(interaction, serverConfigs, saveConfigs) 
   if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
   if (!serverConfigs[guildId].levels) serverConfigs[guildId].levels = {};
   if (!serverConfigs[guildId].levels[userId]) {
-    serverConfigs[guildId].levels[userId] = { xp: 0, level: 1, orbs: 0, lastDaily: 0, boostUntil: 0, artistUntil: 0, customTheme: '', customWalletTheme: '' };
+    serverConfigs[guildId].levels[userId] = {
+      xp: 0, level: 1, orbs: 0, lastDaily: 0,
+      boostUntil: 0, artistUntil: 0, cinemaPermUntil: 0, cinemaTempUntil: 0,
+      customTheme: '', customWalletTheme: ''
+    };
   }
 
   const isWallet = interaction.customId === 'artistWalletCardModal';
