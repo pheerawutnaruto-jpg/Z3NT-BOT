@@ -62,14 +62,6 @@ const {
   handleSetupShowcaseCommand,
   handleShowcaseMessage
 } = require('./media_showcase');
-const {
-  assignInitialEgg,
-  petCommand,
-  setupShopCommand: setupPetShopCommand,
-  handleSetupShopCommand: handleSetupPetShopCommand,
-  handlePetCommand,
-  handlePetButton
-} = require('./pet_hatch');
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
@@ -168,8 +160,6 @@ function ensureGuildConfig(guildId) {
   }
   if (!config.mediaGuardChannels) config.mediaGuardChannels = [];
   if (config.showcaseChannelId === undefined) config.showcaseChannelId = null;
-  if (config.petRoleId === undefined) config.petRoleId = null;
-  if (config.petChannelId === undefined) config.petChannelId = null;
 
   return config;
 }
@@ -190,13 +180,6 @@ client.once('ready', async () => {
     new SlashCommandBuilder().setName('set-autorole').setDescription('ตั้งค่าระบบแจกยศอัตโนมัติสำหรับสมาชิกใหม่'),
     new SlashCommandBuilder().setName('set-security').setDescription('เปิดแผงควบคุมระบบป้องกันความปลอดภัยขั้นสูง'),
     new SlashCommandBuilder().setName('bot-info').setDescription('✨ แสดงข้อมูลและหน้าพรีเซนต์แนะนำตัวของ Zen Bot'),
-    new SlashCommandBuilder().setName('set-pet-role').setDescription('🐾 กำหนด ID หรือเลือกยศที่จะแจกเมื่อไข่สัตว์เลี้ยงแตก')
-      .addRoleOption(option => option.setName('role').setDescription('เลือกยศห้องลับที่สร้างไว้').setRequired(true)),
-    new SlashCommandBuilder().setName('set-pet-channel').setDescription('📢 กำหนดห้องสำหรับส่งการ์ดแจ้งเตือนเมื่อไข่สัตว์เลี้ยงแตก')
-      .addChannelOption(option => option.setName('channel').setDescription('เลือกห้องแชทสำหรับส่งผลฟักไข่').addChannelTypes(ChannelType.GuildText).setRequired(true)),
-    new SlashCommandBuilder().setName('init-old-eggs').setDescription('🥚 [สคริปต์] แจกไข่ให้สมาชิกเก่าทุกคนในเซิร์ฟเวอร์'),
-    petCommand,
-    setupPetShopCommand,
     levelCommand,
     leaderboardCommand,
     setupQuestCommand,
@@ -293,9 +276,6 @@ client.on('guildMemberAdd', async member => {
   const guildId = member.guild.id;
   const config = ensureGuildConfig(guildId);
 
-  assignInitialEgg(config, member.user.id);
-  await saveConfigs(serverConfigs);
-
   if (config.autoroleEnabled && config.autoroleId) {
     try {
       const role = await member.guild.roles.fetch(config.autoroleId);
@@ -336,7 +316,7 @@ client.on('interactionCreate', async interaction => {
     'setup-quest', 'setup-in-game-shop', 'coins', 'setup-order-ticket',
     'add-coins', 'setup-media-guard', 'setup-showcase', 'set-autoclear',
     'setup-artist-card', 'boost-status', 'cinema-setup', 'cinema-broadcast',
-    'auto-cinema', 'setup-pet-shop'
+    'auto-cinema'
   ];
 
   if (interaction.isChatInputCommand() && premiumCommands.includes(interaction.commandName)) {
@@ -385,46 +365,6 @@ client.on('interactionCreate', async interaction => {
 
       return await interaction.reply({ embeds: [embed], ephemeral: true });
     }
-    if (cmd === 'set-pet-role') {
-      if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-        return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น!', ephemeral: true });
-      }
-      const role = interaction.options.getRole('role');
-      config.petRoleId = role.id;
-      await saveConfigs(serverConfigs);
-      return await interaction.reply({ content: `✅ ตั้งค่ายศสัตว์เลี้ยงเรียบร้อยแล้ว! บอทจะแจกยศ **${role.name}** ให้คนที่ไข่แตก`, ephemeral: true });
-    }
-    if (cmd === 'set-pet-channel') {
-      if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-        return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น!', ephemeral: true });
-      }
-      const channel = interaction.options.getChannel('channel');
-      config.petChannelId = channel.id;
-      await saveConfigs(serverConfigs);
-      return await interaction.reply({ content: `✅ ตั้งค่าห้องแจ้งเตือนสัตว์เลี้ยงเรียบร้อยแล้ว! บอทจะส่งการ์ดสัตว์เลี้ยงไปที่ห้อง ${channel}`, ephemeral: true });
-    }
-    if (cmd === 'init-old-eggs') {
-      if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-        return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น!', ephemeral: true });
-      }
-
-      await interaction.deferReply({ ephemeral: true });
-      const guild = interaction.guild;
-      await guild.members.fetch();
-
-      let count = 0;
-      guild.members.cache.forEach(member => {
-        if (member.user.bot) return;
-        const hadEgg = config.levels?.[member.id]?.petEgg;
-        assignInitialEgg(config, member.id);
-        if (!hadEgg && config.levels[member.id]?.petEgg) count++;
-      });
-
-      await saveConfigs(serverConfigs);
-      return await interaction.editReply({ content: `✅ แจกไข่ให้สมาชิกเก่าสำเร็จทั้งหมด **${count}** คน!` });
-    }
-    if (cmd === 'pet') return await handlePetCommand(interaction, serverConfigs);
-    if (cmd === 'setup-pet-shop') return await handleSetupPetShopCommand(interaction);
     if (cmd === 'level') return await handleLevelCommand(interaction, serverConfigs);
     if (cmd === 'leaderboard') return await handleLeaderboardCommand(interaction, serverConfigs);
     if (cmd === 'setup-quest') return await handleSetupQuestCommand(interaction);
@@ -482,7 +422,6 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isButton()) {
     const id = interaction.customId;
 
-    if (await handlePetButton(interaction, serverConfigs, saveConfigs)) return;
     if (await handleCinemaButton(interaction, serverConfigs, saveConfigs)) return;
     if (await handleAutoCinemaButton(interaction, serverConfigs, saveConfigs, client)) return;
     if (await handleOrderPaymentButton(interaction)) return;
