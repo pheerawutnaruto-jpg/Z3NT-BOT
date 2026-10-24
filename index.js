@@ -1,4 +1,4 @@
-// ดักจับ Error ระดับสากลเพื่อป้องกันบอทดับ (Crash)
+// index.js
 process.on('unhandledRejection', error => {
   console.error('Unhandled promise rejection:', error);
 });
@@ -7,38 +7,40 @@ const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuild
 const http = require('http');
 const cron = require('node-cron');
 const { Redis } = require('@upstash/redis');
+
+const { IMAGES, COLORS } = require('./constants');
 const { getSecurityDashboardContent, handleSecurityMessage } = require('./security');
-const { 
-  handleLeveling, 
-  handleCommandLeveling, 
-  levelCommand, 
-  handleLevelCommand, 
-  leaderboardCommand, 
-  handleLeaderboardCommand, 
-  setLevelCommand, 
-  handleSetLevelCommand, 
-  getLevelDashboardContent, 
-  startVoiceXpCron, 
-  pendingRoleRewardImages 
+const {
+  handleLeveling,
+  handleCommandLeveling,
+  levelCommand,
+  handleLevelCommand,
+  leaderboardCommand,
+  handleLeaderboardCommand,
+  setLevelCommand,
+  handleSetLevelCommand,
+  getLevelDashboardContent,
+  startVoiceXpCron,
+  pendingRoleRewardImages
 } = require('./level');
 const { setupQuestCommand, handleSetupQuestCommand, handleQuestButton } = require('./quest');
-const { 
-  setupShopCommand, 
-  handleSetupShopCommand, 
-  boostStatusCommand, 
-  handleBoostStatusCommand, 
-  coinsCommand, 
-  addCoinsCommand, 
-  handleCoinsCommand, 
-  handleAddCoinsCommand, 
-  handleShopButton 
+const {
+  setupShopCommand,
+  handleSetupShopCommand,
+  boostStatusCommand,
+  handleBoostStatusCommand,
+  coinsCommand,
+  addCoinsCommand,
+  handleCoinsCommand,
+  handleAddCoinsCommand,
+  handleShopButton
 } = require('./shop');
 const { setupArtistCommand, handleSetupArtistCommand, handleArtistButton, handleArtistModalSubmit } = require('./artist_card');
 const { setupMediaGuardCommand, handleSetupMediaGuardCommand, handleMediaGuardMessage } = require('./media_guard');
 const { setupOrderTicketCommand, handleSetupOrderTicketCommand, handleOrderTicketSelect, handleOrderPaymentButton, handleCloseTicketButton } = require('./order_ticket');
 const { isServerPremium, grantPremiumCommand, handleGrantPremiumCommand } = require('./license');
 const { generateWelcomeCard } = require('./canvas_card');
-const { 
+const {
   setupCinemaCommand,
   cinemaBroadcastCommand,
   handleSetupCinemaCommand,
@@ -47,21 +49,27 @@ const {
   handleCinemaSelect,
   handleCinemaModal
 } = require('./cinema');
-const { 
+const {
   autoCinemaCommand,
   handleAutoCinemaCommand,
   handleAutoCinemaButton,
   handleAutoCinemaSelect,
   handleAutoCinemaModal,
-  loadAllAutoCinemaCrons 
+  loadAllAutoCinemaCrons
 } = require('./auto_cinema');
-const { 
-  setupShowcaseCommand, 
-  handleSetupShowcaseCommand, 
-  handleShowcaseMessage 
+const {
+  setupShowcaseCommand,
+  handleSetupShowcaseCommand,
+  handleShowcaseMessage
 } = require('./media_showcase');
-// นำเข้าฟังก์ชันระบบสัตว์เลี้ยงอัตโนมัติ
-const { assignInitialEgg, setupShopCommand: setupPetShopCommand, handleSetupShopCommand: handleSetupPetShopCommand, handlePetCommand, handlePetButton } = require('./pet_hatch');
+const {
+  assignInitialEgg,
+  petCommand,
+  setupShopCommand: setupPetShopCommand,
+  handleSetupShopCommand: handleSetupPetShopCommand,
+  handlePetCommand,
+  handlePetButton
+} = require('./pet_hatch');
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
@@ -85,6 +93,7 @@ const client = new Client({
 });
 
 let serverConfigs = {};
+let saveTimeout = null;
 
 async function loadConfigs() {
   try {
@@ -98,12 +107,71 @@ async function loadConfigs() {
   return {};
 }
 
+// ⚡ ระบบ Debounce Save: รวมคำสั่งเซฟที่เกิดขึ้นถี่ๆ ให้เขียนลง Redis ครั้งเดียวทุก 1.5 วินาที
 async function saveConfigs(configs) {
-  try {
-    await redis.set('server_configs', JSON.stringify(configs));
-  } catch (e) {
-    console.error('Error saving config to Redis:', e);
+  if (saveTimeout) clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(async () => {
+    try {
+      await redis.set('server_configs', JSON.stringify(configs));
+    } catch (e) {
+      console.error('Error saving config to Redis:', e);
+    }
+  }, 1500);
+}
+
+// 🛠️ Helper: สร้างโครงสร้างเริ่มต้นของเซิร์ฟเวอร์ให้ครบถ้วน
+function ensureGuildConfig(guildId) {
+  if (!serverConfigs[guildId]) {
+    serverConfigs[guildId] = {};
   }
+  const config = serverConfigs[guildId];
+
+  if (config.welcomeEnabled === undefined) config.welcomeEnabled = false;
+  if (config.channelId === undefined) config.channelId = null;
+  if (config.autoroleEnabled === undefined) config.autoroleEnabled = false;
+  if (config.autoroleId === undefined) config.autoroleId = null;
+
+  if (!config.security) {
+    config.security = {
+      enabled: false, antiLink: true, antiSpam: true, antiMrBeast: true,
+      spamCount: 3, spamSeconds: 6, timeoutSeconds: 60,
+      actions: {
+        invite: { timeout: true, kick: false, ban: false },
+        spam: { timeout: true, kick: false, ban: false },
+        mrbeast: { timeout: true, kick: false, ban: false }
+      },
+      ignoredChannels: []
+    };
+  }
+  if (!config.levels) config.levels = {};
+  if (!config.levelConfig) {
+    config.levelConfig = {
+      enabled: true, minXp: 15, maxXp: 25, cmdXp: 20, xpMultiplier: 100, channelId: null,
+      levelUpMessage: 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว!',
+      roleRewardMessage: '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!',
+      cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD',
+      cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**',
+      embedColor: COLORS.PRIMARY,
+      statsCardImageUrl: '',
+      voiceXpEnabled: false, voiceXpAmount: 10, roleRewards: {}
+    };
+  }
+  if (!config.levelConfig.roleRewardMessage) {
+    config.levelConfig.roleRewardMessage = '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!';
+  }
+  if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
+  if (!config.embed) {
+    config.embed = { description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!' };
+  }
+  if (!config.autoClear) {
+    config.autoClear = { enabled: false, time: '06:00', channelId: null };
+  }
+  if (!config.mediaGuardChannels) config.mediaGuardChannels = [];
+  if (config.showcaseChannelId === undefined) config.showcaseChannelId = null;
+  if (config.petRoleId === undefined) config.petRoleId = null;
+  if (config.petChannelId === undefined) config.petChannelId = null;
+
+  return config;
 }
 
 let activeCronJobs = {};
@@ -127,8 +195,7 @@ client.once('ready', async () => {
     new SlashCommandBuilder().setName('set-pet-channel').setDescription('📢 กำหนดห้องสำหรับส่งการ์ดแจ้งเตือนเมื่อไข่สัตว์เลี้ยงแตก')
       .addChannelOption(option => option.setName('channel').setDescription('เลือกห้องแชทสำหรับส่งผลฟักไข่').addChannelTypes(ChannelType.GuildText).setRequired(true)),
     new SlashCommandBuilder().setName('init-old-eggs').setDescription('🥚 [สคริปต์] แจกไข่ให้สมาชิกเก่าทุกคนในเซิร์ฟเวอร์'),
-    new SlashCommandBuilder().setName('pet').setDescription('🐾 เปิดดูการ์ดสัตว์เลี้ยงของคุณ')
-      .addUserOption(option => option.setName('user').setDescription('เลือกสมาชิกที่ต้องการดูสัตว์เลี้ยง').setRequired(false)),
+    petCommand,
     setupPetShopCommand,
     levelCommand,
     leaderboardCommand,
@@ -164,7 +231,7 @@ client.once('ready', async () => {
 
   for (const guildId in serverConfigs) {
     const config = serverConfigs[guildId];
-    if (config && config.autoClear && config.autoClear.enabled && config.autoClear.time && config.autoClear.channelId) {
+    if (config?.autoClear?.enabled && config.autoClear.time && config.autoClear.channelId) {
       setupCronJob(guildId, config.autoClear.time, config.autoClear.channelId);
     }
   }
@@ -176,16 +243,16 @@ function setupCronJob(guildId, timeStr, channelId) {
     delete activeCronJobs[guildId];
   }
 
-  const [hour, minute] = timeStr.split(':');
+  const [hour, minute] = (timeStr || '').split(':');
   if (!hour || !minute) return;
 
   const cronExpression = `${minute} ${hour} * * *`;
 
   activeCronJobs[guildId] = cron.schedule(cronExpression, async () => {
     try {
-      const guild = await client.guilds.fetch(guildId);
+      const guild = client.guilds.cache.get(guildId) || await client.guilds.fetch(guildId).catch(() => null);
       if (!guild) return;
-      const channel = await guild.channels.fetch(channelId);
+      const channel = await guild.channels.fetch(channelId).catch(() => null);
       if (channel && channel.isTextBased()) {
         const fetched = await channel.messages.fetch({ limit: 100 });
         await channel.bulkDelete(fetched, true);
@@ -201,8 +268,9 @@ function setupCronJob(guildId, timeStr, channelId) {
 
 client.on('messageCreate', async message => {
   const guildId = message.guild?.id;
-  if (!guildId) return;
-  const config = serverConfigs[guildId];
+  if (!guildId || message.author.bot) return;
+
+  const config = ensureGuildConfig(guildId);
 
   const hasPremium = await isServerPremium(guildId, serverConfigs);
   if (hasPremium) {
@@ -223,11 +291,8 @@ client.on('guildMemberAdd', async member => {
   if (member.user.bot) return;
 
   const guildId = member.guild.id;
-  const config = serverConfigs[guildId];
+  const config = ensureGuildConfig(guildId);
 
-  if (!config) return;
-
-  // 🥚 แจกไข่เริ่มต้นอัตโนมัติทันทีที่สมาชิกใหม่เข้าเซิร์ฟเวอร์
   assignInitialEgg(config, member.user.id);
   await saveConfigs(serverConfigs);
 
@@ -250,12 +315,8 @@ client.on('guildMemberAdd', async member => {
     if (!channel) return;
 
     const attachment = await generateWelcomeCard(member);
-
-    const embedConfig = config.embed || {
-      description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!'
-    };
-
-    const finalDesc = (embedConfig.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!')
+    const defaultDesc = '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!';
+    const finalDesc = (config.embed?.description || defaultDesc)
       .replace('{user}', `${member}`)
       .replace('{server}', member.guild.name);
 
@@ -269,46 +330,15 @@ client.on('interactionCreate', async interaction => {
   const guildId = interaction.guildId;
   if (!guildId) return;
 
-  if (!serverConfigs[guildId]) {
-    serverConfigs[guildId] = {
-      welcomeEnabled: false, channelId: null, autoroleEnabled: false, autoroleId: null,
-      security: {
-        enabled: false, antiLink: true, antiSpam: true, antiMrBeast: true,
-        spamCount: 3, spamSeconds: 6, timeoutSeconds: 60,
-        actions: { invite: { timeout: true, kick: false, ban: false }, spam: { timeout: true, kick: false, ban: false }, mrbeast: { timeout: true, kick: false, ban: false } },
-        ignoredChannels: []
-      },
-      levels: {},
-      levelConfig: {
-        enabled: true, minXp: 15, maxXp: 25, cmdXp: 20, xpMultiplier: 100, channelId: null,
-        levelUpMessage: 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว!',
-        roleRewardMessage: '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!',
-        cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD', cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**',
-        embedColor: '#66FFFF', statsCardImageUrl: '',
-        voiceXpEnabled: false, voiceXpAmount: 10, roleRewards: {}
-      },
-      embed: { description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!' },
-      autoClear: { enabled: false, time: '06:00', channelId: null },
-      mediaGuardChannels: [],
-      showcaseChannelId: null,
-      petRoleId: null,
-      petChannelId: null
-    };
-  }
-  const config = serverConfigs[guildId];
-  if (!config.security) {
-    config.security = { enabled: false, antiLink: true, antiSpam: true, antiMrBeast: true, spamCount: 3, spamSeconds: 6, timeoutSeconds: 60, actions: { invite: { timeout: true, kick: false, ban: false }, spam: { timeout: true, kick: false, ban: false }, mrbeast: { timeout: true, kick: false, ban: false } }, ignoredChannels: [] };
-  }
-  if (!config.levels) config.levels = {};
-  if (!config.levelConfig) {
-    config.levelConfig = { enabled: true, minXp: 15, maxXp: 25, cmdXp: 20, xpMultiplier: 100, channelId: null, levelUpMessage: 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว!', roleRewardMessage: '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!', cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD', cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**', embedColor: '#66FFFF', statsCardImageUrl: '', voiceXpEnabled: false, voiceXpAmount: 10, roleRewards: {} };
-  }
-  if (!config.levelConfig.roleRewardMessage) {
-    config.levelConfig.roleRewardMessage = '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!';
-  }
-  if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
+  const config = ensureGuildConfig(guildId);
 
-  const premiumCommands = ['setup-quest', 'setup-in-game-shop', 'coins', 'setup-order-ticket', 'add-coins', 'setup-media-guard', 'setup-showcase', 'set-autoclear', 'setup-artist-card', 'boost-status', 'cinema-setup', 'cinema-broadcast', 'auto-cinema', 'setup-pet-shop'];
+  const premiumCommands = [
+    'setup-quest', 'setup-in-game-shop', 'coins', 'setup-order-ticket',
+    'add-coins', 'setup-media-guard', 'setup-showcase', 'set-autoclear',
+    'setup-artist-card', 'boost-status', 'cinema-setup', 'cinema-broadcast',
+    'auto-cinema', 'setup-pet-shop'
+  ];
+
   if (interaction.isChatInputCommand() && premiumCommands.includes(interaction.commandName)) {
     const hasPremium = await isServerPremium(guildId, serverConfigs);
     if (!hasPremium) {
@@ -329,217 +359,142 @@ client.on('interactionCreate', async interaction => {
 
   if (interaction.isChatInputCommand()) {
     handleCommandLeveling(interaction, serverConfigs, saveConfigs);
-  }
 
-  if (interaction.isChatInputCommand() && interaction.commandName === 'ping') {
-    return await interaction.reply({ content: 'Pong! 🏓 บอททำงานระบบ Slash Command ปกติบน Render ครับ 🚀', ephemeral: true });
-  }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'bot-info') {
-    const embed = new EmbedBuilder()
-      .setTitle('🤖 𝙕𝙀𝙉 𝘽𝙊𝙏 • OFFICIAL PRESENTATION')
-      .setDescription(
-        '**ระบบจัดการและปกป้องเซิร์ฟเวอร์แบบครบวงจร** ✨\n\n' +
-        '🚀 **ฟีเจอร์เด่นภายในบอท:**\n' +
-        '> 🛡️ **Advanced Security:** ระบบป้องกันลิงก์สแปม และบอทหลอกลวงพร้อมบทลงโทษอัตโนมัติ\n' +
-        '> 📊 **Leveling & Voice XP:** ระบบเก็บเลเวลทั้งแชทและห้องเสียง พร้อมการ์ดโปรไฟล์ Canvas สุดพรีเมียม\n' +
-        '> 🎬 **Zen Cinema:** ระบบจัดการรอบฉายหนังอัตโนมัติ (Coming Soon & Now Showing) พร้อมระบบขายตั๋วหักเหรียญ\n' +
-        '> 🛒 **Automated Store:** ระบบร้านค้าสกิน/ยศ และระบบห้องออร์เดอร์พร้อมใบเสร็จอัตโนมัติ\n' +
-        '> 🎨 **Artist Showcase:** ระบบห้องโชว์ผลงานพร้อมรีแอคชันอัตโนมัติ\n' +
-        '> 🎁 **Daily Quest:** เควสต์สุ่มแจก Zen Coins ฟรีทุก 19 ชั่วโมง (แบบ 50/50)\n\n' +
-        '💎 สนใจใช้งานระบบพรีเมียมติดต่อผู้พัฒนาบอทได้เลยครับ!'
-      )
-      .setColor('#66FFFF')
-      .setImage('https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg')
-      .setTimestamp()
-      .setFooter({ text: 'Powered by Zen Bot Technology' });
+    const cmd = interaction.commandName;
+    if (cmd === 'ping') {
+      return await interaction.reply({ content: 'Pong! 🏓 บอททำงานระบบ Slash Command ปกติบน Render ครับ 🚀', ephemeral: true });
+    }
+    if (cmd === 'bot-info') {
+      const embed = new EmbedBuilder()
+        .setTitle('🤖 𝙕𝙀𝙉 𝘽𝙊𝙏 • OFFICIAL PRESENTATION')
+        .setDescription(
+          '**ระบบจัดการและปกป้องเซิร์ฟเวอร์แบบครบวงจร** ✨\n\n' +
+          '🚀 **ฟีเจอร์เด่นภายในบอท:**\n' +
+          '> 🛡️ **Advanced Security:** ระบบป้องกันลิงก์สแปม และบอทหลอกลวงพร้อมบทลงโทษอัตโนมัติ\n' +
+          '> 📊 **Leveling & Voice XP:** ระบบเก็บเลเวลทั้งแชทและห้องเสียง พร้อมการ์ดโปรไฟล์ Canvas สุดพรีเมียม\n' +
+          '> 🎬 **Zen Cinema:** ระบบจัดการรอบฉายหนังอัตโนมัติ (Coming Soon & Now Showing) พร้อมระบบขายตั๋วหักเหรียญ\n' +
+          '> 🛒 **Automated Store:** ระบบร้านค้าสกิน/ยศ และระบบห้องออร์เดอร์พร้อมใบเสร็จอัตโนมัติ\n' +
+          '> 🎨 **Artist Showcase:** ระบบห้องโชว์ผลงานพร้อมรีแอคชันอัตโนมัติ\n' +
+          '> 🎁 **Daily Quest:** เควสต์สุ่มแจก Zen Coins ฟรีทุก 19 ชั่วโมง (แบบ 50/50)\n\n' +
+          '💎 สนใจใช้งานระบบพรีเมียมติดต่อผู้พัฒนาบอทได้เลยครับ!'
+        )
+        .setColor(COLORS.PRIMARY)
+        .setImage(IMAGES.BOT_PRESENTATION)
+        .setTimestamp()
+        .setFooter({ text: 'Powered by Zen Bot Technology' });
 
-    return await interaction.reply({ embeds: [embed], ephemeral: true });
-  }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'set-pet-role') {
-    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-      return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น!', ephemeral: true });
+      return await interaction.reply({ embeds: [embed], ephemeral: true });
     }
-    const role = interaction.options.getRole('role');
-    config.petRoleId = role.id;
-    await saveConfigs(serverConfigs);
-    return await interaction.reply({ content: `✅ ตั้งค่ายศสัตว์เลี้ยงเรียบร้อยแล้ว! บอทจะแจกยศ **${role.name}** ให้คนที่ไข่แตก`, ephemeral: true });
-  }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'set-pet-channel') {
-    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-      return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น!', ephemeral: true });
-    }
-    const channel = interaction.options.getChannel('channel');
-    config.petChannelId = channel.id;
-    await saveConfigs(serverConfigs);
-    return await interaction.reply({ content: `✅ ตั้งค่าห้องแจ้งเตือนสัตว์เลี้ยงเรียบร้อยแล้ว! บอทจะส่งการ์ดสัตว์เลี้ยงไปที่ห้อง ${channel}`, ephemeral: true });
-  }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'init-old-eggs') {
-    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-      return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น!', ephemeral: true });
-    }
-    
-    await interaction.deferReply({ ephemeral: true });
-    const guild = interaction.guild;
-    await guild.members.fetch();
-    
-    let count = 0;
-    guild.members.cache.forEach(member => {
-      if (member.user.bot) return;
-      if (!config.levels) config.levels = {};
-      if (!config.levels[member.id]) {
-        config.levels[member.id] = { xp: 0, level: 1, orbs: 0 };
+    if (cmd === 'set-pet-role') {
+      if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+        return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น!', ephemeral: true });
       }
-      const userStat = config.levels[member.id];
-      if (!userStat.petEgg) {
-        userStat.petEgg = {
-          hasEgg: true,
-          remainingSeconds: 60,
-          isHatched: false,
-          hatchedPet: null,
-          petLevel: 1,
-          petXp: 0
-        };
-        count++;
-      }
-    });
-
-    await saveConfigs(serverConfigs);
-    return await interaction.editReply({ content: `✅ แจกไข่ให้สมาชิกเก่าสำเร็จทั้งหมด **${count}** คน! (ทุกคนเริ่มฟักด้วยระบบทดสอบทันที)` });
-  }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'pet') {
-    return await handlePetCommand(interaction, serverConfigs);
-  }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'setup-pet-shop') {
-    return await handleSetupPetShopCommand(interaction);
-  }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'level') {
-    return await handleLevelCommand(interaction, serverConfigs);
-  }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'leaderboard') {
-    return await handleLeaderboardCommand(interaction, serverConfigs);
-  }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'setup-quest') {
-    return await handleSetupQuestCommand(interaction);
-  }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'setup-in-game-shop') {
-    return await handleSetupShopCommand(interaction);
-  }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'setup-order-ticket') {
-    return await handleSetupOrderTicketCommand(interaction);
-  }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'coins') {
-    return await handleCoinsCommand(interaction, serverConfigs);
-  }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'grant-premium') {
-    return await handleGrantPremiumCommand(interaction, serverConfigs, saveConfigs);
-  }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'add-coins') {
-    return await handleAddCoinsCommand(interaction, serverConfigs, saveConfigs);
-  }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'boost-status') {
-    return await handleBoostStatusCommand(interaction, serverConfigs);
-  }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'setup-artist-card') {
-    return await handleSetupArtistCommand(interaction);
-  }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'setup-media-guard') {
-    return await handleSetupMediaGuardCommand(interaction, serverConfigs, saveConfigs);
-  }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'setup-showcase') {
-    return await handleSetupShowcaseCommand(interaction, serverConfigs, saveConfigs);
-  }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'cinema-setup') {
-    return await handleSetupCinemaCommand(interaction);
-  }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'cinema-broadcast') {
-    return await handleCinemaBroadcastCommand(interaction, serverConfigs);
-  }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'auto-cinema') {
-    return await handleAutoCinemaCommand(interaction, serverConfigs);
-  }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'set-level') {
-    return await handleSetLevelCommand(interaction, serverConfigs);
-  }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'set-security') {
-    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
-    return await interaction.reply({ ...getSecurityDashboardContent(config), ephemeral: true });
-  }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'clear') {
-    if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์จัดการข้อความ', ephemeral: true });
-    const amount = interaction.options.getInteger('amount');
-    if (amount < 1 || amount > 100) return await interaction.reply({ content: '⚠️ กรุณาระบุจำนวน 1-100', ephemeral: true });
-    await interaction.deferReply({ ephemeral: true });
-    try {
-      const messages = await interaction.channel.messages.fetch({ limit: amount });
-      await interaction.channel.bulkDelete(messages, true);
-      await interaction.editReply({ content: `🧹 ลบข้อความจำนวน **${amount}** เรียบร้อย!` });
-    } catch (err) {
-      await interaction.editReply({ content: '❌ เกิดข้อผิดพลาด ไม่สามารถลบข้อความเก่าเกิน 14 วันได้!' });
+      const role = interaction.options.getRole('role');
+      config.petRoleId = role.id;
+      await saveConfigs(serverConfigs);
+      return await interaction.reply({ content: `✅ ตั้งค่ายศสัตว์เลี้ยงเรียบร้อยแล้ว! บอทจะแจกยศ **${role.name}** ให้คนที่ไข่แตก`, ephemeral: true });
     }
-    return;
-  }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'set-autoclear') {
-    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return await interaction.reply({ content: '❌ ต้องเป็น Administrator', ephemeral: true });
-    const timeInput = interaction.options.getString('time');
-    const channelInput = interaction.options.getChannel('channel');
-    if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(timeInput)) return await interaction.reply({ content: '❌ รูปแบบเวลาไม่ถูกต้อง (HH:MM)', ephemeral: true });
-    if (!config.autoClear) config.autoClear = {};
-    config.autoClear.enabled = true;
-    config.autoClear.time = timeInput;
-    config.autoClear.channelId = channelInput.id;
-    await saveConfigs(serverConfigs);
-    setupCronJob(guildId, timeInput, channelInput.id);
-    return await interaction.reply({ content: `✅ ตั้งค่า Auto-Clear สำเร็จ (${timeInput})`, ephemeral: true });
-  }
-  if (interaction.isChatInputCommand() && (interaction.commandName === 'set-welcome' || interaction.commandName === 'set-welcom')) {
-    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return await interaction.reply({ content: '❌ เฉพาะ Administrator', ephemeral: true });
-    return await sendDashboard(interaction);
-  }
-  if (interaction.isChatInputCommand() && interaction.commandName === 'set-autorole') {
-    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return await interaction.reply({ content: '❌ เฉพาะ Administrator', ephemeral: true });
-    return await sendAutoroleDashboard(interaction);
+    if (cmd === 'set-pet-channel') {
+      if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+        return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น!', ephemeral: true });
+      }
+      const channel = interaction.options.getChannel('channel');
+      config.petChannelId = channel.id;
+      await saveConfigs(serverConfigs);
+      return await interaction.reply({ content: `✅ ตั้งค่าห้องแจ้งเตือนสัตว์เลี้ยงเรียบร้อยแล้ว! บอทจะส่งการ์ดสัตว์เลี้ยงไปที่ห้อง ${channel}`, ephemeral: true });
+    }
+    if (cmd === 'init-old-eggs') {
+      if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+        return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น!', ephemeral: true });
+      }
+
+      await interaction.deferReply({ ephemeral: true });
+      const guild = interaction.guild;
+      await guild.members.fetch();
+
+      let count = 0;
+      guild.members.cache.forEach(member => {
+        if (member.user.bot) return;
+        const hadEgg = config.levels?.[member.id]?.petEgg;
+        assignInitialEgg(config, member.id);
+        if (!hadEgg && config.levels[member.id]?.petEgg) count++;
+      });
+
+      await saveConfigs(serverConfigs);
+      return await interaction.editReply({ content: `✅ แจกไข่ให้สมาชิกเก่าสำเร็จทั้งหมด **${count}** คน!` });
+    }
+    if (cmd === 'pet') return await handlePetCommand(interaction, serverConfigs);
+    if (cmd === 'setup-pet-shop') return await handleSetupPetShopCommand(interaction);
+    if (cmd === 'level') return await handleLevelCommand(interaction, serverConfigs);
+    if (cmd === 'leaderboard') return await handleLeaderboardCommand(interaction, serverConfigs);
+    if (cmd === 'setup-quest') return await handleSetupQuestCommand(interaction);
+    if (cmd === 'setup-in-game-shop') return await handleSetupShopCommand(interaction);
+    if (cmd === 'setup-order-ticket') return await handleSetupOrderTicketCommand(interaction);
+    if (cmd === 'coins') return await handleCoinsCommand(interaction, serverConfigs);
+    if (cmd === 'grant-premium') return await handleGrantPremiumCommand(interaction, serverConfigs, saveConfigs);
+    if (cmd === 'add-coins') return await handleAddCoinsCommand(interaction, serverConfigs, saveConfigs);
+    if (cmd === 'boost-status') return await handleBoostStatusCommand(interaction, serverConfigs);
+    if (cmd === 'setup-artist-card') return await handleSetupArtistCommand(interaction);
+    if (cmd === 'setup-media-guard') return await handleSetupMediaGuardCommand(interaction, serverConfigs, saveConfigs);
+    if (cmd === 'setup-showcase') return await handleSetupShowcaseCommand(interaction, serverConfigs, saveConfigs);
+    if (cmd === 'cinema-setup') return await handleSetupCinemaCommand(interaction);
+    if (cmd === 'cinema-broadcast') return await handleCinemaBroadcastCommand(interaction, serverConfigs);
+    if (cmd === 'auto-cinema') return await handleAutoCinemaCommand(interaction, serverConfigs);
+    if (cmd === 'set-level') return await handleSetLevelCommand(interaction, serverConfigs);
+    if (cmd === 'set-security') {
+      if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
+      return await interaction.reply({ ...getSecurityDashboardContent(config), ephemeral: true });
+    }
+    if (cmd === 'clear') {
+      if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) return await interaction.reply({ content: '❌ คุณไม่มีสิทธิ์จัดการข้อความ', ephemeral: true });
+      const amount = interaction.options.getInteger('amount');
+      if (amount < 1 || amount > 100) return await interaction.reply({ content: '⚠️ กรุณาระบุจำนวน 1-100', ephemeral: true });
+      await interaction.deferReply({ ephemeral: true });
+      try {
+        const messages = await interaction.channel.messages.fetch({ limit: amount });
+        await interaction.channel.bulkDelete(messages, true);
+        await interaction.editReply({ content: `🧹 ลบข้อความจำนวน **${amount}** เรียบร้อย!` });
+      } catch (err) {
+        await interaction.editReply({ content: '❌ เกิดข้อผิดพลาด ไม่สามารถลบข้อความเก่าเกิน 14 วันได้!' });
+      }
+      return;
+    }
+    if (cmd === 'set-autoclear') {
+      if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return await interaction.reply({ content: '❌ ต้องเป็น Administrator', ephemeral: true });
+      const timeInput = interaction.options.getString('time');
+      const channelInput = interaction.options.getChannel('channel');
+      if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(timeInput)) return await interaction.reply({ content: '❌ รูปแบบเวลาไม่ถูกต้อง (HH:MM)', ephemeral: true });
+      config.autoClear = { enabled: true, time: timeInput, channelId: channelInput.id };
+      await saveConfigs(serverConfigs);
+      setupCronJob(guildId, timeInput, channelInput.id);
+      return await interaction.reply({ content: `✅ ตั้งค่า Auto-Clear สำเร็จ (${timeInput})`, ephemeral: true });
+    }
+    if (cmd === 'set-welcome') {
+      if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return await interaction.reply({ content: '❌ เฉพาะ Administrator', ephemeral: true });
+      return await sendDashboard(interaction);
+    }
+    if (cmd === 'set-autorole') {
+      if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return await interaction.reply({ content: '❌ เฉพาะ Administrator', ephemeral: true });
+      return await sendAutoroleDashboard(interaction);
+    }
   }
 
   if (interaction.isButton()) {
     const id = interaction.customId;
 
-    const handledPetBtn = await handlePetButton(interaction, serverConfigs, saveConfigs);
-    if (handledPetBtn) return;
+    if (await handlePetButton(interaction, serverConfigs, saveConfigs)) return;
+    if (await handleCinemaButton(interaction, serverConfigs, saveConfigs)) return;
+    if (await handleAutoCinemaButton(interaction, serverConfigs, saveConfigs, client)) return;
+    if (await handleOrderPaymentButton(interaction)) return;
+    if (await handleCloseTicketButton(interaction)) return;
+    if (await handleQuestButton(interaction, serverConfigs, saveConfigs)) return;
+    if (await handleShopButton(interaction, serverConfigs, saveConfigs)) return;
+    if (await handleArtistButton(interaction, serverConfigs)) return;
 
-    const handledCinemaBtn = await handleCinemaButton(interaction, serverConfigs, saveConfigs, client);
-    if (handledCinemaBtn) return;
-
-    const handledAutoCinemaBtn = await handleAutoCinemaButton(interaction, serverConfigs, saveConfigs, client);
-    if (handledAutoCinemaBtn) return;
-
-    const hasPremiumBtn = await isServerPremium(guildId, serverConfigs);
-    const premiumButtons = ['open_artist_level_card_modal', 'open_artist_wallet_card_modal', 'open_in_game_shop_panel'];
-    if (premiumButtons.includes(id) && !hasPremiumBtn) {
-      return await interaction.reply({ content: '❌ คำสั่งนี้ใช้ได้เฉพาะเซิร์ฟเวอร์พรีเมียมเท่านั้น', ephemeral: true });
-    }
-
-    const handledPayment = await handleOrderPaymentButton(interaction);
-    if (handledPayment) return;
-
-    const handledCloseTicket = await handleCloseTicketButton(interaction);
-    if (handledCloseTicket) return;
-
-    const handledQuest = await handleQuestButton(interaction, serverConfigs, saveConfigs);
-    if (handledQuest) return;
-
-    const handledShop = await handleShopButton(interaction, serverConfigs, saveConfigs, client);
-    if (handledShop) return;
-
-    const handledArtistBtn = await handleArtistButton(interaction, serverConfigs);
-    if (handledArtistBtn) return;
-    
     const modalButtons = [
-      'edit_voice_amount', 'edit_level_rate', 'edit_level_card', 
-      'edit_level_messages', 'set_role_reward', 'delete_role_reward', 
-      'sec_config_time', 'edit_welcome_msg', 'test_welcome',
-      'open_artist_level_card_modal', 'open_artist_wallet_card_modal',
-      'cinemabc_edit_info', 'cinemabc_edit_role',
-      'autocinema_edit_info', 'autocinema_edit_role'
+      'edit_voice_amount', 'edit_level_rate', 'edit_level_card',
+      'edit_level_messages', 'set_role_reward', 'delete_role_reward',
+      'sec_config_time', 'edit_welcome_msg', 'test_welcome'
     ];
 
     if (!modalButtons.includes(id)) {
@@ -585,7 +540,7 @@ client.on('interactionCreate', async interaction => {
       const modal = new ModalBuilder().setCustomId('levelCardModal').setTitle('ตกแต่งการ์ด Level');
       const titleInput = new TextInputBuilder().setCustomId('cardTitle').setLabel('Title').setStyle(TextInputStyle.Short).setValue(config.levelConfig.cardTitle || '').setRequired(true);
       const descInput = new TextInputBuilder().setCustomId('cardDesc').setLabel('Description').setStyle(TextInputStyle.Paragraph).setValue(config.levelConfig.cardDescription || '').setRequired(true);
-      const colorInput = new TextInputBuilder().setCustomId('embedColor').setLabel('Hex Color').setStyle(TextInputStyle.Short).setValue(config.levelConfig.embedColor || '#66FFFF').setRequired(true);
+      const colorInput = new TextInputBuilder().setCustomId('embedColor').setLabel('Hex Color').setStyle(TextInputStyle.Short).setValue(config.levelConfig.embedColor || COLORS.PRIMARY).setRequired(true);
       const imageInput = new TextInputBuilder().setCustomId('statsCardImg').setLabel('Image URL').setStyle(TextInputStyle.Short).setValue(config.levelConfig.statsCardImageUrl || '').setRequired(false);
       modal.addComponents(new ActionRowBuilder().addComponents(titleInput), new ActionRowBuilder().addComponents(descInput), new ActionRowBuilder().addComponents(colorInput), new ActionRowBuilder().addComponents(imageInput));
       return await interaction.showModal(modal);
@@ -630,10 +585,8 @@ client.on('interactionCreate', async interaction => {
         const channel = await interaction.guild.channels.fetch(config.channelId);
         if (channel) {
           const attachment = await generateWelcomeCard(interaction.member);
-          const embedConfig = config.embed || {
-            description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!'
-          };
-          const finalDesc = (embedConfig.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!')
+          const defaultDesc = '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!';
+          const finalDesc = (config.embed?.description || defaultDesc)
             .replace('{user}', `${interaction.user}`)
             .replace('{server}', interaction.guild.name);
           await channel.send({ content: finalDesc, files: [attachment] });
@@ -668,8 +621,7 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.isStringSelectMenu()) {
-    const handledOrder = await handleOrderTicketSelect(interaction, serverConfigs);
-    if (handledOrder) return;
+    if (await handleOrderTicketSelect(interaction, serverConfigs)) return;
 
     await interaction.deferUpdate().catch(() => {});
     if (interaction.customId === 'act_invite_select') {
@@ -691,11 +643,8 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.isChannelSelectMenu()) {
-    const handledCinemaSelect = await handleCinemaSelect(interaction, serverConfigs, saveConfigs, client);
-    if (handledCinemaSelect) return;
-
-    const handledAutoCinemaSelect = await handleAutoCinemaSelect(interaction, serverConfigs, saveConfigs, client);
-    if (handledAutoCinemaSelect) return;
+    if (await handleCinemaSelect(interaction, serverConfigs, saveConfigs)) return;
+    if (await handleAutoCinemaSelect(interaction, serverConfigs, saveConfigs, client)) return;
 
     await interaction.deferUpdate().catch(() => {});
     if (interaction.customId === 'select_channel') {
@@ -749,14 +698,9 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.isModalSubmit()) {
-    const handledCinemaModal = await handleCinemaModal(interaction, serverConfigs, saveConfigs, client);
-    if (handledCinemaModal) return;
-
-    const handledAutoCinemaModal = await handleAutoCinemaModal(interaction, serverConfigs, saveConfigs, client);
-    if (handledAutoCinemaModal) return;
-
-    const handledArtistModal = await handleArtistModalSubmit(interaction, serverConfigs, saveConfigs);
-    if (handledArtistModal) return;
+    if (await handleCinemaModal(interaction, serverConfigs, saveConfigs)) return;
+    if (await handleAutoCinemaModal(interaction, serverConfigs, saveConfigs, client)) return;
+    if (await handleArtistModalSubmit(interaction, serverConfigs, saveConfigs)) return;
 
     if (interaction.customId === 'editWelcomeMsgModal') {
       if (!config.embed) config.embed = {};
@@ -779,9 +723,8 @@ client.on('interactionCreate', async interaction => {
     if (interaction.customId === 'levelRateModal') {
       let minVal = Math.max(1, parseInt(interaction.fields.getTextInputValue('minXp')) || 15);
       let maxVal = Math.max(1, parseInt(interaction.fields.getTextInputValue('maxXp')) || 25);
-      if (minVal > maxVal) {
-        [minVal, maxVal] = [maxVal, minVal];
-      }
+      if (minVal > maxVal) [minVal, maxVal] = [maxVal, minVal];
+
       const cmdVal = Math.max(0, parseInt(interaction.fields.getTextInputValue('cmdXp')) || 20);
       const multVal = Math.max(10, parseInt(interaction.fields.getTextInputValue('multiplier')) || 100);
 
@@ -820,7 +763,6 @@ client.on('interactionCreate', async interaction => {
       return await interaction.reply({ content: `📌 กรุณาเลือกยศสำหรับ Level ${targetLevel}:`, components: [row], ephemeral: true });
     }
     if (interaction.customId === 'deleteRoleRewardModal') {
-      // ✅ แก้ไขให้ดึงค่าจาก field 'targetLevel' ให้ถูกต้องตรงกับตอนสร้าง Modal
       const targetLevel = interaction.fields.getTextInputValue('targetLevel').trim();
       if (!config.levelConfig.roleRewards || !config.levelConfig.roleRewards[targetLevel]) {
         return await interaction.reply({ content: `❌ ไม่พบข้อมูลยศรางวัลสำหรับ Level ${targetLevel} ครับ!`, ephemeral: true });
@@ -840,7 +782,7 @@ function getDashboardContent(config) {
   const embed = new EmbedBuilder()
     .setTitle('⚙️ ตั้งค่าระบบต้อนรับ (Welcome Canvas)')
     .setDescription('ระบบจะส่งข้อความต้อนรับพร้อมรูปการ์ด Canvas อัตโนมัติเมื่อมีสมาชิกใหม่เข้าเซิร์ฟเวอร์')
-    .setColor('#5865F2')
+    .setColor(COLORS.DISCORD_BLURPLE)
     .addFields(
       { name: '📥 สถานะ', value: statusText, inline: true },
       { name: '📢 ห้องต้อนรับ', value: channelName, inline: true },
@@ -864,7 +806,7 @@ function getAutoroleDashboardContent(config) {
   const embed = new EmbedBuilder()
     .setTitle('🛡️ ตั้งค่าระบบ Autorole')
     .setDescription('เมื่อเลือกยศด้านล่าง ระบบจะเปิดใช้งานการแจกยศอัตโนมัติให้ทันที (หรือกดปุ่มเพื่อปิดชั่วคราว)')
-    .setColor('#5865F2')
+    .setColor(COLORS.DISCORD_BLURPLE)
     .addFields(
       { name: '📥 สถานะ', value: statusText, inline: true },
       { name: '👑 ยศที่จะได้รับ', value: roleName, inline: true }
@@ -880,7 +822,7 @@ function getAutoroleDashboardContent(config) {
 
 async function sendDashboard(target) {
   const channel = target.channel || target;
-  const config = serverConfigs[target.guildId];
+  const config = ensureGuildConfig(target.guildId);
   const payload = getDashboardContent(config);
   if (target.reply) {
     await target.reply({ ...payload, ephemeral: true });
@@ -891,7 +833,7 @@ async function sendDashboard(target) {
 
 async function sendAutoroleDashboard(target) {
   const channel = target.channel || target;
-  const config = serverConfigs[target.guildId];
+  const config = ensureGuildConfig(target.guildId);
   const payload = getAutoroleDashboardContent(config);
   if (target.reply) {
     await target.reply({ ...payload, ephemeral: true });
