@@ -63,7 +63,7 @@ const {
   handleShowcaseMessage
 } = require('./media_showcase');
 
-// 🐾 นำเข้าระบบ Zen Pet จาก companion.js
+// 🐾 นำเข้าระบบ Zen Pet จาก companion.js (รวมถึง startPetHatchCron)
 const {
   rollRandomPet,
   petShopCommand,
@@ -80,7 +80,8 @@ const {
   handlePetBattleCommand,
   handleBattleButtons,
   petLeaderboardCommand,
-  handlePetLeaderboardCommand
+  handlePetLeaderboardCommand,
+  startPetHatchCron
 } = require('./companion');
 
 const redis = new Redis({
@@ -241,6 +242,7 @@ client.once('ready', async () => {
   console.log(`Bot Online แล้วจ้า: ${client.user.tag}`);
 
   startVoiceXpCron(client, serverConfigs, saveConfigs);
+  startPetHatchCron(client, serverConfigs, saveConfigs); // 👈 เปิดใช้งานระบบเช็กและฟักไข่อัตโนมัติทุก 10 วินาที
   loadAllAutoCinemaCrons(client, serverConfigs);
 
   const commands = [
@@ -391,7 +393,6 @@ client.on('interactionCreate', async interaction => {
 
   const config = ensureGuildConfig(guildId);
 
-  // ✅ ส่ง serverConfigs ตัวกลางเข้าไปโดยตรง (แก้ปัญหาข้อมูลไม่ซิงค์)
   const petBtnHandled = await handleCompanionButton(interaction, serverConfigs, saveConfigs);
   if (petBtnHandled) return;
 
