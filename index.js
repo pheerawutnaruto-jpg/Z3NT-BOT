@@ -63,7 +63,7 @@ const {
   handleShowcaseMessage
 } = require('./media_showcase');
 
-// 🐾 นำเข้าระบบ Zen Pet จาก companion.js (เปลี่ยนเป็น petCommand / handlePetCommand เรียบร้อย)
+// 🐾 นำเข้าระบบ Zen Pet จาก companion.js
 const {
   rollRandomPet,
   petShopCommand,
@@ -391,7 +391,8 @@ client.on('interactionCreate', async interaction => {
 
   const config = ensureGuildConfig(guildId);
 
-  const petBtnHandled = await handleCompanionButton(interaction, loadConfigs, saveConfigs);
+  // ✅ ส่ง serverConfigs ตัวกลางเข้าไปโดยตรง (แก้ปัญหาข้อมูลไม่ซิงค์)
+  const petBtnHandled = await handleCompanionButton(interaction, serverConfigs, saveConfigs);
   if (petBtnHandled) return;
 
   const battleHandled = await handleBattleButtons(interaction, serverConfigs, saveConfigs);
