@@ -374,7 +374,8 @@ async function handleLeaderboardCommand(interaction, serverConfigs) {
 
 const setLevelCommand = new SlashCommandBuilder()
   .setName('set-level')
-  .setDescription('⚙️ เปิดแผงควบคุมตั้งค่าเลเวลและเสียง');
+  .setDescription('⚙️ เปิดแผงควบคุมตั้งค่าเลเวลและเสียง')
+  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator); // 🔒 ซ่อนและจำกัดสิทธิ์เฉพาะแอดมิน
 
 function getLevelDashboardContent(config) {
   if (!config.levelConfig) {
