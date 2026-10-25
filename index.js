@@ -84,9 +84,54 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
 });
 
+// 🌐 HTTP Server รองรับทั้ง Health Check และ GitHub Webhook
 const httpServer = http.createServer((req, res) => {
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('Bot is running!\n');
+  if (req.method === 'POST' && req.url === '/github-webhook') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', async () => {
+      try {
+        const data = JSON.parse(body);
+        
+        // ตรวจสอบว่าเป็นเหตุการณ์ Push โค้ดจาก GitHub
+        if (data.commits && data.repository) {
+          const repoName = data.repository.name;
+          const pusher = data.pusher?.name || data.sender?.login || 'Developer';
+          const commits = data.commits;
+          
+          let commitText = commits.map(c => `• \`${c.message}\``).join('\n');
+          const updateMessage = `🛠️ **[GITHUB DEV STREAM]** มีการอัปเดตโค้ดใหม่ในรีโป **${repoName}** โดย \`${pusher}\`:\n${commitText}`;
+
+          // วิ่งส่งแจ้งเตือนเข้าห้อง dev-log ของทุกเซิร์ฟเวอร์ที่ตั้งค่าไว้
+          for (const [guildId, config] of Object.entries(serverConfigs)) {
+            if (config.devLogChannelId) {
+              try {
+                const guild = client.guilds.cache.get(guildId) || await client.guilds.fetch(guildId).catch(() => null);
+                if (guild) {
+                  const channel = await guild.channels.fetch(config.devLogChannelId).catch(() => null);
+                  if (channel && channel.isTextBased()) {
+                    await channel.send(updateMessage);
+                  }
+                }
+              } catch (err) {
+                console.error('Error sending github log:', err);
+              }
+            }
+          }
+        }
+        
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'success' }));
+      } catch (e) {
+        console.error('Webhook parse error:', e);
+        res.writeHead(400, { 'Content-Type': 'text/plain' });
+        res.end('Bad Request');
+      }
+    });
+  } else {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('Bot is running!\n');
+  }
 });
 httpServer.listen(process.env.PORT || 3000);
 
@@ -138,6 +183,7 @@ function ensureGuildConfig(guildId) {
   if (config.channelId === undefined) config.channelId = null;
   if (config.autoroleEnabled === undefined) config.autoroleEnabled = false;
   if (config.autoroleId === undefined) config.autoroleId = null;
+  if (config.devLogChannelId === undefined) config.devLogChannelId = null; // 🛠️ เพิ่มสำหรับ Dev Stream
 
   if (!config.security) {
     config.security = {
@@ -169,7 +215,7 @@ function ensureGuildConfig(guildId) {
   }
   if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
   if (!config.embed) {
-    config.embed = { description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!' };
+    config.embed = { description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢1𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!' };
   }
   if (!config.autoClear) {
     config.autoClear = { enabled: false, time: '06:00', channelId: null };
@@ -209,8 +255,8 @@ function startHatchChecker() {
               const targetChannelId = guildData.petChannelId;
               if (targetChannelId) {
                 try {
-                  const guild = await client.guilds.fetch(guildId);
-                  const channel = await guild.channels.fetch(targetChannelId);
+                  const guild = client.guilds.cache.get(guildId) || await client.guilds.fetch(guildId).catch(() => null);
+                  const channel = guild ? await guild.channels.fetch(targetChannelId).catch(() => null) : null;
 
                   if (channel) {
                     const embed = new EmbedBuilder()
@@ -256,7 +302,7 @@ client.once('ready', async () => {
 
   startVoiceXpCron(client, serverConfigs, saveConfigs);
   loadAllAutoCinemaCrons(client, serverConfigs);
-  startHatchChecker(); // เริ่มรันระบบฟักไข่อัตโนมัติ
+  startHatchChecker();
 
   const commands = [
     new SlashCommandBuilder().setName('ping').setDescription('เช็กความเร็วและสถานะของบอท'),
@@ -264,6 +310,12 @@ client.once('ready', async () => {
     new SlashCommandBuilder().setName('set-autorole').setDescription('ตั้งค่าระบบแจกยศอัตโนมัติสำหรับสมาชิกใหม่').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     new SlashCommandBuilder().setName('set-security').setDescription('เปิดแผงควบคุมระบบป้องกันความปลอดภัยขั้นสูง').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     new SlashCommandBuilder().setName('bot-info').setDescription('✨ แสดงข้อมูลและหน้าพรีเซนต์แนะนำตัวของ Zen Bot'),
+    // 🛠️ คำสั่งตั้งค่าห้องรับ GitHub Dev Stream
+    new SlashCommandBuilder()
+      .setName('set-dev-log')
+      .setDescription('🛠️ ตั้งค่าห้องสำหรับรับแจ้งเตือน Live GitHub Dev Stream')
+      .addChannelOption(option => option.setName('channel').setDescription('เลือกห้องรับแจ้งเตือนโค้ดอัปเดต').addChannelTypes(ChannelType.GuildText).setRequired(true))
+      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     levelCommand,
     leaderboardCommand,
     setupQuestCommand,
@@ -280,7 +332,6 @@ client.once('ready', async () => {
     setupCinemaCommand,
     cinemaBroadcastCommand,
     autoCinemaCommand,
-    // 🐾 เพิ่มคำสั่ง Zen Pet เข้ามาในบอทหลัก
     petShopCommand,
     companionCommand,
     petBattleCommand,
@@ -404,7 +455,6 @@ client.on('interactionCreate', async interaction => {
 
   const config = ensureGuildConfig(guildId);
 
-  // 🐾 1. ดักจับปุ่มกดซื้อไข่และปุ่มประลองของ Zen Pet ก่อนเป็นอันดับแรก
   const eggHandled = await handleCompanionButton(interaction, loadConfigs, saveConfigs);
   if (eggHandled) return;
 
@@ -441,7 +491,6 @@ client.on('interactionCreate', async interaction => {
 
     const cmd = interaction.commandName;
 
-    // 🐾 2. จัดการคำสั่ง Slash Commands ของ Zen Pet
     if (cmd === 'pet-shop') return await handlePetShopCommand(interaction);
     if (cmd === 'companion') return await handleCompanionCommand(interaction, serverConfigs);
     if (cmd === 'pet-battle') return await handlePetBattleCommand(interaction, serverConfigs);
@@ -451,18 +500,26 @@ client.on('interactionCreate', async interaction => {
         return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
       }
       const channel = interaction.options.getChannel('channel');
-      if (!serverConfigs[interaction.guildId]) serverConfigs[interaction.guildId] = {};
-      serverConfigs[interaction.guildId].petChannelId = channel.id;
+      config.petChannelId = channel.id;
       await saveConfigs(serverConfigs);
       return await interaction.reply({ content: `✅ ตั้งค่าห้องแจ้งเตือนสัตว์เลี้ยงเรียบร้อยที่: ${channel}`, ephemeral: true });
     }
+    // 🛠️ จัดการคำสั่งตั้งค่าห้อง Dev Stream
+    if (cmd === 'set-dev-log') {
+      if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+        return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
+      }
+      const channel = interaction.options.getChannel('channel');
+      config.devLogChannelId = channel.id;
+      await saveConfigs(serverConfigs);
+      return await interaction.reply({ content: `✅ ตั้งค่าห้องรับแจ้งเตือน GitHub Dev Stream เรียบร้อยที่: ${channel}`, ephemeral: true });
+    }
 
-    // 🔒 ตรวจสอบสิทธิ์ Administrator สำหรับคำสั่งตั้งค่าและระบบแอดมิน
     const adminCommands = [
       'setup-quest', 'setup-in-game-shop', 'setup-order-ticket', 'add-coins',
       'grant-premium', 'setup-artist-card', 'setup-media-guard', 'setup-showcase',
       'cinema-setup', 'cinema-broadcast', 'auto-cinema', 'set-level', 'set-security',
-      'set-autoclear', 'set-welcome', 'set-autorole', 'set-role-reward'
+      'set-autoclear', 'set-welcome', 'set-autorole', 'set-role-reward', 'set-dev-log'
     ];
 
     if (adminCommands.includes(cmd)) {
@@ -486,7 +543,8 @@ client.on('interactionCreate', async interaction => {
           '> 🛒 **Automated Store:** ระบบร้านค้าสกิน/ยศ และระบบห้องออร์เดอร์พร้อมใบเสร็จอัตโนมัติ\n' +
           '> 🎨 **Artist Showcase:** ระบบห้องโชว์ผลงานพร้อมรีแอคชันอัตโนมัติ\n' +
           '> 🎁 **Daily Quest:** เควสต์สุ่มแจก Zen Coins ฟรีทุก 19 ชั่วโมง (แบบ 50/50)\n' +
-          '> 🐾 **Zen Pet System:** ระบบเลี้ยงสัตว์ ฟักไข่ และลานประลองชิง Orbs สุดมันส์!\n\n' +
+          '> 🐾 **Zen Pet System:** ระบบเลี้ยงสัตว์ ฟักไข่ และลานประลองชิง Orbs สุดมันส์!\n' +
+          '> 🛠️ **Dev Stream:** ระบบสตรีมโค้ดและรายงาน Commit สดจาก GitHub เข้าห้องดิสคอร์ด\n\n' +
           '💎 สนใจใช้งานระบบพรีเมียมติดต่อผู้พัฒนาบอทได้เลยครับ!'
         )
         .setColor(COLORS.PRIMARY)
@@ -553,7 +611,6 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isButton()) {
     const id = interaction.customId;
 
-    // 🔒 ตรวจสอบสิทธิ์ Administrator สำหรับปุ่มกดแผงตั้งค่าหลังบ้าน
     const adminActionIds = [
       'toggle_welcome', 'toggle_autorole', 'toggle_level', 'toggle_voice_xp',
       'edit_voice_amount', 'edit_level_rate', 'edit_level_card', 'edit_level_messages',
@@ -864,7 +921,7 @@ client.on('interactionCreate', async interaction => {
       return await interaction.reply({ content: `📌 กรุณาเลือกยศสำหรับ Level ${targetLevel}:`, components: [row], ephemeral: true });
     }
     if (interaction.customId === 'deleteRoleRewardModal') {
-      const targetLevel = interaction.fields.getTextInputValue('targetLevel').trim();
+      const targetLevel = interaction.fields.getTextInputValue('deleteRoleRewardModal').trim();
       if (!config.levelConfig.roleRewards || !config.levelConfig.roleRewards[targetLevel]) {
         return await interaction.reply({ content: `❌ ไม่พบข้อมูลยศรางวัลสำหรับ Level ${targetLevel} ครับ!`, ephemeral: true });
       }
