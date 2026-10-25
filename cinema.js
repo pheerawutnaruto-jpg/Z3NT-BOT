@@ -6,6 +6,7 @@ const { isServerPremium } = require('./license');
 const setupCinemaCommand = new SlashCommandBuilder()
   .setName('cinema-setup')
   .setDescription('🎬 [CINEMA] ส่งแผงป้าย Box Office จุดจำหน่ายตั๋ว (สำหรับ Admin)')
+  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
   .addChannelOption(option =>
     option.setName('channel')
       .setDescription('เลือกห้องสำหรับส่งแผงตั๋วภาพยนตร์')
@@ -52,7 +53,8 @@ async function handleSetupCinemaCommand(interaction) {
 
 const cinemaBroadcastCommand = new SlashCommandBuilder()
   .setName('cinema-broadcast')
-  .setDescription('🎥 [CINEMA] แผงควบคุมและส่งประกาศ COMING SOON (สำหรับ Admin)');
+  .setDescription('🎥 [CINEMA] แผงควบคุมและส่งประกาศ COMING SOON (สำหรับ Admin)')
+  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
 async function handleCinemaBroadcastCommand(interaction, serverConfigs) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
@@ -120,6 +122,14 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
   const id = interaction.customId;
   const cinemaButtons = ['cinema_perm_ticket', 'cinema_temp_ticket', 'cinemabc_edit_info', 'cinemabc_edit_role', 'cinemabc_test_send'];
   if (!cinemaButtons.includes(id)) return false;
+
+  const adminActionIds = ['cinemabc_edit_info', 'cinemabc_edit_role', 'cinemabc_test_send'];
+  if (adminActionIds.includes(id)) {
+    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+      await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้นที่จะกดใช้งานปุ่มนี้ได้ครับ!', ephemeral: true });
+      return true;
+    }
+  }
 
   const guildId = interaction.guildId;
   if (!(await isServerPremium(guildId, serverConfigs))) {
@@ -298,6 +308,11 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
 async function handleCinemaSelect(interaction, serverConfigs, saveConfigs) {
   if (interaction.customId !== 'cinemabc_select_channel') return false;
 
+  if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+    await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้นที่จะใช้งานเมนูนี้ได้ครับ!', ephemeral: true });
+    return true;
+  }
+
   const guildId = interaction.guildId;
   if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
 
@@ -324,6 +339,11 @@ async function handleCinemaModal(interaction, serverConfigs, saveConfigs) {
   if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
 
   if (interaction.customId === 'cinemaBcInfoModal') {
+    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+      await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้นที่จะบันทึกค่านี้ได้ครับ!', ephemeral: true });
+      return true;
+    }
+
     await interaction.deferReply({ ephemeral: true }).catch(() => {});
 
     if (!serverConfigs[guildId].cinemaBroadcast) serverConfigs[guildId].cinemaBroadcast = {};
@@ -340,6 +360,11 @@ async function handleCinemaModal(interaction, serverConfigs, saveConfigs) {
   }
 
   if (interaction.customId === 'cinemaBcRoleModal') {
+    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+      await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้นที่จะเปลี่ยนยศนี้ได้ครับ!', ephemeral: true });
+      return true;
+    }
+
     await interaction.deferReply({ ephemeral: true }).catch(() => {});
 
     if (!serverConfigs[guildId].cinemaBroadcast) serverConfigs[guildId].cinemaBroadcast = {};
