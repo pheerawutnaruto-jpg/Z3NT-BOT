@@ -5,7 +5,8 @@ const { isServerPremium } = require('./license');
 
 const setupArtistCommand = new SlashCommandBuilder()
   .setName('setup-artist-card')
-  .setDescription('💎 [PREMIUM] ส่งแผงปุ่มตั้งค่ารูปการ์ดส่วนตัวสำหรับคนมียศ Artist (สำหรับ Admin)');
+  .setDescription('💎 [PREMIUM] ส่งแผงปุ่มตั้งค่ารูปการ์ดส่วนตัวสำหรับคนมียศ Artist (สำหรับ Admin)')
+  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
 async function handleSetupArtistCommand(interaction) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
