@@ -49,24 +49,24 @@ async function handleSetupOrderTicketCommand(interaction) {
 
 async function sendOrderReceipt(channel, customerUser, adminUser, product, paymentMethod = 'PromptPay QR (Verified)') {
   const statusText = product.roleId
-    ? `✅ จัดส่งสำเร็จ (มอบยศ <@&${product.roleId}> แล้ว)`
-    : `✅ ชำระเงินสำเร็จ (ดำเนินการโดยแอดมิน)`;
+    ? `<:verified:1563350708193984612> จัดส่งสำเร็จ (มอบยศแล้ว)`
+    : `<:verified:1563350708193984612> ชำระเงินสำเร็จ (ดำเนินการโดยแอดมิน)`;
 
   const receiptEmbed = new EmbedBuilder()
-    .setTitle('🧾 ZEN BOT • OFFICIAL ORDER RECEIPT')
-    .setDescription('ใบเสร็จรับเงินยืนยันการทำรายการสำเร็จ ขอบคุณที่ใช้บริการครับ!')
+    .setTitle('<:RECEIPT:1564058406170529813> 𝙕𝙀𝙉 𝘽𝙊𝙏 • OFFICIAL ORDER RECEIPT')
+    .setDescription('ใบเสร็จรับเงินยืนยันการทำรายการสำเร็จ!')
     .setColor(COLORS.GREEN)
     .addFields(
-      { name: '👤 ผู้สั่งซื้อ', value: `<@${customerUser.id}>`, inline: true },
-      { name: '🛒 สินค้า', value: product.name, inline: true },
-      { name: '💰 ยอดชำระ', value: `\`${product.price}\``, inline: true },
-      { name: '💳 ช่องทางชำระ', value: paymentMethod, inline: true },
-      { name: '🛡️ ผู้อนุมัติรายการ', value: `<@${adminUser.id}>`, inline: true },
-      { name: '👑 สถานะรายการ', value: statusText, inline: false },
-      { name: '📅 วันที่ทำรายการ', value: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }), inline: false }
+      { name: '<:People:1564056325791424522> ผู้สั่งซื้อ', value: `<@${customerUser.id}>`, inline: true },
+      { name: '<:Purpletrolley:1564055854460829707> สินค้า', value: product.name, inline: true },
+      { name: '<a:emoji_100:1560416789211516938> ยอดชำระ', value: `\`${product.price}\``, inline: true },
+      { name: '<a:image0:1562554115257536552> ช่องทางชำระ', value: paymentMethod, inline: true },
+      { name: '<:Admin:1564054387004022885> ผู้อนุมัติรายการ', value: `<@${adminUser.id}>`, inline: true },
+      { name: '<:emoji_101:1560416845322920067> สถานะรายการ', value: statusText, inline: false },
+      { name: '<a:mastercard:1564023498433757336> วันที่ทำรายการ', value: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }), inline: false }
     )
     .setTimestamp()
-    .setFooter({ text: 'Zen Bot Secure Transaction', iconURL: customerUser.displayAvatarURL() });
+    .setFooter({ text: 'ขอบคุณที่ใช้บริการครับ!', iconURL: customerUser.displayAvatarURL() });
 
   await channel.send({ embeds: [receiptEmbed] }).catch(() => {});
 
@@ -150,7 +150,7 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
         `• **สินค้า:** ${product.name}\n` +
         `• **ยอดที่ต้องชำระ:** \`${product.price}\`\n\n` +
         `──────────────────────\n` +
-        `📌 **ขั้นตอนการชำระเงิน:**\n` +
+        `<:emoji_87:1557232624664191048>**ขั้นตอนการชำระเงิน:**\n` +
         `1. กดปุ่ม **PromptPay QR** ด้านล่างเพื่อสแกนโอนเงิน\n` +
         `2. ส่งรูปสลิปโอนเงินลงในห้องนี้\n` +
         `3. รอแอดมินกดปุ่มอนุมัติเพื่อรับยศและใบเสร็จอัตโนมัติครับ!`
