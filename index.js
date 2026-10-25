@@ -88,7 +88,7 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
 });
 
-// 🌐 HTTP Server รองรับทั้ง Health Check และ GitHub Webhook
+// 🌐 HTTP Server รองรับทั้ง Health Check และ GitHub Webhook (เอา Footer ออก + แท็ก Role ตามที่ต้องการ)
 const httpServer = http.createServer((req, res) => {
   if (req.method === 'POST' && req.url === '/github-webhook') {
     let body = '';
@@ -103,6 +103,7 @@ const httpServer = http.createServer((req, res) => {
           
           let changelogText = commits.map(c => `+ ${c.message}`).join('\n');
 
+          // สร้าง Embed โดยเอา .setFooter() ออกตามต้องการ
           const embed = new EmbedBuilder()
             .setColor(COLORS.PRIMARY || '#2b2d31')
             .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1563825106504126534/1792915336456.jpg?ex=6adf091f&is=6addb79f&hm=627b17681285da8a04b3a97b7a150efad975c03ba69407e7f1a68a65f72f3003&')
@@ -111,9 +112,9 @@ const httpServer = http.createServer((req, res) => {
               { name: 'Changelog:', value: `\`\`\`diff\n${changelogText}\n\`\`\``, inline: false },
               { name: 'Released:', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
             )
-            .setTimestamp()
-            .setFooter({ text: 'Zen Bot Dev Stream' });
+            .setTimestamp();
 
+          // ส่งข้อความพร้อมแท็ก Role ID ที่กำหนดไว้ด้านบน Embed
           for (const [guildId, config] of Object.entries(serverConfigs)) {
             if (config.devLogChannelId) {
               try {
@@ -121,7 +122,7 @@ const httpServer = http.createServer((req, res) => {
                 if (guild) {
                   const channel = await guild.channels.fetch(config.devLogChannelId).catch(() => null);
                   if (channel && channel.isTextBased()) {
-                    await channel.send({ content: '@Member', embeds: [embed] });
+                    await channel.send({ content: '<@&1551183125076508713>', embeds: [embed] });
                   }
                 }
               } catch (err) {
