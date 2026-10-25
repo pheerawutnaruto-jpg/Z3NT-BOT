@@ -163,7 +163,7 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
       new ButtonBuilder()
         .setCustomId(`pay_promptpay_${selectedValue}_${user.id}`)
         .setLabel('PromptPay QR')
-        .setEmoji('💳') // ป้องกันปัญหาอีโมจิ Custom พัง ใช้ Unicode Emoji แทนความเสถียร
+        .setEmoji('1564023221836058726')
         .setStyle(ButtonStyle.Success),
       new ButtonBuilder()
         .setCustomId(`approve_order_${selectedValue}_${user.id}`)
