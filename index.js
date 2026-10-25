@@ -63,14 +63,18 @@ const {
   handleShowcaseMessage
 } = require('./media_showcase');
 
-// 🐾 นำเข้าระบบ Zen Pet จาก companion.js
+// 🐾 นำเข้าระบบ Zen Pet จาก companion.js (เพิ่ม setPetRoleCommand และ handleSetPetRoleCommand)
 const {
   rollRandomPet,
   petShopCommand,
   handlePetShopCommand,
+  setPetChannelCommand,
+  setPetRoleCommand,
+  handleSetPetRoleCommand,
   companionCommand,
   handleCompanionCommand,
-  setPetChannelCommand,
+  coinsCommand: petCoinsCommand,
+  handleCoinsCommand: handlePetCoinsCommand,
   handleCompanionButton,
   petBattleCommand,
   handlePetBattleCommand,
@@ -84,7 +88,7 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
 });
 
-// 🌐 HTTP Server รองรับทั้ง Health Check และ GitHub Webhook (ดีไซน์ Embed ใหม่ตามเรเควสต์)
+// 🌐 HTTP Server รองรับทั้ง Health Check และ GitHub Webhook
 const httpServer = http.createServer((req, res) => {
   if (req.method === 'POST' && req.url === '/github-webhook') {
     let body = '';
@@ -97,10 +101,8 @@ const httpServer = http.createServer((req, res) => {
           const repoName = data.repository.name;
           const commits = data.commits;
           
-          // จัดรูปแบบรายการคอมมิต์ให้ขึ้นต้นด้วยเครื่องหมาย + แบบในตัวอย่าง
           let changelogText = commits.map(c => `+ ${c.message}`).join('\n');
 
-          // สร้าง Embed สวยงามสไตล์ Update Banner ตามที่คุณต้องการ
           const embed = new EmbedBuilder()
             .setColor(COLORS.PRIMARY || '#2b2d31')
             .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1563825106504126534/1792915336456.jpg?ex=6adf091f&is=6addb79f&hm=627b17681285da8a04b3a97b7a150efad975c03ba69407e7f1a68a65f72f3003&')
@@ -112,7 +114,6 @@ const httpServer = http.createServer((req, res) => {
             .setTimestamp()
             .setFooter({ text: 'Zen Bot Dev Stream' });
 
-          // วิ่งส่งแจ้งเตือนเข้าห้อง dev-log ของทุกเซิร์ฟเวอร์ที่ตั้งค่าไว้
           for (const [guildId, config] of Object.entries(serverConfigs)) {
             if (config.devLogChannelId) {
               try {
@@ -170,7 +171,6 @@ async function loadConfigs() {
   return {};
 }
 
-// ⚡ ระบบ Debounce Save: รวมคำสั่งเซฟที่เกิดขึ้นถี่ๆ ให้เขียนลง Redis ครั้งเดียวทุก 1.5 วินาที
 async function saveConfigs(configs) {
   if (saveTimeout) clearTimeout(saveTimeout);
   saveTimeout = setTimeout(async () => {
@@ -182,7 +182,6 @@ async function saveConfigs(configs) {
   }, 1500);
 }
 
-// 🛠️ Helper: สร้างโครงสร้างเริ่มต้นของเซิร์ฟเวอร์ให้ครบถ้วน
 function ensureGuildConfig(guildId) {
   if (!serverConfigs[guildId]) {
     serverConfigs[guildId] = {};
@@ -236,73 +235,6 @@ function ensureGuildConfig(guildId) {
   return config;
 }
 
-// ⏳ ลูปเช็กเวลาฟักไข่อัตโนมัติ (Zen Pet)
-function startHatchChecker() {
-  setInterval(async () => {
-    try {
-      let updated = false;
-
-      for (const guildId in serverConfigs) {
-        const guildData = serverConfigs[guildId];
-        if (!guildData || !guildData.levels) continue;
-
-        for (const userId in guildData.levels) {
-          const userData = guildData.levels[userId];
-          const petEgg = userData?.petEgg;
-          
-          if (petEgg && petEgg.hasEgg && !petEgg.isHatched) {
-            petEgg.remainingSeconds = Math.max(0, (petEgg.remainingSeconds || 60) - 10);
-            updated = true;
-
-            if (petEgg.remainingSeconds <= 0) {
-              petEgg.isHatched = true;
-              
-              const hatchedPetData = rollRandomPet();
-              petEgg.hatchedPet = hatchedPetData;
-              petEgg.petLevel = 1;
-              petEgg.petXp = 0;
-
-              const targetChannelId = guildData.petChannelId;
-              if (targetChannelId) {
-                try {
-                  const guild = client.guilds.cache.get(guildId) || await client.guilds.fetch(guildId).catch(() => null);
-                  const channel = guild ? await guild.channels.fetch(targetChannelId).catch(() => null) : null;
-
-                  if (channel) {
-                    const embed = new EmbedBuilder()
-                      .setTitle(`✨ ${hatchedPetData.name}`)
-                      .setDescription(
-                        `Rarity: ${'⭐'.repeat(hatchedPetData.stars)} (${hatchedPetData.type})\n` +
-                        `Claims: 1\n` +
-                        `${hatchedPetData.baseOrb} 🔮`
-                      )
-                      .setColor(0x00FF99)
-                      .setImage(hatchedPetData.image)
-                      .setFooter({ text: 'ZEN PET • Companion System' });
-
-                    await channel.send({
-                      content: `<@${userId}> 🎉 ไข่ของคุณฟักเป็นตัวแล้ว!`,
-                      embeds: [embed]
-                    });
-                  }
-                } catch (err) {
-                  console.error(`ส่งข้อความแจ้งเตือนฟักไข่ล้มเหลว:`, err);
-                }
-              }
-            }
-          }
-        }
-      }
-
-      if (updated) {
-        await saveConfigs(serverConfigs);
-      }
-    } catch (e) {
-      console.error('Error in hatch checker loop:', e);
-    }
-  }, 10000);
-}
-
 let activeCronJobs = {};
 const spamTracker = new Map();
 
@@ -312,7 +244,6 @@ client.once('ready', async () => {
 
   startVoiceXpCron(client, serverConfigs, saveConfigs);
   loadAllAutoCinemaCrons(client, serverConfigs);
-  startHatchChecker();
 
   const commands = [
     new SlashCommandBuilder().setName('ping').setDescription('เช็กความเร็วและสถานะของบอท'),
@@ -331,6 +262,7 @@ client.once('ready', async () => {
     setupShopCommand,
     setupOrderTicketCommand,
     coinsCommand,
+    petCoinsCommand,
     addCoinsCommand,
     grantPremiumCommand,
     boostStatusCommand,
@@ -346,6 +278,7 @@ client.once('ready', async () => {
     petBattleCommand,
     petLeaderboardCommand,
     setPetChannelCommand,
+    setPetRoleCommand,
     new SlashCommandBuilder().setName('clear').setDescription('ลบข้อความในแชทจำนวน 1-100 ข้อความ')
       .addIntegerOption(option => option.setName('amount').setDescription('จำนวนข้อความที่ต้องการลบ (1-100)').setRequired(true))
       .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
@@ -397,8 +330,6 @@ function setupCronJob(guildId, timeStr, channelId) {
       console.error(`❌ เกิดข้อผิดพลาดในการลบข้อความอัตโนมัติ (Guild: ${guildId}):`, err);
     }
   }, { timezone: "Asia/Bangkok" });
-
-  console.log(`⏰ ตั้งเวลา Auto-Clear สำเร็จสำหรับ Guild ${guildId} เวลา ${timeStr} ในห้องช่อง ID: ${channelId}`);
 }
 
 client.on('messageCreate', async message => {
@@ -433,7 +364,6 @@ client.on('guildMemberAdd', async member => {
       const role = await member.guild.roles.fetch(config.autoroleId);
       if (role) {
         await member.roles.add(role);
-        console.log(`✅ มอบยศ ${role.name} ให้กับคุณ ${member.user.tag} สำเร็จ`);
       }
     } catch (err) {
       console.error('Autorole error:', err);
@@ -501,8 +431,8 @@ client.on('interactionCreate', async interaction => {
     const cmd = interaction.commandName;
 
     if (cmd === 'pet-shop') return await handlePetShopCommand(interaction);
-    if (cmd === 'companion') return await handleCompanionCommand(interaction, serverConfigs);
-    if (cmd === 'pet-battle') return await handlePetBattleCommand(interaction, serverConfigs);
+    if (cmd === 'companion') return await handleCompanionCommand(interaction, serverConfigs, saveConfigs, client);
+    if (cmd === 'pet-battle') return await handlePetBattleCommand(interaction, serverConfigs, client);
     if (cmd === 'pet-leaderboard') return await handlePetLeaderboardCommand(interaction, serverConfigs);
     if (cmd === 'set-pet-channel') {
       if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
@@ -513,6 +443,7 @@ client.on('interactionCreate', async interaction => {
       await saveConfigs(serverConfigs);
       return await interaction.reply({ content: `✅ ตั้งค่าห้องแจ้งเตือนสัตว์เลี้ยงเรียบร้อยที่: ${channel}`, ephemeral: true });
     }
+    if (cmd === 'set-pet-role') return await handleSetPetRoleCommand(interaction, serverConfigs, saveConfigs);
     if (cmd === 'set-dev-log') {
       if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
         return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
@@ -527,7 +458,8 @@ client.on('interactionCreate', async interaction => {
       'setup-quest', 'setup-in-game-shop', 'setup-order-ticket', 'add-coins',
       'grant-premium', 'setup-artist-card', 'setup-media-guard', 'setup-showcase',
       'cinema-setup', 'cinema-broadcast', 'auto-cinema', 'set-level', 'set-security',
-      'set-autoclear', 'set-welcome', 'set-autorole', 'set-role-reward', 'set-dev-log'
+      'set-autoclear', 'set-welcome', 'set-autorole', 'set-role-reward', 'set-dev-log',
+      'set-pet-channel', 'set-pet-role'
     ];
 
     if (adminCommands.includes(cmd)) {
