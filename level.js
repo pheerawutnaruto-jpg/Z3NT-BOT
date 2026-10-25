@@ -107,7 +107,7 @@ async function giveXpToUser(guildId, userId, amount, contextObj, serverConfigs, 
     requiredXp = userStat.level * multiplier;
   }
 
-  // 🐾 เพิ่ม XP ให้สัตว์เลี้ยงอัตโนมัติ (เช่น ได้รับ XP 50% จากที่ผู้เล่นได้รับ)
+  // 🐾 เพิ่ม XP ให้สัตว์เลี้ยงอัตโนมัติ พร้อมส่ง client ไปด้วยเพื่อให้แจ้งเตือนได้
   const petXpGain = Math.max(5, Math.floor(finalAmount / 2));
   await progressPetXp(guildId, userId, petXpGain, client, serverConfigs, saveConfigs, false);
 
@@ -260,6 +260,8 @@ function handleLeveling(message, serverConfigs, saveConfigs, client) {
   const min = Math.min(lConfig.minXp || 15, lConfig.maxXp || 25);
   const max = Math.max(lConfig.minXp || 15, lConfig.maxXp || 25);
   const earnedXp = Math.floor(Math.random() * (max - min + 1)) + min;
+  
+  // ✅ ส่ง client เข้าไปเพื่อให้ระบบสัตว์เลี้ยงทำงานแจ้งเตือนได้สมบูรณ์
   giveXpToUser(guildId, message.author.id, earnedXp, message, serverConfigs, saveConfigs, false, true, client);
 }
 
