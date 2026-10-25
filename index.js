@@ -840,7 +840,7 @@ client.on('interactionCreate', async interaction => {
       config.levelConfig.embedColor = colorVal;
       config.levelConfig.statsCardImageUrl = interaction.fields.getTextInputValue('statsCardImg');
       await saveConfigs(serverConfigs);
-      return await interaction.reply({ content: '✅ บันทึกการ์ד Level เรียบร้อยแล้ว!', ephemeral: true });
+      return await interaction.reply({ content: '✅ บันทึกการ์ด Level เรียบร้อยแล้ว!', ephemeral: true });
     }
     if (interaction.customId === 'levelMessagesModal') {
       config.levelConfig.levelUpMessage = interaction.fields.getTextInputValue('levelMsg');
