@@ -4,6 +4,7 @@ const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('disc
 const setupShowcaseCommand = new SlashCommandBuilder()
   .setName('setup-showcase')
   .setDescription('💎 [PREMIUM] ตั้งค่าห้องโชว์ผลงาน Artist พร้อมระบบรีแอคชันอัตโนมัติ')
+  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
   .addChannelOption(option =>
     option.setName('channel')
       .setDescription('เลือกห้องสำหรับให้สมาชิกส่งผลงานรูปภาพ')
@@ -40,17 +41,14 @@ async function handleShowcaseMessage(message, serverConfigs) {
   const config = serverConfigs[guildId];
   if (!config || config.showcaseChannelId !== message.channel.id) return false;
 
-  // ตรวจสอบว่ามีรูปภาพแนบมาด้วยหรือไม่ (ถือว่าเป็นผลงาน)
   const hasAttachment = message.attachments.size > 0;
   const hasImageLink = /https?:\/\/.*\.(png|jpg|jpeg|gif|webp)/i.test(message.content);
 
   if (hasAttachment || hasImageLink) {
     try {
-      // กดรีแอคชันอัตโนมัติให้กำลังใจผลงาน
       await message.react('⭐');
       await message.react('❤️');
       await message.react('🔥');
-
     } catch (err) {
       console.error('Error handling showcase message:', err);
     }
@@ -63,5 +61,4 @@ module.exports = {
   setupShowcaseCommand,
   handleSetupShowcaseCommand,
   handleShowcaseMessage
-  // ตัด handleShowcaseButton ออกไปแล้วเนื่องจากไม่ได้ใช้ปุ่มครับ
 };
