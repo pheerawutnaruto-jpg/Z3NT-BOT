@@ -63,6 +63,22 @@ const {
   handleShowcaseMessage
 } = require('./media_showcase');
 
+// 🐾 นำเข้าระบบ Zen Pet จาก companion.js
+const {
+  rollRandomPet,
+  petShopCommand,
+  handlePetShopCommand,
+  companionCommand,
+  handleCompanionCommand,
+  setPetChannelCommand,
+  handleCompanionButton,
+  petBattleCommand,
+  handlePetBattleCommand,
+  handleBattleButtons,
+  petLeaderboardCommand,
+  handlePetLeaderboardCommand
+} = require('./companion');
+
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
@@ -164,6 +180,73 @@ function ensureGuildConfig(guildId) {
   return config;
 }
 
+// ⏳ ลูปเช็กเวลาฟักไข่อัตโนมัติ (Zen Pet)
+function startHatchChecker() {
+  setInterval(async () => {
+    try {
+      let updated = false;
+
+      for (const guildId in serverConfigs) {
+        const guildData = serverConfigs[guildId];
+        if (!guildData || !guildData.levels) continue;
+
+        for (const userId in guildData.levels) {
+          const userData = guildData.levels[userId];
+          const petEgg = userData?.petEgg;
+          
+          if (petEgg && petEgg.hasEgg && !petEgg.isHatched) {
+            petEgg.remainingSeconds = Math.max(0, (petEgg.remainingSeconds || 60) - 10);
+            updated = true;
+
+            if (petEgg.remainingSeconds <= 0) {
+              petEgg.isHatched = true;
+              
+              const hatchedPetData = rollRandomPet();
+              petEgg.hatchedPet = hatchedPetData;
+              petEgg.petLevel = 1;
+              petEgg.petXp = 0;
+
+              const targetChannelId = guildData.petChannelId;
+              if (targetChannelId) {
+                try {
+                  const guild = await client.guilds.fetch(guildId);
+                  const channel = await guild.channels.fetch(targetChannelId);
+
+                  if (channel) {
+                    const embed = new EmbedBuilder()
+                      .setTitle(`✨ ${hatchedPetData.name}`)
+                      .setDescription(
+                        `Rarity: ${'⭐'.repeat(hatchedPetData.stars)} (${hatchedPetData.type})\n` +
+                        `Claims: 1\n` +
+                        `${hatchedPetData.baseOrb} 🔮`
+                      )
+                      .setColor(0x00FF99)
+                      .setImage(hatchedPetData.image)
+                      .setFooter({ text: 'ZEN PET • Companion System' });
+
+                    await channel.send({
+                      content: `<@${userId}> 🎉 ไข่ของคุณฟักเป็นตัวแล้ว!`,
+                      embeds: [embed]
+                    });
+                  }
+                } catch (err) {
+                  console.error(`ส่งข้อความแจ้งเตือนฟักไข่ล้มเหลว:`, err);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      if (updated) {
+        await saveConfigs(serverConfigs);
+      }
+    } catch (e) {
+      console.error('Error in hatch checker loop:', e);
+    }
+  }, 10000);
+}
+
 let activeCronJobs = {};
 const spamTracker = new Map();
 
@@ -173,6 +256,7 @@ client.once('ready', async () => {
 
   startVoiceXpCron(client, serverConfigs, saveConfigs);
   loadAllAutoCinemaCrons(client, serverConfigs);
+  startHatchChecker(); // เริ่มรันระบบฟักไข่ Zen Pet
 
   const commands = [
     new SlashCommandBuilder().setName('ping').setDescription('เช็กความเร็วและสถานะของบอท'),
@@ -196,6 +280,12 @@ client.once('ready', async () => {
     setupCinemaCommand,
     cinemaBroadcastCommand,
     autoCinemaCommand,
+    // 🐾 เพิ่มคำสั่ง Zen Pet เข้ามาในบอทหลัก
+    petShopCommand,
+    companionCommand,
+    petBattleCommand,
+    petLeaderboardCommand,
+    setPetChannelCommand,
     new SlashCommandBuilder().setName('clear').setDescription('ลบข้อความในแชทจำนวน 1-100 ข้อความ')
       .addIntegerOption(option => option.setName('amount').setDescription('จำนวนข้อความที่ต้องการลบ (1-100)').setRequired(true))
       .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
@@ -314,6 +404,13 @@ client.on('interactionCreate', async interaction => {
 
   const config = ensureGuildConfig(guildId);
 
+  // 🐾 1. ดักจับปุ่มกดซื้อไข่และปุ่มประลองของ Zen Pet ก่อนเป็นอันดับแรก
+  const eggHandled = await handleCompanionButton(interaction, loadConfigs, saveConfigs);
+  if (eggHandled) return;
+
+  const battleHandled = await handleBattleButtons(interaction, loadConfigs, saveConfigs);
+  if (battleHandled) return;
+
   const premiumCommands = [
     'setup-quest', 'setup-in-game-shop', 'coins', 'setup-order-ticket',
     'add-coins', 'setup-media-guard', 'setup-showcase', 'set-autoclear',
@@ -344,6 +441,22 @@ client.on('interactionCreate', async interaction => {
 
     const cmd = interaction.commandName;
 
+    // 🐾 2. จัดการคำสั่ง Slash Commands ของ Zen Pet
+    if (cmd === 'pet-shop') return await handlePetShopCommand(interaction);
+    if (cmd === 'companion') return await handleCompanionCommand(interaction, serverConfigs);
+    if (cmd === 'pet-battle') return await handlePetBattleCommand(interaction, serverConfigs);
+    if (cmd === 'pet-leaderboard') return await handlePetLeaderboardCommand(interaction, serverConfigs);
+    if (cmd === 'set-pet-channel') {
+      if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+        return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
+      }
+      const channel = interaction.options.getChannel('channel');
+      if (!serverConfigs[interaction.guildId]) serverConfigs[interaction.guildId] = {};
+      serverConfigs[interaction.guildId].petChannelId = channel.id;
+      await saveConfigs(serverConfigs);
+      return await interaction.reply({ content: `✅ ตั้งค่าห้องแจ้งเตือนสัตว์เลี้ยงเรียบร้อยที่: ${channel}`, ephemeral: true });
+    }
+
     // 🔒 ตรวจสอบสิทธิ์ Administrator สำหรับคำสั่งตั้งค่าและระบบแอดมิน
     const adminCommands = [
       'setup-quest', 'setup-in-game-shop', 'setup-order-ticket', 'add-coins',
@@ -372,7 +485,8 @@ client.on('interactionCreate', async interaction => {
           '> 🎬 **Zen Cinema:** ระบบจัดการรอบฉายหนังอัตโนมัติ (Coming Soon & Now Showing) พร้อมระบบขายตั๋วหักเหรียญ\n' +
           '> 🛒 **Automated Store:** ระบบร้านค้าสกิน/ยศ และระบบห้องออร์เดอร์พร้อมใบเสร็จอัตโนมัติ\n' +
           '> 🎨 **Artist Showcase:** ระบบห้องโชว์ผลงานพร้อมรีแอคชันอัตโนมัติ\n' +
-          '> 🎁 **Daily Quest:** เควสต์สุ่มแจก Zen Coins ฟรีทุก 19 ชั่วโมง (แบบ 50/50)\n\n' +
+          '> 🎁 **Daily Quest:** เควสต์สุ่มแจก Zen Coins ฟรีทุก 19 ชั่วโมง (แบบ 50/50)\n' +
+          '> 🐾 **Zen Pet System:** ระบบเลี้ยงสัตว์ ฟักไข่ และลานประลองชิง Orbs สุดมันส์!\n\n' +
           '💎 สนใจใช้งานระบบพรีเมียมติดต่อผู้พัฒนาบอทได้เลยครับ!'
         )
         .setColor(COLORS.PRIMARY)
@@ -395,7 +509,7 @@ client.on('interactionCreate', async interaction => {
     if (cmd === 'setup-media-guard') return await handleSetupMediaGuardCommand(interaction, serverConfigs, saveConfigs);
     if (cmd === 'setup-showcase') return await handleSetupShowcaseCommand(interaction, serverConfigs, saveConfigs);
     if (cmd === 'cinema-setup') return await handleSetupCinemaCommand(interaction);
-    if (cmd === 'cinema-broadcast') return await handleCinemaBroadcastCommand(interaction, serverConfigs);
+    if (cmd === 'cinema-broadcast') return await handleSetupCinemaBroadcastCommand(interaction, serverConfigs);
     if (cmd === 'auto-cinema') return await handleAutoCinemaCommand(interaction, serverConfigs);
     if (cmd === 'set-level') return await handleSetLevelCommand(interaction, serverConfigs);
     if (cmd === 'set-security') {
