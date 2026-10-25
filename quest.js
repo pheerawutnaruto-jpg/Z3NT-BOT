@@ -1,11 +1,11 @@
-// quest.js
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
 const { IMAGES, COLORS } = require('./constants');
 const { isServerPremium } = require('./license');
 
 const setupQuestCommand = new SlashCommandBuilder()
   .setName('setup-quest')
-  .setDescription('💎 [PREMIUM] ส่งแผงปุ่มกดรับเควสต์ประจำวันถาวรไปยังห้องนี้ (สำหรับ Admin)');
+  .setDescription('💎 [PREMIUM] ส่งแผงปุ่มกดรับเควสต์ประจำวันถาวรไปยังห้องนี้ (สำหรับ Admin)')
+  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
 async function handleSetupQuestCommand(interaction) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
@@ -66,7 +66,6 @@ async function handleQuestButton(interaction, serverConfigs, saveConfigs) {
     return true;
   }
 
-  // 🎲 ระบบสุ่มแบบ 50/50
   const isLuckyHalf = Math.random() < 0.5;
   const rewardCoins = isLuckyHalf
     ? Math.floor(Math.random() * (100 - 50 + 1)) + 50
