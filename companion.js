@@ -524,12 +524,15 @@ async function handleBattleButtons(interaction, serverConfigs, saveConfigs) {
   winnerData.petEgg.battlesCount = (winnerData.petEgg.battlesCount || 0) + 1;
   loserData.petEgg.battlesCount = (loserData.petEgg.battlesCount || 0) + 1;
 
+  // 📈 คำนวณเลเวลเดิมก่อนดูดซับ XP และเช็กเลเวลใหม่หลังดูดซับ
+  const oldLevel = winnerData.petEgg.petLevel || 1;
   winnerData.petEgg.petXp = (winnerData.petEgg.petXp || 0) + loserXpValue;
 
   while (winnerData.petEgg.petXp >= (winnerData.petEgg.petLevel || 1) * 100) {
     winnerData.petEgg.petXp -= (winnerData.petEgg.petLevel || 1) * 100;
     winnerData.petEgg.petLevel += 1;
   }
+  const newLevel = winnerData.petEgg.petLevel;
 
   loserData.petEgg = null;
 
@@ -547,6 +550,16 @@ async function handleBattleButtons(interaction, serverConfigs, saveConfigs) {
 
   if (typeof saveConfigs === 'function') {
     await saveConfigs(serverConfigs);
+  }
+
+  // 📢 ส่งข้อความแจ้งเตือนเลเวลอัปทันทีหากสัตว์เลี้ยงเลเวลพุ่งขึ้นจากการชนะประลอง
+  if (newLevel > oldLevel) {
+    const targetChannel = findPetTargetChannel(interaction.guild, serverConfig);
+    if (targetChannel) {
+      await targetChannel.send({
+        content: `[ZEN PET] ยินดีด้วยคุณ <@${winnerId}>! **${winnerPet.name}** ของคุณชนะการประลองและอัปเลเวลพุ่งพรวดเป็น **Level ${newLevel}** แล้ว!`
+      }).catch(() => {});
+    }
   }
 
   const resultEmbed = new EmbedBuilder()
@@ -609,7 +622,7 @@ module.exports = {
   rollRandomPet,
   findPetTargetChannel,
   checkAndHatchPet,
-  startPetHatchCron, // 👈 Export ฟังก์ชัน Cron เพื่อให้ index.js เรียกใช้งานได้
+  startPetHatchCron,
   progressPetXp,
   petShopCommand,
   handlePetShopCommand,
