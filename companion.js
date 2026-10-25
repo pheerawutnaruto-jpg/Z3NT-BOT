@@ -36,7 +36,7 @@ function findPetTargetChannel(guild, config) {
   ) || null;
 }
 
-// 📢 ฟังก์ชันเช็กและฟักไข่อัตโนมัติ พร้อมส่งแจ้งเตือนเข้าห้องและแจกยศ
+// 📢 ฟังก์ชันเช็กและฟักไข่อัตโนมัติ (แสดงการ์ด Embed สวยงามเมื่อไข่ฟัก)
 async function checkAndHatchPet(guild, userId, userData, client, serverConfig) {
   if (!userData.petEgg || userData.petEgg.isHatched) return false;
 
@@ -52,8 +52,18 @@ async function checkAndHatchPet(guild, userId, userData, client, serverConfig) {
     const targetChannel = findPetTargetChannel(guild, serverConfig);
 
     if (targetChannel) {
+      const embed = new EmbedBuilder()
+        .setTitle(pet.name)
+        .setDescription(
+          `**Rarity:** ${'⭐'.repeat(pet.stars)} (${pet.type})\n` +
+          `**Base Orb:** ${pet.baseOrb} 🔮`
+        )
+        .setImage(pet.image)
+        .setColor(0xFFD700);
+
       await targetChannel.send({
-        content: `🎉 ไข่วิญญาณของ <@${userId}> ฟักเป็นตัวเรียบร้อยแล้ว!\n🎁 ได้รับสัตว์เลี้ยง: **${pet.name}** (${'⭐'.repeat(pet.stars)} - ${pet.type})`
+        content: `<@${userId}>`,
+        embeds: [embed]
       }).catch(() => {});
     }
 
@@ -74,7 +84,7 @@ async function checkAndHatchPet(guild, userId, userData, client, serverConfig) {
   return false;
 }
 
-// 📈 ระบบเก็บเลเวลสัตว์เลี้ยงจากแชทและห้องเสียง
+// 📈 ระบบเก็บเลเวลสัตว์เลี้ยง (แจ้งเตือนรูปแบบ [ZEN PET] เมื่อเลเวลอัป)
 async function progressPetXp(guildId, userId, xpAmount, client, serverConfigs, saveConfigs, shouldSave = true) {
   const config = serverConfigs[guildId];
   if (!config || !config.levels || !config.levels[userId]) return;
@@ -243,7 +253,7 @@ async function handleCoinsCommand(interaction, serverConfigs) {
   await interaction.reply({ content: `🔮 ยอด Orbs ของคุณคือ: **${userCoins.toLocaleString()} Orbs**`, ephemeral: true });
 }
 
-// 🛒 ปุ่มซื้อไข่ (เชื่อมตรงกับ serverConfigs ตัวกลาง 100% ไม่หลุด ไม่บัค)
+// 🛒 ปุ่มซื้อไข่ (เชื่อมตรงกับ serverConfigs ตัวกลาง 100%)
 async function handleCompanionButton(interaction, serverConfigs, saveConfigs) {
   if (!interaction.isButton() || interaction.customId !== 'buy_pet_egg') return false;
 
@@ -260,7 +270,6 @@ async function handleCompanionButton(interaction, serverConfigs, saveConfigs) {
   const userData = serverConfig.levels[userId];
   const now = Date.now();
 
-  // 🔒 ล็อกเด็ดขาด: ห้ามซื้อซ้ำถ้ามีไข่หรือสัตว์เลี้ยงอยู่แล้ว
   if (userData.petEgg && userData.petEgg.hasEgg) {
     if (!userData.petEgg.isHatched && now < userData.petEgg.hatchUntil) {
       const remainingSec = Math.ceil((userData.petEgg.hatchUntil - now) / 1000);
@@ -279,11 +288,9 @@ async function handleCompanionButton(interaction, serverConfigs, saveConfigs) {
     return true;
   }
 
-  // หัก Orbs ในหน่วยความจำกลางทันที
   if (userData.orbs !== undefined) userData.orbs -= eggCost;
   else if (userData.coins !== undefined) userData.coins -= eggCost;
 
-  // ตั้งค่าไข่ในหน่วยความจำกลางทันที
   userData.petEgg = {
     hasEgg: true,
     isHatched: false,
@@ -295,12 +302,10 @@ async function handleCompanionButton(interaction, serverConfigs, saveConfigs) {
     createdAt: now
   };
 
-  // บันทึกลง Redis
   if (typeof saveConfigs === 'function') {
     await saveConfigs(serverConfigs);
   }
 
-  // แจกยศอัตโนมัติ
   if (serverConfig.petRoleId) {
     try {
       const member = await interaction.guild.members.fetch(userId);
