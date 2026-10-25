@@ -46,7 +46,7 @@ async function checkAndHatchPet(guild, userId, userData, client, serverConfig) {
     userData.petEgg.hatchedPet = rollRandomPet();
     userData.petEgg.petLevel = 1;
     userData.petEgg.petXp = 0;
-    userData.petEgg.battlesCount = 0; // 📊 เริ่มต้นนับสถิติการประลอง
+    userData.petEgg.battlesCount = 0;
 
     const pet = userData.petEgg.hatchedPet;
     const targetChannel = findPetTargetChannel(guild, serverConfig);
@@ -57,7 +57,6 @@ async function checkAndHatchPet(guild, userId, userData, client, serverConfig) {
       }).catch(() => {});
     }
 
-    // 🎭 แจกยศอัตโนมัติเมื่อฟักเสร็จ
     if (serverConfig.petRoleId && guild) {
       try {
         const member = await guild.members.fetch(userId).catch(() => null);
@@ -178,7 +177,7 @@ async function handleSetPetRoleCommand(interaction, serverConfigs, saveConfigs) 
   return true;
 }
 
-// 🐾 คำสั่งดูโปรไฟล์สัตว์เลี้ยง (เปลี่ยนเป็น /pet)
+// 🐾 คำสั่งดูโปรไฟล์สัตว์เลี้ยง (/pet)
 const petCommand = new SlashCommandBuilder()
   .setName('pet')
   .setDescription('🐾 ตรวจสอบการ์ดโปรไฟล์และสเตตัสคู่หูวิญญาณของคุณ');
@@ -196,7 +195,6 @@ async function handlePetCommand(interaction, serverConfigs, saveConfigs, client)
     return await interaction.reply({ content: '❌ คุณยังไม่มีไข่หรือสัตว์เลี้ยง! ไปซื้อไข่จากหน้าร้านก่อน', ephemeral: true });
   }
 
-  // เช็กว่าไข่ฟักหรือยัง
   if (!petEgg.isHatched) {
     const hatched = await checkAndHatchPet(interaction.guild, userId, userData, client, serverConfig);
     if (hatched) {
@@ -245,22 +243,20 @@ async function handleCoinsCommand(interaction, serverConfigs) {
   await interaction.reply({ content: `🔮 ยอด Orbs ของคุณคือ: **${userCoins.toLocaleString()} Orbs**`, ephemeral: true });
 }
 
-// 🛒 ปุ่มซื้อไข่ (ราคา 500 Orbs, แจกยศ, ล็อกซื้อซ้ำ, ตั้งเวลา 60s)
-async function handleCompanionButton(interaction, loadConfigs, saveConfigs) {
+// 🛒 ปุ่มซื้อไข่ (เชื่อมตรงกับ serverConfigs ตัวกลาง 100% ไม่หลุด ไม่บัค)
+async function handleCompanionButton(interaction, serverConfigs, saveConfigs) {
   if (!interaction.isButton() || interaction.customId !== 'buy_pet_egg') return false;
 
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
 
-  let serverConfigsObj = await loadConfigs();
-
-  if (!serverConfigsObj[guildId]) serverConfigsObj[guildId] = {};
-  if (!serverConfigsObj[guildId].levels) serverConfigsObj[guildId].levels = {};
-  if (!serverConfigsObj[guildId].levels[userId]) {
-    serverConfigsObj[guildId].levels[userId] = { xp: 0, level: 1, coins: 1000, orbs: 1000 };
+  if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
+  if (!serverConfigs[guildId].levels) serverConfigs[guildId].levels = {};
+  if (!serverConfigs[guildId].levels[userId]) {
+    serverConfigs[guildId].levels[userId] = { xp: 0, level: 1, coins: 1000, orbs: 1000 };
   }
 
-  const serverConfig = serverConfigsObj[guildId];
+  const serverConfig = serverConfigs[guildId];
   const userData = serverConfig.levels[userId];
   const now = Date.now();
 
@@ -270,7 +266,7 @@ async function handleCompanionButton(interaction, loadConfigs, saveConfigs) {
       const remainingSec = Math.ceil((userData.petEgg.hatchUntil - now) / 1000);
       await interaction.reply({ content: `❌ คุณมีไข่วิญญาณที่กำลังฟักอยู่! (เหลือเวลาอีกประมาณ ${remainingSec} วินาที)`, ephemeral: true });
     } else {
-      await interaction.reply({ content: '❌ คุณมีสัตว์เลี้ยงหรือไข่อยู่แล้ว! ซื้อได้แค่ตัวเดียวเท่านั้น', ephemeral: true });
+      await interaction.reply({ content: `❌ คุณมีสัตว์เลี้ยงหรือไข่อยู่แล้ว! ซื้อได้แค่ตัวเดียวเท่านั้น`, ephemeral: true });
     }
     return true;
   }
@@ -283,11 +279,11 @@ async function handleCompanionButton(interaction, loadConfigs, saveConfigs) {
     return true;
   }
 
-  // หัก Orbs
+  // หัก Orbs ในหน่วยความจำกลางทันที
   if (userData.orbs !== undefined) userData.orbs -= eggCost;
   else if (userData.coins !== undefined) userData.coins -= eggCost;
 
-  // ตั้งค่าไข่ (รอ 60 วินาที)
+  // ตั้งค่าไข่ในหน่วยความจำกลางทันที
   userData.petEgg = {
     hasEgg: true,
     isHatched: false,
@@ -299,9 +295,12 @@ async function handleCompanionButton(interaction, loadConfigs, saveConfigs) {
     createdAt: now
   };
 
-  await saveConfigs(serverConfigsObj);
+  // บันทึกลง Redis
+  if (typeof saveConfigs === 'function') {
+    await saveConfigs(serverConfigs);
+  }
 
-  // แจกยศอัตโนมัติ (ถ้ามีการตั้งค่า petRoleId ไว้)
+  // แจกยศอัตโนมัติ
   if (serverConfig.petRoleId) {
     try {
       const member = await interaction.guild.members.fetch(userId);
@@ -317,14 +316,14 @@ async function handleCompanionButton(interaction, loadConfigs, saveConfigs) {
   let remainingBalance = userData.orbs !== undefined ? userData.orbs : userData.coins;
 
   await interaction.reply({
-    content: `🎉 ซื้อไข่วิญญาณสำเร็จ! หักไป **${eggCost} Orbs** (ยอดคงเหลือ: ${remainingBalance.toLocaleString()} Orbs)\n🎭 ได้รับยศสัตว์เลี้ยงเรียบร้อย!\n⏳ กำลังฟักไข่ ใช้เวลา **60 วินาที** พิมพ์ \`/pet\` เพื่อเช็กสถานะได้เลย!`,
+    content: `🎉 ซื้อไข่วิญญาณสำเร็จ! หักไป **${eggCost} Orbs** (ยอดคงเหลือ: \`${remainingBalance.toLocaleString()} Orbs\`)\n🎭 ได้รับยศสัตว์เลี้ยงเรียบร้อย!\n⏳ กำลังฟักไข่ ใช้เวลา **60 วินาที** พิมพ์ \`/pet\` เพื่อเช็กสถานะได้เลย!`,
     ephemeral: true
   });
 
   return true;
 }
 
-// ⚔️ ลานประลอง (ฮาร์ดคอร์: ผู้แพ้สัตว์เลี้ยงตาย/หายไป ผู้ชนะได้เงิน + ดูด XP + นับสถิติประลอง)
+// ⚔️ ลานประลอง (Hardcore Mode)
 const petBattleCommand = new SlashCommandBuilder()
   .setName('pet-battle')
   .setDescription('⚔️ ท้าประลองสัตว์เลี้ยงกับผู้เล่นคนอื่นเพื่อชิงเงินและชิง EXP (ผู้แพ้สัตว์เลี้ยงตาย!)')
@@ -356,7 +355,6 @@ async function handlePetBattleCommand(interaction, serverConfigs, client) {
   const atkData = levels[attackerId];
   const defData = levels[defenderUser.id];
 
-  // เช็กว่าฟักเป็นตัวหรือยัง (ถ้ายัง ให้กดเช็กฟักให้อัตโนมัติ)
   if (atkData?.petEgg && !atkData.petEgg.isHatched) {
     await checkAndHatchPet(interaction.guild, attackerId, atkData, client, serverConfig);
   }
@@ -442,9 +440,8 @@ async function handleBattleButtons(interaction, serverConfigs, saveConfigs) {
   const betAmount = parseInt(parts[4]);
   const guildId = interaction.guildId;
 
-  let serverConfigsObj = typeof serverConfigs === 'function' ? await serverConfigs() : serverConfigs;
-  if (!serverConfigsObj[guildId]) serverConfigsObj[guildId] = {};
-  const serverConfig = serverConfigsObj[guildId];
+  if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
+  const serverConfig = serverConfigs[guildId];
   const levels = serverConfig.levels || {};
 
   const atkData = levels[attackerId];
@@ -469,7 +466,6 @@ async function handleBattleButtons(interaction, serverConfigs, saveConfigs) {
   const atkPower = atkPet.baseOrb + ((atkData.petEgg.petLevel || 1) * 20);
   const defPower = defPet.baseOrb + ((defData.petEgg.petLevel || 1) * 20);
 
-  // คำนวณผลแพ้ชนะ (เทียบ Power ตรงๆ + สุ่มเหลื่อมล้ำ 5%)
   const atkScore = atkPower * (0.95 + Math.random() * 0.1);
   const defScore = defPower * (0.95 + Math.random() * 0.1);
   const isAttackerWin = atkScore > defScore;
@@ -480,35 +476,28 @@ async function handleBattleButtons(interaction, serverConfigs, saveConfigs) {
   const loserData = levels[loserId];
   const winnerPet = isAttackerWin ? atkPet : defPet;
 
-  // 📈 คำนวณ XP ที่จะได้จากสัตว์เลี้ยงตัวที่แพ้ (ก่อนลบข้อมูล)
   const loserLevel = loserData.petEgg?.petLevel || 1;
   const loserXp = loserData.petEgg?.petXp || 0;
   const loserXpValue = (loserLevel * 50) + loserXp;
 
-  // โอนเงินเดิมพัน
   if (winnerData.orbs !== undefined) winnerData.orbs += betAmount;
   else winnerData.coins += betAmount;
 
   if (loserData.orbs !== undefined) loserData.orbs -= betAmount;
   else loserData.coins -= betAmount;
 
-  // 📊 บันทึกสถิติจำนวนครั้งที่ประลองเพิ่มให้กับทั้งสองฝ่าย
   winnerData.petEgg.battlesCount = (winnerData.petEgg.battlesCount || 0) + 1;
   loserData.petEgg.battlesCount = (loserData.petEgg.battlesCount || 0) + 1;
 
-  // 🏆 ผู้ชนะได้ XP สะสมเพิ่มจากตัวที่แพ้
   winnerData.petEgg.petXp = (winnerData.petEgg.petXp || 0) + loserXpValue;
 
-  // เช็กเลเวลอัปให้ผู้ชนะ
   while (winnerData.petEgg.petXp >= (winnerData.petEgg.petLevel || 1) * 100) {
     winnerData.petEgg.petXp -= (winnerData.petEgg.petLevel || 1) * 100;
     winnerData.petEgg.petLevel += 1;
   }
 
-  // 💀 ผู้แพ้: สัตว์เลี้ยงตาย (ลบข้อมูล petEgg หายไปถาวร)
   loserData.petEgg = null;
 
-  // 🎭 ถอดยศ Pet ออกจากผู้แพ้
   if (serverConfig.petRoleId) {
     try {
       const loserMember = await interaction.guild.members.fetch(loserId).catch(() => null);
@@ -522,7 +511,7 @@ async function handleBattleButtons(interaction, serverConfigs, saveConfigs) {
   }
 
   if (typeof saveConfigs === 'function') {
-    await saveConfigs(serverConfigsObj);
+    await saveConfigs(serverConfigs);
   }
 
   const resultEmbed = new EmbedBuilder()
@@ -567,13 +556,6 @@ async function handlePetLeaderboardCommand(interaction, serverConfigs) {
   const topPets = hatchedPets.slice(0, 10);
   let description = '';
 
-  topPets.topPets = topPets.forEach((item, index) => {
-    const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `\`#${index + 1}\``;
-    description += `${medal} <@${item.userId}> — **${item.pet.name}** (Level ${item.level} | ⚔️ Power: \`${item.power}\`)\n`;
-  });
-
-  // แก้ไขลูปแสดงผล Leaderboard ให้ถูกต้อง
-  description = '';
   topPets.forEach((item, index) => {
     const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `\`#${index + 1}\``;
     description += `${medal} <@${item.userId}> — **${item.pet.name}** (Level ${item.level} | ⚔️ Power: \`${item.power}\`)\n`;
