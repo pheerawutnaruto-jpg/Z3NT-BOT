@@ -1,5 +1,5 @@
 // license.js
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { DEVELOPER_ID, COLORS } = require('./constants');
 
 async function isServerPremium(guildId, serverConfigs) {
@@ -15,6 +15,7 @@ async function isServerPremium(guildId, serverConfigs) {
 const grantPremiumCommand = new SlashCommandBuilder()
   .setName('grant-premium')
   .setDescription('💎 [PREMIUM] เปิดสิทธิ์พรีเมียมรายเซิร์ฟเวอร์ (สำหรับ Developer)')
+  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
   .addStringOption(option =>
     option.setName('guild_id')
       .setDescription('ระบุ Guild ID ของเซิร์ฟเวอร์ที่ต้องการเปิดสิทธิ์')
@@ -27,8 +28,8 @@ const grantPremiumCommand = new SlashCommandBuilder()
   );
 
 async function handleGrantPremiumCommand(interaction, serverConfigs, saveConfigs) {
-  if (interaction.user.id !== DEVELOPER_ID) {
-    return await interaction.reply({ content: '❌ เฉพาะผู้พัฒนาบอทเท่านั้นที่จะใช้คำสั่งนี้ได้ครับ!', ephemeral: true });
+  if (interaction.user.id !== DEVELOPER_ID && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+    return await interaction.reply({ content: '❌ เฉพาะผู้พัฒนาบอทหรือผู้ดูแลระบบ (Administrator) เท่านั้นที่จะใช้คำสั่งนี้ได้ครับ!', ephemeral: true });
   }
 
   const targetGuildId = interaction.options.getString('guild_id').trim();
