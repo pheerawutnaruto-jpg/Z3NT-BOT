@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
 
-// 📦 ฐานข้อมูลสัตว์เลี้ยง 6 ระดับดาว (พร้อมลิงก์รูปภาพที่ถูกต้องตามที่คุณส่งมา)
+// 📦 ฐานข้อมูลสัตว์เลี้ยง 6 ระดับดาว
 const PET_DATABASE = [
   { name: 'Tiny Slime', stars: 1, type: 'Common', baseOrb: 50, image: 'https://cdn.discordapp.com/attachments/1559878908348997774/1563060183259811921/image0.jpg' },
   { name: 'Lazy Cat', stars: 2, type: 'Uncommon', baseOrb: 100, image: 'https://cdn.discordapp.com/attachments/1559878908348997774/1563060183763259392/image0.jpg' },
@@ -20,7 +20,7 @@ function rollRandomPet() {
   return PET_DATABASE[0];
 }
 
-// 🛒 1. /pet-shop (ใช้รูปไข่ถูกต้อง)
+// 🛒 1. /pet-shop
 const petShopCommand = new SlashCommandBuilder()
   .setName('pet-shop')
   .setDescription('🛒 เปิดร้านค้าไข่วิญญาณ (เฉพาะแอดมิน)')
@@ -30,7 +30,7 @@ async function handlePetShopCommand(interaction) {
   const embed = new EmbedBuilder()
     .setTitle('🥚 ร้านค้าไข่วิญญาณ (Zen Pet Shop)')
     .setDescription('ซื้อไข่วิญญาณลึกลับเพื่อฟักเป็นสัตว์เลี้ยงคู่กาย!\n\n**ราคา:** `100 Coins/Orbs`\n**ระยะเวลาฟัก:** `60 วินาที`')
-    .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1563060185633652816/image0.jpg') // รูปไข่ร้านค้า
+    .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1563060185633652816/image0.jpg')
     .setColor(0xFFD700);
 
   const row = new ActionRowBuilder().addComponents(
@@ -44,7 +44,7 @@ async function handlePetShopCommand(interaction) {
   await interaction.channel.send({ embeds: [embed], components: [row] });
 }
 
-// 🐾 2. /companion (การ์ดโปรไฟล์และสเตตัสสัตว์เลี้ยง)
+// 🐾 2. /companion
 const companionCommand = new SlashCommandBuilder()
   .setName('companion')
   .setDescription('🐾 ตรวจสอบการ์ดโปรไฟล์และสเตตัสคู่หูวิญญาณของคุณ');
@@ -113,7 +113,7 @@ const setPetChannelCommand = new SlashCommandBuilder()
 
 // 🛒 จัดการปุ่มซื้อไข่
 async function handleCompanionButton(interaction, loadConfigs, saveConfigs) {
-  if (interaction.customId !== 'buy_pet_egg') return false;
+  if (!interaction.isButton() || interaction.customId !== 'buy_pet_egg') return false;
 
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
@@ -243,6 +243,9 @@ async function handlePetBattleCommand(interaction, serverConfigs) {
 }
 
 async function handleBattleButtons(interaction, loadConfigs, saveConfigs) {
+  // 🛡️ ป้องกัน Error กรณีที่ interaction ไม่ใช่ปุ่มกดหรือไม่มี customId
+  if (!interaction.isButton() || !interaction.customId) return false;
+  
   const customId = interaction.customId;
   if (!customId.startsWith('accept_battle_') && !customId.startsWith('decline_battle_')) return false;
 
