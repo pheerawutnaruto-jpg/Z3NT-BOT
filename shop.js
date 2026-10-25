@@ -1,4 +1,3 @@
-// shop.js
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
 const { generateWalletCard } = require('./canvas_card');
 const { isServerPremium } = require('./license');
@@ -34,7 +33,8 @@ const IN_GAME_ITEMS = [
 
 const setupShopCommand = new SlashCommandBuilder()
   .setName('setup-in-game-shop')
-  .setDescription('💎 [PREMIUM] ส่งแผงป้ายหน้าร้านค้าในเกมถาวร (Storefront) ไปยังห้องนี้ (สำหรับ Admin)');
+  .setDescription('💎 [PREMIUM] ส่งแผงป้ายหน้าร้านค้าในเกมถาวร (Storefront) ไปยังห้องนี้ (สำหรับ Admin)')
+  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
 const boostStatusCommand = new SlashCommandBuilder()
   .setName('boost-status')
@@ -47,6 +47,7 @@ const coinsCommand = new SlashCommandBuilder()
 const addCoinsCommand = new SlashCommandBuilder()
   .setName('add-coins')
   .setDescription('💎 [PREMIUM] เติม Zen Coins ให้กับสมาชิก (สำหรับ Admin)')
+  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
   .addUserOption(option => option.setName('user').setDescription('เลือกสมาชิกที่ต้องการเติมเหรียญ').setRequired(true))
   .addIntegerOption(option => option.setName('amount').setDescription('จำนวน Zen Coins ที่ต้องการเติม').setRequired(true));
 
