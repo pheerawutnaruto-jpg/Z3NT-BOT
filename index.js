@@ -112,7 +112,7 @@ const httpServer = http.createServer((req, res) => {
               { name: 'Changelog:', value: `\`\`\`diff\n${changelogText}\n\`\`\``, inline: false },
               { name: 'Released:', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
             )
-            .setTimestamp();
+            ();
 
           // ส่งข้อความพร้อมแท็ก Role ID ที่กำหนดไว้ด้านบน Embed
           for (const [guildId, config] of Object.entries(serverConfigs)) {
