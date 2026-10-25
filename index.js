@@ -176,9 +176,9 @@ client.once('ready', async () => {
 
   const commands = [
     new SlashCommandBuilder().setName('ping').setDescription('เช็กความเร็วและสถานะของบอท'),
-    new SlashCommandBuilder().setName('set-welcome').setDescription('เปิดแผงควบคุมระบบต้อนรับ (Welcome Dashboard)'),
-    new SlashCommandBuilder().setName('set-autorole').setDescription('ตั้งค่าระบบแจกยศอัตโนมัติสำหรับสมาชิกใหม่'),
-    new SlashCommandBuilder().setName('set-security').setDescription('เปิดแผงควบคุมระบบป้องกันความปลอดภัยขั้นสูง'),
+    new SlashCommandBuilder().setName('set-welcome').setDescription('เปิดแผงควบคุมระบบต้อนรับ (Welcome Dashboard)').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('set-autorole').setDescription('ตั้งค่าระบบแจกยศอัตโนมัติสำหรับสมาชิกใหม่').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('set-security').setDescription('เปิดแผงควบคุมระบบป้องกันความปลอดภัยขั้นสูง').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     new SlashCommandBuilder().setName('bot-info').setDescription('✨ แสดงข้อมูลและหน้าพรีเซนต์แนะนำตัวของ Zen Bot'),
     levelCommand,
     leaderboardCommand,
@@ -197,10 +197,12 @@ client.once('ready', async () => {
     cinemaBroadcastCommand,
     autoCinemaCommand,
     new SlashCommandBuilder().setName('clear').setDescription('ลบข้อความในแชทจำนวน 1-100 ข้อความ')
-      .addIntegerOption(option => option.setName('amount').setDescription('จำนวนข้อความที่ต้องการลบ (1-100)').setRequired(true)),
+      .addIntegerOption(option => option.setName('amount').setDescription('จำนวนข้อความที่ต้องการลบ (1-100)').setRequired(true))
+      .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
     new SlashCommandBuilder().setName('set-autoclear').setDescription('💎 [PREMIUM] ตั้งเวลาระบบลบข้อความอัตโนมัติ')
       .addStringOption(option => option.setName('time').setDescription('ระบุเวลาในรูปแบบ HH:MM เช่น 06:00').setRequired(true))
-      .addChannelOption(option => option.setName('channel').setDescription('เลือกห้องที่ต้องการให้ลบข้อความอัตโนมัติ').addChannelTypes(ChannelType.GuildText).setRequired(true)),
+      .addChannelOption(option => option.setName('channel').setDescription('เลือกห้องที่ต้องการให้ลบข้อความอัตโนมัติ').addChannelTypes(ChannelType.GuildText).setRequired(true))
+      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
   ].map(command => command.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
@@ -341,6 +343,21 @@ client.on('interactionCreate', async interaction => {
     handleCommandLeveling(interaction, serverConfigs, saveConfigs);
 
     const cmd = interaction.commandName;
+
+    // 🔒 ตรวจสอบสิทธิ์ Administrator สำหรับคำสั่งตั้งค่าและระบบแอดมิน
+    const adminCommands = [
+      'setup-quest', 'setup-in-game-shop', 'setup-order-ticket', 'add-coins',
+      'grant-premium', 'setup-artist-card', 'setup-media-guard', 'setup-showcase',
+      'cinema-setup', 'cinema-broadcast', 'auto-cinema', 'set-level', 'set-security',
+      'set-autoclear', 'set-welcome', 'set-autorole', 'set-role-reward'
+    ];
+
+    if (adminCommands.includes(cmd)) {
+      if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+        return await interaction.reply({ content: '❌ เฉพาะผู้ดูแลระบบ (Administrator) เท่านั้นถึงจะใช้คำสั่งนี้ได้!', ephemeral: true });
+      }
+    }
+
     if (cmd === 'ping') {
       return await interaction.reply({ content: 'Pong! 🏓 บอททำงานระบบ Slash Command ปกติบน Render ครับ 🚀', ephemeral: true });
     }
@@ -421,6 +438,21 @@ client.on('interactionCreate', async interaction => {
 
   if (interaction.isButton()) {
     const id = interaction.customId;
+
+    // 🔒 ตรวจสอบสิทธิ์ Administrator สำหรับปุ่มกดแผงตั้งค่าหลังบ้าน
+    const adminActionIds = [
+      'toggle_welcome', 'toggle_autorole', 'toggle_level', 'toggle_voice_xp',
+      'edit_voice_amount', 'edit_level_rate', 'edit_level_card', 'edit_level_messages',
+      'set_role_reward', 'delete_role_reward', 'edit_welcome_msg', 'test_welcome',
+      'sec_toggle_main', 'sec_toggle_link', 'sec_toggle_spam', 'sec_toggle_mrbeast',
+      'sec_config_time', 'sec_reset'
+    ];
+
+    if (adminActionIds.includes(id) || id.startsWith('sec_')) {
+      if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+        return await interaction.reply({ content: '❌ เฉพาะผู้ดูแลระบบ (Administrator) เท่านั้นถึงจะกดใช้งานปุ่มตั้งค่านี้ได้!', ephemeral: true });
+      }
+    }
 
     if (await handleCinemaButton(interaction, serverConfigs, saveConfigs)) return;
     if (await handleAutoCinemaButton(interaction, serverConfigs, saveConfigs, client)) return;
@@ -562,6 +594,10 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isStringSelectMenu()) {
     if (await handleOrderTicketSelect(interaction, serverConfigs)) return;
 
+    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+      return await interaction.reply({ content: '❌ เฉพาะผู้ดูแลระบบ (Administrator) เท่านั้น', ephemeral: true });
+    }
+
     await interaction.deferUpdate().catch(() => {});
     if (interaction.customId === 'act_invite_select') {
       const vals = interaction.values;
@@ -585,6 +621,10 @@ client.on('interactionCreate', async interaction => {
     if (await handleCinemaSelect(interaction, serverConfigs, saveConfigs)) return;
     if (await handleAutoCinemaSelect(interaction, serverConfigs, saveConfigs, client)) return;
 
+    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+      return await interaction.reply({ content: '❌ เฉพาะผู้ดูแลระบบ (Administrator) เท่านั้น', ephemeral: true });
+    }
+
     await interaction.deferUpdate().catch(() => {});
     if (interaction.customId === 'select_channel') {
       config.channelId = interaction.values[0];
@@ -604,6 +644,10 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.isRoleSelectMenu()) {
+    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+      return await interaction.reply({ content: '❌ เฉพาะผู้ดูแลระบบ (Administrator) เท่านั้น', ephemeral: true });
+    }
+
     await interaction.deferUpdate().catch(() => {});
     if (interaction.customId === 'select_autorole') {
       config.autoroleId = interaction.values[0];
@@ -640,6 +684,10 @@ client.on('interactionCreate', async interaction => {
     if (await handleCinemaModal(interaction, serverConfigs, saveConfigs)) return;
     if (await handleAutoCinemaModal(interaction, serverConfigs, saveConfigs, client)) return;
     if (await handleArtistModalSubmit(interaction, serverConfigs, saveConfigs)) return;
+
+    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+      return await interaction.reply({ content: '❌ เฉพาะผู้ดูแลระบบ (Administrator) เท่านั้น', ephemeral: true });
+    }
 
     if (interaction.customId === 'editWelcomeMsgModal') {
       if (!config.embed) config.embed = {};
