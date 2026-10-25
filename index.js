@@ -112,7 +112,7 @@ const httpServer = http.createServer((req, res) => {
               { name: 'Changelog:', value: `\`\`\`diff\n${changelogText}\n\`\`\``, inline: false },
               { name: 'Released:', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
             )
-            ;
+            .setTimestamp();
 
           // ส่งข้อความพร้อมแท็ก Role ID ที่กำหนดไว้ด้านบน Embed
           for (const [guildId, config] of Object.entries(serverConfigs)) {
@@ -122,7 +122,7 @@ const httpServer = http.createServer((req, res) => {
                 if (guild) {
                   const channel = await guild.channels.fetch(config.devLogChannelId).catch(() => null);
                   if (channel && channel.isTextBased()) {
-                    await channel.send({ content: '<@&1551183125076508713>', embeds: [embed] });
+                    await channel.send({ content: '<@&1560731553766707241>', embeds: [embed] });
                   }
                 }
               } catch (err) {
