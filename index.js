@@ -119,7 +119,7 @@ const httpServer = http.createServer((req, res) => {
                 if (guild) {
                   const channel = await guild.channels.fetch(config.devLogChannelId).catch(() => null);
                   if (channel && channel.isTextBased()) {
-                    await channel.send({ content: '<@&1551183125076508713>', embeds: [embed] });
+                    await channel.send({ content: '<@&1560731553766707241>', embeds: [embed] });
                   }
                 }
               } catch (err) {
