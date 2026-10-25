@@ -63,7 +63,7 @@ const {
   handleShowcaseMessage
 } = require('./media_showcase');
 
-// 🐾 นำเข้าระบบ Zen Pet จาก companion.js (แก้ไขชื่อให้ตรงกับcompanion.jsเรียบร้อย)
+// 🐾 นำเข้าระบบ Zen Pet จาก companion.js (เปลี่ยนเป็น petCommand / handlePetCommand เรียบร้อย)
 const {
   rollRandomPet,
   petShopCommand,
@@ -71,8 +71,8 @@ const {
   setPetChannelCommand,
   setPetRoleCommand,
   handleSetPetRoleCommand,
-  companionCommand,
-  handleCompanionCommand,
+  petCommand,
+  handlePetCommand,
   coinsCommand: petCoinsCommand,
   handleCoinsCommand: handlePetCoinsCommand,
   handleCompanionButton,
@@ -271,7 +271,7 @@ client.once('ready', async () => {
     cinemaBroadcastCommand,
     autoCinemaCommand,
     petShopCommand,
-    companionCommand,
+    petCommand,
     petBattleCommand,
     petLeaderboardCommand,
     setPetChannelCommand,
@@ -394,7 +394,7 @@ client.on('interactionCreate', async interaction => {
   const petBtnHandled = await handleCompanionButton(interaction, loadConfigs, saveConfigs);
   if (petBtnHandled) return;
 
-  const battleHandled = await handleBattleButtons(interaction, loadConfigs, saveConfigs);
+  const battleHandled = await handleBattleButtons(interaction, serverConfigs, saveConfigs);
   if (battleHandled) return;
 
   const premiumCommands = [
@@ -428,7 +428,7 @@ client.on('interactionCreate', async interaction => {
     const cmd = interaction.commandName;
 
     if (cmd === 'pet-shop') return await handlePetShopCommand(interaction);
-    if (cmd === 'companion') return await handleCompanionCommand(interaction, serverConfigs, saveConfigs, client);
+    if (cmd === 'pet') return await handlePetCommand(interaction, serverConfigs, saveConfigs, client);
     if (cmd === 'pet-battle') return await handlePetBattleCommand(interaction, serverConfigs, client);
     if (cmd === 'pet-leaderboard') return await handlePetLeaderboardCommand(interaction, serverConfigs);
     if (cmd === 'set-pet-channel') {
