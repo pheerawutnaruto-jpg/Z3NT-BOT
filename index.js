@@ -63,19 +63,19 @@ const {
   handleShowcaseMessage
 } = require('./media_showcase');
 
-// 🐾 นำเข้าระบบ Zen Pet จาก companion.js (เพิ่ม setPetRoleCommand และ handleSetPetRoleCommand)
+// 🐾 นำเข้าระบบ Zen Pet จาก companion.js
 const {
   rollRandomPet,
   petShopCommand,
   handlePetShopCommand,
   setPetChannelCommand,
   setPetRoleCommand,
-  handleSetPetRoleCommand,
-  companionCommand,
-  handleCompanionCommand,
-  coinsCommand: petCoinsCommand,
-  handleCoinsCommand: handlePetCoinsCommand,
-  handleCompanionButton,
+  handlePetRoleCommand,
+  petCommand,
+  handlePetCommand,
+  setupShopCommand: setupPetShopCommand,
+  handleSetupShopCommand,
+  handlePetButton,
   petBattleCommand,
   handlePetBattleCommand,
   handleBattleButtons,
@@ -88,7 +88,7 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
 });
 
-// 🌐 HTTP Server รองรับทั้ง Health Check และ GitHub Webhook (เอา Footer ออก + แท็ก Role ตามที่ต้องการ)
+// 🌐 HTTP Server รองรับทั้ง Health Check และ GitHub Webhook
 const httpServer = http.createServer((req, res) => {
   if (req.method === 'POST' && req.url === '/github-webhook') {
     let body = '';
@@ -103,7 +103,6 @@ const httpServer = http.createServer((req, res) => {
           
           let changelogText = commits.map(c => `+ ${c.message}`).join('\n');
 
-          // สร้าง Embed โดยเอา .setFooter() ออกตามต้องการ
           const embed = new EmbedBuilder()
             .setColor(COLORS.PRIMARY || '#2b2d31')
             .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1563825106504126534/1792915336456.jpg?ex=6adf091f&is=6addb79f&hm=627b17681285da8a04b3a97b7a150efad975c03ba69407e7f1a68a65f72f3003&')
@@ -111,10 +110,8 @@ const httpServer = http.createServer((req, res) => {
               { name: '🟢 Announcement Bot', value: `**Version:**\n\`${repoName}\``, inline: false },
               { name: 'Changelog:', value: `\`\`\`diff\n${changelogText}\n\`\`\``, inline: false },
               { name: 'Released:', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
-            )
-            ();
+            );
 
-          // ส่งข้อความพร้อมแท็ก Role ID ที่กำหนดไว้ด้านบน Embed
           for (const [guildId, config] of Object.entries(serverConfigs)) {
             if (config.devLogChannelId) {
               try {
@@ -263,7 +260,6 @@ client.once('ready', async () => {
     setupShopCommand,
     setupOrderTicketCommand,
     coinsCommand,
-    petCoinsCommand,
     addCoinsCommand,
     grantPremiumCommand,
     boostStatusCommand,
@@ -274,8 +270,8 @@ client.once('ready', async () => {
     setupCinemaCommand,
     cinemaBroadcastCommand,
     autoCinemaCommand,
-    petShopCommand,
-    companionCommand,
+    setupPetShopCommand,
+    petCommand,
     petBattleCommand,
     petLeaderboardCommand,
     setPetChannelCommand,
@@ -351,7 +347,7 @@ client.on('messageCreate', async message => {
   const isShowcaseHandled = await handleShowcaseMessage(message, serverConfigs);
   if (isShowcaseHandled) return;
 
-  handleLeveling(message, serverConfigs, saveConfigs);
+  handleLeveling(message, serverConfigs, saveConfigs, client);
 });
 
 client.on('guildMemberAdd', async member => {
@@ -395,8 +391,8 @@ client.on('interactionCreate', async interaction => {
 
   const config = ensureGuildConfig(guildId);
 
-  const eggHandled = await handleCompanionButton(interaction, loadConfigs, saveConfigs);
-  if (eggHandled) return;
+  const petBtnHandled = await handlePetButton(interaction, serverConfigs, saveConfigs);
+  if (petBtnHandled) return;
 
   const battleHandled = await handleBattleButtons(interaction, loadConfigs, saveConfigs);
   if (battleHandled) return;
@@ -427,12 +423,12 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.isChatInputCommand()) {
-    handleCommandLeveling(interaction, serverConfigs, saveConfigs);
+    handleCommandLeveling(interaction, serverConfigs, saveConfigs, client);
 
     const cmd = interaction.commandName;
 
-    if (cmd === 'pet-shop') return await handlePetShopCommand(interaction);
-    if (cmd === 'companion') return await handleCompanionCommand(interaction, serverConfigs, saveConfigs, client);
+    if (cmd === 'setup-pet-shop') return await handleSetupShopCommand(interaction);
+    if (cmd === 'pet') return await handlePetCommand(interaction, serverConfigs, saveConfigs, client);
     if (cmd === 'pet-battle') return await handlePetBattleCommand(interaction, serverConfigs, client);
     if (cmd === 'pet-leaderboard') return await handlePetLeaderboardCommand(interaction, serverConfigs);
     if (cmd === 'set-pet-channel') {
@@ -444,7 +440,7 @@ client.on('interactionCreate', async interaction => {
       await saveConfigs(serverConfigs);
       return await interaction.reply({ content: `✅ ตั้งค่าห้องแจ้งเตือนสัตว์เลี้ยงเรียบร้อยที่: ${channel}`, ephemeral: true });
     }
-    if (cmd === 'set-pet-role') return await handleSetPetRoleCommand(interaction, serverConfigs, saveConfigs);
+    if (cmd === 'set-pet-role') return await handlePetRoleCommand(interaction, serverConfigs, saveConfigs);
     if (cmd === 'set-dev-log') {
       if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
         return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
@@ -460,7 +456,7 @@ client.on('interactionCreate', async interaction => {
       'grant-premium', 'setup-artist-card', 'setup-media-guard', 'setup-showcase',
       'cinema-setup', 'cinema-broadcast', 'auto-cinema', 'set-level', 'set-security',
       'set-autoclear', 'set-welcome', 'set-autorole', 'set-role-reward', 'set-dev-log',
-      'set-pet-channel', 'set-pet-role'
+      'setup-pet-shop', 'set-pet-channel', 'set-pet-role'
     ];
 
     if (adminCommands.includes(cmd)) {
