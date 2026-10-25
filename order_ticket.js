@@ -1,11 +1,11 @@
-// order_ticket.js
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits } = require('discord.js');
 const { ROLES, IMAGES, COLORS } = require('./constants');
 const { isServerPremium } = require('./license');
 
 const setupOrderTicketCommand = new SlashCommandBuilder()
   .setName('setup-order-ticket')
-  .setDescription('💎 [PREMIUM] ส่งแผงร้านค้าแบบมีเมนูกดเลือกสินค้าและสร้างห้องออร์เดอร์ (สำหรับ Admin)');
+  .setDescription('💎 [PREMIUM] ส่งแผงร้านค้าแบบมีเมนูกดเลือกสินค้าและสร้างห้องออร์เดอร์ (สำหรับ Admin)')
+  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
 const ORDER_PRODUCTS = {
   product_bot_premium: { name: 'BOT PREMIUM (รายเดือน)', price: '฿399.00', roleId: null },
@@ -14,7 +14,6 @@ const ORDER_PRODUCTS = {
   product_nightowl_role: { name: 'ยศพิเศษ คนนอนดึก ถาวร', price: '฿9.00', roleId: ROLES.NIGHTOWL }
 };
 
-// 🛠️ Helper: สร้างหน้าตาแผงร้านค้า Select Store (ใช้ร่วมกันทั้งตอนสั่ง Setup และตอนกดล้างตัวเลือก)
 function buildStorefrontPayload() {
   const embed = new EmbedBuilder()
     .setTitle('<a:emoji_103:1560417845903491112> 𝙕𝙀𝙉 𝘽𝙊𝙏 • SELECT STORE')
