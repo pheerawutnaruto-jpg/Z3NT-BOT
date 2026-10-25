@@ -84,7 +84,7 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
 });
 
-// 🌐 HTTP Server รองรับทั้ง Health Check และ GitHub Webhook
+// 🌐 HTTP Server รองรับทั้ง Health Check และ GitHub Webhook (ดีไซน์ Embed ใหม่ตามเรเควสต์)
 const httpServer = http.createServer((req, res) => {
   if (req.method === 'POST' && req.url === '/github-webhook') {
     let body = '';
@@ -93,14 +93,24 @@ const httpServer = http.createServer((req, res) => {
       try {
         const data = JSON.parse(body);
         
-        // ตรวจสอบว่าเป็นเหตุการณ์ Push โค้ดจาก GitHub
         if (data.commits && data.repository) {
           const repoName = data.repository.name;
-          const pusher = data.pusher?.name || data.sender?.login || 'Developer';
           const commits = data.commits;
           
-          let commitText = commits.map(c => `• \`${c.message}\``).join('\n');
-          const updateMessage = `🛠️ **[GITHUB DEV STREAM]** มีการอัปเดตโค้ดใหม่ในรีโป **${repoName}** โดย \`${pusher}\`:\n${commitText}`;
+          // จัดรูปแบบรายการคอมมิต์ให้ขึ้นต้นด้วยเครื่องหมาย + แบบในตัวอย่าง
+          let changelogText = commits.map(c => `+ ${c.message}`).join('\n');
+
+          // สร้าง Embed สวยงามสไตล์ Update Banner ตามที่คุณต้องการ
+          const embed = new EmbedBuilder()
+            .setColor(COLORS.PRIMARY || '#2b2d31')
+            .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1563825106504126534/1792915336456.jpg?ex=6adf091f&is=6addb79f&hm=627b17681285da8a04b3a97b7a150efad975c03ba69407e7f1a68a65f72f3003&')
+            .addFields(
+              { name: '🟢 Announcement Bot', value: `**Version:**\n\`${repoName}\``, inline: false },
+              { name: 'Changelog:', value: `\`\`\`diff\n${changelogText}\n\`\`\``, inline: false },
+              { name: 'Released:', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
+            )
+            .setTimestamp()
+            .setFooter({ text: 'Zen Bot Dev Stream' });
 
           // วิ่งส่งแจ้งเตือนเข้าห้อง dev-log ของทุกเซิร์ฟเวอร์ที่ตั้งค่าไว้
           for (const [guildId, config] of Object.entries(serverConfigs)) {
@@ -110,7 +120,7 @@ const httpServer = http.createServer((req, res) => {
                 if (guild) {
                   const channel = await guild.channels.fetch(config.devLogChannelId).catch(() => null);
                   if (channel && channel.isTextBased()) {
-                    await channel.send(updateMessage);
+                    await channel.send({ content: '@Member', embeds: [embed] });
                   }
                 }
               } catch (err) {
@@ -183,7 +193,7 @@ function ensureGuildConfig(guildId) {
   if (config.channelId === undefined) config.channelId = null;
   if (config.autoroleEnabled === undefined) config.autoroleEnabled = false;
   if (config.autoroleId === undefined) config.autoroleId = null;
-  if (config.devLogChannelId === undefined) config.devLogChannelId = null; // 🛠️ เพิ่มสำหรับ Dev Stream
+  if (config.devLogChannelId === undefined) config.devLogChannelId = null;
 
   if (!config.security) {
     config.security = {
@@ -310,7 +320,6 @@ client.once('ready', async () => {
     new SlashCommandBuilder().setName('set-autorole').setDescription('ตั้งค่าระบบแจกยศอัตโนมัติสำหรับสมาชิกใหม่').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     new SlashCommandBuilder().setName('set-security').setDescription('เปิดแผงควบคุมระบบป้องกันความปลอดภัยขั้นสูง').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     new SlashCommandBuilder().setName('bot-info').setDescription('✨ แสดงข้อมูลและหน้าพรีเซนต์แนะนำตัวของ Zen Bot'),
-    // 🛠️ คำสั่งตั้งค่าห้องรับ GitHub Dev Stream
     new SlashCommandBuilder()
       .setName('set-dev-log')
       .setDescription('🛠️ ตั้งค่าห้องสำหรับรับแจ้งเตือน Live GitHub Dev Stream')
@@ -504,7 +513,6 @@ client.on('interactionCreate', async interaction => {
       await saveConfigs(serverConfigs);
       return await interaction.reply({ content: `✅ ตั้งค่าห้องแจ้งเตือนสัตว์เลี้ยงเรียบร้อยที่: ${channel}`, ephemeral: true });
     }
-    // 🛠️ จัดการคำสั่งตั้งค่าห้อง Dev Stream
     if (cmd === 'set-dev-log') {
       if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
         return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
@@ -921,7 +929,7 @@ client.on('interactionCreate', async interaction => {
       return await interaction.reply({ content: `📌 กรุณาเลือกยศสำหรับ Level ${targetLevel}:`, components: [row], ephemeral: true });
     }
     if (interaction.customId === 'deleteRoleRewardModal') {
-      const targetLevel = interaction.fields.getTextInputValue('deleteRoleRewardModal').trim();
+      const targetLevel = interaction.fields.getTextInputValue('targetLevel').trim();
       if (!config.levelConfig.roleRewards || !config.levelConfig.roleRewards[targetLevel]) {
         return await interaction.reply({ content: `❌ ไม่พบข้อมูลยศรางวัลสำหรับ Level ${targetLevel} ครับ!`, ephemeral: true });
       }
