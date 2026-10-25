@@ -159,13 +159,17 @@ async function progressPetXp(guildId, userId, xpAmount, client, serverConfigs, s
   }
 }
 
-// 🛒 คำสั่งเปิดร้านค้า
+// 🛒 คำสั่งเปิดร้านค้า (เพิ่มการเช็กสิทธิ์ Admin ป้องกันคนทั่วไปพิมพ์คำสั่ง)
 const petShopCommand = new SlashCommandBuilder()
   .setName('pet-shop')
   .setDescription('🛒 เปิดร้านค้าไข่วิญญาณ (เฉพาะแอดมิน)')
   .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
 async function handlePetShopCommand(interaction) {
+  if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+    return await interaction.reply({ content: '❌ เฉพาะผู้ดูแลระบบ (Administrator) เท่านั้นถึงจะใช้คำสั่งนี้ได้!', ephemeral: true });
+  }
+
   const embed = new EmbedBuilder()
     .setTitle('🥚 ร้านค้าไข่วิญญาณ (Zen Pet Shop)')
     .setDescription('ซื้อไข่วิญญาณลึกลับเพื่อฟักเป็นสัตว์เลี้ยงคู่กาย!\n\n**ราคา:** `500 Orbs`\n**ระยะเวลาฟัก:** `60 วินาที`')
