@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, ChannelType } = require('discord.js');
+const cron = require('node-cron');
 const { COLORS } = require('./constants');
 
 // 📦 ฐานข้อมูลสัตว์เลี้ยง 6 ระดับดาว
@@ -82,6 +83,35 @@ async function checkAndHatchPet(guild, userId, userData, client, serverConfig) {
     return true;
   }
   return false;
+}
+
+// ⏳ Cron Job เช็กและฟักไข่อัตโนมัติทุกๆ 10 วินาที
+function startPetHatchCron(client, serverConfigs, saveConfigs) {
+  cron.schedule('*/10 * * * * *', async () => {
+    let globalUpdated = false;
+
+    for (const guildId in serverConfigs) {
+      const config = serverConfigs[guildId];
+      if (!config || !config.levels) continue;
+
+      const guild = client.guilds.cache.get(guildId);
+      if (!guild) continue;
+
+      for (const userId in config.levels) {
+        const userData = config.levels[userId];
+        if (userData && userData.petEgg && !userData.petEgg.isHatched) {
+          const hatched = await checkAndHatchPet(guild, userId, userData, client, config);
+          if (hatched) {
+            globalUpdated = true;
+          }
+        }
+      }
+    }
+
+    if (globalUpdated && typeof saveConfigs === 'function') {
+      await saveConfigs(serverConfigs);
+    }
+  });
 }
 
 // 📈 ระบบเก็บเลเวลสัตว์เลี้ยง (แจ้งเตือนรูปแบบ [ZEN PET] เมื่อเลเวลอัป)
@@ -579,6 +609,7 @@ module.exports = {
   rollRandomPet,
   findPetTargetChannel,
   checkAndHatchPet,
+  startPetHatchCron, // 👈 Export ฟังก์ชัน Cron เพื่อให้ index.js เรียกใช้งานได้
   progressPetXp,
   petShopCommand,
   handlePetShopCommand,
