@@ -6,7 +6,8 @@ const { isServerPremium } = require('./license');
 
 const autoCinemaCommand = new SlashCommandBuilder()
   .setName('auto-cinema')
-  .setDescription('⏰ [CINEMA] แผงควบคุมรอบฉาย NOW SHOWING (สำหรับ Admin)');
+  .setDescription('⏰ [CINEMA] แผงควบคุมรอบฉาย NOW SHOWING (สำหรับ Admin)')
+  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
 async function handleAutoCinemaCommand(interaction, serverConfigs) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
@@ -148,6 +149,11 @@ async function handleAutoCinemaButton(interaction, serverConfigs, saveConfigs, c
   const autoCinemaBtns = ['autocinema_toggle', 'autocinema_edit_info', 'autocinema_edit_role', 'autocinema_test_send'];
   if (!autoCinemaBtns.includes(id)) return false;
 
+  if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+    await interaction.reply({ content: '❌ เฉพาะผู้ดูแลระบบ (Administrator) เท่านั้นถึงจะกดใช้งานปุ่มนี้ได้!', ephemeral: true });
+    return true;
+  }
+
   const guildId = interaction.guildId;
   if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
   if (!serverConfigs[guildId].autoCinema) {
@@ -251,6 +257,11 @@ async function handleAutoCinemaButton(interaction, serverConfigs, saveConfigs, c
 async function handleAutoCinemaSelect(interaction, serverConfigs, saveConfigs, client) {
   if (interaction.customId !== 'autocinema_select_channel') return false;
 
+  if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+    await interaction.reply({ content: '❌ เฉพาะผู้ดูแลระบบ (Administrator) เท่านั้นถึงจะเลือกห้องนี้ได้!', ephemeral: true });
+    return true;
+  }
+
   const guildId = interaction.guildId;
   if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
 
@@ -273,6 +284,14 @@ async function handleAutoCinemaSelect(interaction, serverConfigs, saveConfigs, c
 }
 
 async function handleAutoCinemaModal(interaction, serverConfigs, saveConfigs, client) {
+  const modalIds = ['autoCinemaInfoModal', 'autoCinemaRoleModal'];
+  if (!modalIds.includes(interaction.customId)) return false;
+
+  if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+    await interaction.reply({ content: '❌ เฉพาะผู้ดูแลระบบ (Administrator) เท่านั้นถึงจะบันทึกค่าได้!', ephemeral: true });
+    return true;
+  }
+
   const guildId = interaction.guildId;
   if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
 
