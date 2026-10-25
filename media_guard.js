@@ -3,6 +3,7 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Butt
 const setupMediaGuardCommand = new SlashCommandBuilder()
   .setName('setup-media-guard')
   .setDescription('💎 [PREMIUM] เปิดใช้งานระบบบังคับส่งเฉพาะรูปภาพ/มีเดียในห้องนี้ (สำหรับ Admin)')
+  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
   .addBooleanOption(option =>
     option.setName('status')
       .setDescription('เลือก เปิด หรือ ปิด ระบบ Media Guard ในห้องนี้')
