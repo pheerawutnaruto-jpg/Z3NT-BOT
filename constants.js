@@ -1,4 +1,4 @@
-// constants.js - ศูนย์รวม Role IDs, Developer ID และลิงก์รูปภาพเริ่มต้นของ Zen Bot
+// constants.js - ศูนย์รวม Role IDs, Developer ID, รูปภาพ และค่าคงที่ทั้งหมดของ Zen Bot
 
 module.exports = {
   DEVELOPER_ID: '795347337773580299',
@@ -15,7 +15,7 @@ module.exports = {
     NIGHTOWL: '1560002616266854420'        // ยศคนนอนดึก
   },
 
-  // 🖼️ ลิงก์รูปภาพและไอคอนมาตรฐาน
+  // 🖼️ ลิงก์รูปภาพและไอคอนมาตรฐาน (รวมระบบหลัก + Zen Pet System)
   IMAGES: {
     DEFAULT_CINEMA: 'https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg',
     ARTIST_BANNER: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721936588636220/IMG_7335.jpg',
@@ -24,7 +24,16 @@ module.exports = {
     BOT_PRESENTATION: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721017583337512/1791877721245.jpg',
     PROMPTPAY_QR: 'https://cdn.discordapp.com/attachments/1559878908348997774/1560193260293595176/ReceiveMoney_QR_2026-10-15_14.13.55.png',
     ORDER_LOADING_GIF: 'https://cdn.discordapp.com/attachments/1559878908348997774/1560407479412588686/IMG_7559.gif',
-    NEW_ORDER_GIF: 'https://cdn.discordapp.com/attachments/1559878908348997774/1560415906281300059/image0.gif'
+    NEW_ORDER_GIF: 'https://cdn.discordapp.com/attachments/1559878908348997774/1560415906281300059/image0.gif',
+
+    // 🐾 รูปภาพระบบ Zen Pet (ไข่ และ สัตว์เลี้ยง 1-6 ดาว)
+    PET_EGG: 'https://cdn.discordapp.com/attachments/1559878908348997774/1563060185633652816/image0.jpg',
+    PET_1_STAR: 'https://cdn.discordapp.com/attachments/1559878908348997774/1563060183259811921/image0.jpg',
+    PET_2_STAR: 'https://cdn.discordapp.com/attachments/1559878908348997774/1563060183763259392/image0.jpg',
+    PET_3_STAR: 'https://cdn.discordapp.com/attachments/1559878908348997774/1563060184123703317/image0.jpg',
+    PET_4_STAR: 'https://cdn.discordapp.com/attachments/1559878908348997774/1563060184518103051/image0.jpg',
+    PET_5_STAR: 'https://cdn.discordapp.com/attachments/1559878908348997774/1563060184962572338/image0.jpg',
+    PET_6_STAR: 'https://cdn.discordapp.com/attachments/1559878908348997774/1563060186032377906/image0.jpg'
   },
 
   // 🎨 สีมาตรฐานของ Embed
