@@ -1,6 +1,14 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, ChannelType } = require('discord.js');
+const { Redis } = require('@upstash/redis');
+const { COLORS } = require('./constants');
 
-// 📦 ฐานข้อมูลสัตว์เลี้ยง 6 ระดับดาว
+// เชื่อมต่อ Redis โดยตรงเพื่อบันทึกข้อมูลทันทีแบบเรียลไทม์ (แก้ปัญหากดรัวแล้วเงินไม่ลด)
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+});
+
+// 📦 ฐานข้อมูลสัตว์เลี้ยง 6 ระดับดาว (1 ดาว - 6 ดาว Cosmic)
 const PET_DATABASE = [
   { name: 'Tiny Slime', stars: 1, type: 'Common', baseOrb: 50, image: 'https://cdn.discordapp.com/attachments/1559878908348997774/1563060183259811921/image0.jpg' },
   { name: 'Lazy Cat', stars: 2, type: 'Uncommon', baseOrb: 100, image: 'https://cdn.discordapp.com/attachments/1559878908348997774/1563060183763259392/image0.jpg' },
@@ -18,6 +26,67 @@ function rollRandomPet() {
   if (rand < 20) return PET_DATABASE[2];
   if (rand < 40) return PET_DATABASE[1];
   return PET_DATABASE[0];
+}
+
+// 🛠️ Helper: ค้นหาห้องส่งแจ้งเตือนสัตว์เลี้ยงที่ปลอดภัยที่สุด
+function findPetTargetChannel(guild, config) {
+  if (!guild) return null;
+  if (config.petChannelId) {
+    const ch = guild.channels.cache.get(config.petChannelId);
+    if (ch && ch.isTextBased()) return ch;
+  }
+  return guild.channels.cache.find(c =>
+    c.type === ChannelType.GuildText &&
+    !c.name.toLowerCase().includes('staff') &&
+    !c.name.toLowerCase().includes('admin') &&
+    !c.name.toLowerCase().includes('log') &&
+    c.permissionsFor(guild.members.me)?.has(PermissionFlagsBits.SendMessages)
+  ) || null;
+}
+
+// 🐾 ระบบเก็บเลเวลสัตว์เลี้ยงอัตโนมัติ
+async function progressPetXp(guildId, userId, xpAmount, client, serverConfigs, saveConfigs, shouldSave = true) {
+  const config = serverConfigs[guildId];
+  if (!config || !config.levels || !config.levels[userId]) return;
+
+  const userStat = config.levels[userId];
+  if (!userStat.petEgg || !userStat.petEgg.isHatched || !userStat.petEgg.hatchedPet) return;
+
+  if (userStat.petEgg.petLevel === undefined) userStat.petEgg.petLevel = 1;
+  if (userStat.petEgg.petXp === undefined) userStat.petEgg.petXp = 0;
+
+  userStat.petEgg.petXp += xpAmount;
+  let requiredPetXp = userStat.petEgg.petLevel * 100;
+  let leveledUp = false;
+  let newLevel = userStat.petEgg.petLevel;
+
+  while (userStat.petEgg.petXp >= requiredPetXp) {
+    userStat.petEgg.petXp -= requiredPetXp;
+    userStat.petEgg.petLevel += 1;
+    newLevel = userStat.petEgg.petLevel;
+    leveledUp = true;
+    requiredPetXp = userStat.petEgg.petLevel * 100;
+  }
+
+  if (shouldSave) {
+    await saveConfigs(serverConfigs);
+  }
+
+  if (leveledUp && client && client.guilds) {
+    try {
+      const guild = client.guilds.cache.get(guildId) || await client.guilds.fetch(guildId).catch(() => null);
+      const targetChannel = findPetTargetChannel(guild, config);
+
+      if (targetChannel) {
+        const pet = userStat.petEgg.hatchedPet;
+        await targetChannel.send({
+          content: `✨ [ZEN PET] ยินดีด้วยคุณ <@${userId}>! **${pet.name}** ของคุณอัปเลเวลเป็น **Level ${newLevel}** แล้ว!`
+        }).catch(() => {});
+      }
+    } catch (err) {
+      console.error('Error sending pet level up notification:', err);
+    }
+  }
 }
 
 // 🛒 1. /pet-shop
@@ -76,7 +145,7 @@ async function handleCompanionCommand(interaction, serverConfigs) {
     .setDescription(
       `⭐ **ระดับดาว:** ${'⭐'.repeat(pet.stars)} (${pet.type})\n` +
       `📈 **เลเวล:** Level ${petEgg.petLevel || 1}\n` +
-      `✨ **ค่าประสบการณ์ (XP):** ${petEgg.petXp || 0}/100\n` +
+      `✨ **ค่าประสบการณ์ (XP):** ${petEgg.petXp || 0}/${(petEgg.petLevel || 1) * 100}\n` +
       `⚔️ **พลังต่อสู้ (Power):** \`${totalPower}\`\n` +
       `🔮 **Base Orb:** ${pet.baseOrb} Orbs`
     )
@@ -96,8 +165,9 @@ async function handleCoinsCommand(interaction, serverConfigs) {
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
 
-  const userCoins = serverConfigs[guildId]?.levels?.[userId]?.orbs || 0;
-  await interaction.reply({ content: `🔮 ยอดเงิน Orbs ของคุณคือ: **${userCoins.toLocaleString()} Coins/Orbs**`, ephemeral: true });
+  const userData = serverConfigs[guildId]?.levels?.[userId];
+  const userCoins = userData?.coins !== undefined ? userData.coins : (userData?.orbs || 0);
+  await interaction.reply({ content: `🔮 ยอดเงินของคุณคือ: **${userCoins.toLocaleString()} Coins**`, ephemeral: true });
 }
 
 // 📢 4. /set-pet-channel
@@ -111,39 +181,50 @@ const setPetChannelCommand = new SlashCommandBuilder()
       .setRequired(true)
   );
 
-// 🛒 จัดการปุ่มซื้อไข่
-async function handleCompanionButton(interaction, loadConfigs, saveConfigs) {
+// 🛒 [แก้ไขให้เสถียร] จัดการปุ่มซื้อไข่ (บันทึกข้อมูลทันที ป้องกันกดรัวและเงินไม่ลด)
+async function handleCompanionButton(interaction) {
   if (!interaction.isButton() || interaction.customId !== 'buy_pet_egg') return false;
 
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
 
-  let serverConfigs = await loadConfigs();
+  // โหลดข้อมูลสดๆ จาก Redis ทันที
+  let rawData = await redis.get('server_configs');
+  let serverConfigs = rawData ? (typeof rawData === 'string' ? JSON.parse(rawData) : rawData) : {};
 
   if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
   if (!serverConfigs[guildId].levels) serverConfigs[guildId].levels = {};
   if (!serverConfigs[guildId].levels[userId]) {
-    serverConfigs[guildId].levels[userId] = { xp: 0, level: 1, orbs: 50000 };
+    serverConfigs[guildId].levels[userId] = { xp: 0, level: 1, coins: 200, orbs: 200 };
   }
 
   const userData = serverConfigs[guildId].levels[userId];
 
+  // 1. เช็กว่ามีไข่หรือสัตว์เลี้ยงอยู่แล้วหรือไม่ (ป้องกันการซื้อซ้ำเด็ดขาด)
   if (userData.petEgg && userData.petEgg.hasEgg) {
-    if (!userData.petEgg.isHatched) {
-      await interaction.reply({ content: '❌ คุณมีไข่ที่กำลังฟักอยู่แล้ว!', ephemeral: true });
-    } else {
-      await interaction.reply({ content: '❌ คุณมีสัตว์เลี้ยงอยู่แล้ว!', ephemeral: true });
-    }
+    await interaction.reply({ 
+      content: userData.petEgg.isHatched 
+        ? '❌ คุณมีสัตว์เลี้ยงอยู่แล้ว ไม่สามารถซื้อไข่เพิ่มได้!' 
+        : `❌ คุณมีไข่วิญญาณที่กำลังฟักอยู่! (เหลือเวลาอีกประมาณ ${userData.petEgg.remainingSeconds || 0} วินาที)`, 
+      ephemeral: true 
+    });
     return true;
   }
 
+  // 2. ตรวจสอบยอดเงิน (รองรับทั้ง coins และ orbs)
+  let currentMoney = userData.coins !== undefined ? userData.coins : (userData.orbs !== undefined ? userData.orbs : 0);
   const eggCost = 100;
-  if ((userData.orbs || 0) < eggCost) {
-    await interaction.reply({ content: `❌ เงิน Orbs ของคุณไม่พอ! (ต้องการ ${eggCost} Coins แต่คุณมี ${userData.orbs || 0} Coins)`, ephemeral: true });
+
+  if (currentMoney < eggCost) {
+    await interaction.reply({ content: `❌ เงินของคุณไม่พอ! (ต้องการ ${eggCost} Coins แต่คุณมี ${currentMoney.toLocaleString()} Coins)`, ephemeral: true });
     return true;
   }
 
-  userData.orbs -= eggCost;
+  // 3. หักเงินทันที
+  if (userData.coins !== undefined) userData.coins -= eggCost;
+  if (userData.orbs !== undefined) userData.orbs -= eggCost;
+
+  // 4. สร้างข้อมูลไข่
   userData.petEgg = {
     hasEgg: true,
     totalSecondsNeeded: 60,
@@ -153,10 +234,13 @@ async function handleCompanionButton(interaction, loadConfigs, saveConfigs) {
     createdAt: Date.now()
   };
 
-  await saveConfigs(serverConfigs);
+  // 5. บันทึกลง Redis ทันทีแบบเรียลไทม์ (ห้ามหน่วง) เพื่อป้องกันปัญหาเงินไม่ลดหรือซื้อซ้ำ
+  await redis.set('server_configs', JSON.stringify(serverConfigs));
+
+  let remainingBalance = userData.coins !== undefined ? userData.coins : userData.orbs;
 
   await interaction.reply({
-    content: `🎉 ซื้อไข่วิญญาณสำเร็จ! หักเงินไป **${eggCost} Coins/Orbs** (ยอดคงเหลือ: ${userData.orbs.toLocaleString()} Coins)\n⏳ รอฟัก 60 วินาที เช็กโปรไฟล์สัตว์เลี้ยงด้วย \`/companion\``,
+    content: `🎉 ซื้อไข่วิญญาณสำเร็จ! หักเงินไป **${eggCost} Coins** (ยอดคงเหลือ: ${remainingBalance.toLocaleString()} Coins)\n⏳ รอฟัก 60 วินาที เช็กโปรไฟล์สัตว์เลี้ยงด้วย \`/companion\``,
     ephemeral: true
   });
 
@@ -200,11 +284,14 @@ async function handlePetBattleCommand(interaction, serverConfigs) {
     return await interaction.reply({ content: `❌ <@${defenderUser.id}> ยังไม่มีสัตว์เลี้ยงที่พร้อมประลอง!`, ephemeral: true });
   }
 
-  if ((atkData.orbs || 0) < betAmount) {
-    return await interaction.reply({ content: `❌ คุณมี Orbs ไม่พอสำหรับการเดิมพัน!`, ephemeral: true });
+  const atkCoins = atkData.coins !== undefined ? atkData.coins : (atkData.orbs || 0);
+  const defCoins = defData.coins !== undefined ? defData.coins : (defData.orbs || 0);
+
+  if (atkCoins < betAmount) {
+    return await interaction.reply({ content: `❌ คุณมีเงินไม่พอสำหรับการเดิมพัน!`, ephemeral: true });
   }
-  if ((defData.orbs || 0) < betAmount) {
-    return await interaction.reply({ content: `❌ <@${defenderUser.id}> มี Orbs ไม่พอสำหรับการเดิมพันนี้!`, ephemeral: true });
+  if (defCoins < betAmount) {
+    return await interaction.reply({ content: `❌ <@${defenderUser.id}> มีเงินไม่พอสำหรับการเดิมพันนี้!`, ephemeral: true });
   }
 
   const atkPet = atkData.petEgg.hatchedPet || PET_DATABASE[0];
@@ -217,7 +304,7 @@ async function handlePetBattleCommand(interaction, serverConfigs) {
     .setTitle('⚔️ คำท้าประลองลานสู้สัตว์เลี้ยง (Zen Pet Battle)!')
     .setDescription(
       `<@${attackerId}> ได้ส่งคำท้าประลองถึง <@${defenderUser.id}>!\n\n` +
-      `💰 **เงินเดิมพัน:** \`${betAmount.toLocaleString()} Orbs\`\n\n` +
+      `💰 **เงินเดิมพัน:** \`${betAmount.toLocaleString()} Coins\`\n\n` +
       `🔴 **ผู้ท้าประลอง:** <@${attackerId}>\n` +
       `🐾 **สัตว์เลี้ยง:** ${atkPet.name} (${'⭐'.repeat(atkPet.stars)})\n` +
       `⚔️ **พลังต่อสู้:** \`${atkPower}\`\n\n` +
@@ -243,7 +330,6 @@ async function handlePetBattleCommand(interaction, serverConfigs) {
 }
 
 async function handleBattleButtons(interaction, loadConfigs, saveConfigs) {
-  // 🛡️ ป้องกัน Error กรณีที่ interaction ไม่ใช่ปุ่มกดหรือไม่มี customId
   if (!interaction.isButton() || !interaction.customId) return false;
   
   const customId = interaction.customId;
@@ -278,8 +364,11 @@ async function handleBattleButtons(interaction, loadConfigs, saveConfigs) {
   const atkData = levels[attackerId];
   const defData = levels[defenderId];
 
-  if ((atkData?.orbs || 0) < betAmount || (defData?.orbs || 0) < betAmount) {
-    await interaction.reply({ content: '❌ ยอดเงิน Orbs ไม่พอสำหรับการเดิมพันแล้ว การประลองถูกยกเลิก', ephemeral: true });
+  const atkCoins = atkData?.coins !== undefined ? atkData.coins : (atkData?.orbs || 0);
+  const defCoins = defData?.coins !== undefined ? defData.coins : (defData?.orbs || 0);
+
+  if (atkCoins < betAmount || defCoins < betAmount) {
+    await interaction.reply({ content: '❌ ยอดเงินไม่พอสำหรับการเดิมพันแล้ว การประลองถูกยกเลิก', ephemeral: true });
     return true;
   }
 
@@ -297,14 +386,18 @@ async function handleBattleButtons(interaction, loadConfigs, saveConfigs) {
   const winnerPet = isAttackerWin ? atkPet.name : defPet.name;
   const winnerPetObj = isAttackerWin ? atkPet : defPet;
 
-  levels[winnerId].orbs += betAmount;
-  levels[loserId].orbs -= betAmount;
+  // อัปเดตเงินผู้ชนะและผู้แพ้
+  if (levels[winnerId].coins !== undefined) levels[winnerId].coins += betAmount;
+  else if (levels[winnerId].orbs !== undefined) levels[winnerId].orbs += betAmount;
+
+  if (levels[loserId].coins !== undefined) levels[loserId].coins -= betAmount;
+  else if (levels[loserId].orbs !== undefined) levels[loserId].orbs -= betAmount;
 
   const winnerPetEgg = levels[winnerId].petEgg;
   winnerPetEgg.petXp = (winnerPetEgg.petXp || 0) + 25;
-  if (winnerPetEgg.petXp >= 100) {
+  if (winnerPetEgg.petXp >= (winnerPetEgg.petLevel || 1) * 100) {
     winnerPetEgg.petLevel = (winnerPetEgg.petLevel || 1) + 1;
-    winnerPetEgg.petXp -= 100;
+    winnerPetEgg.petXp -= (winnerPetEgg.petLevel - 1) * 100;
   }
 
   await saveConfigs(serverConfigs);
@@ -313,7 +406,7 @@ async function handleBattleButtons(interaction, loadConfigs, saveConfigs) {
     .setTitle('🏆 ผลการประลองสัตว์เลี้ยง!')
     .setDescription(
       `🎉 **ผู้ชนะ:** <@${winnerId}> พร้อมกับ **${winnerPet}**!\n` +
-      `💰 เงินรางวัล: \`+${betAmount.toLocaleString()} Orbs\` รับ EXP PET: \`+25 XP\``
+      `💰 เงินรางวัล: \`+${betAmount.toLocaleString()} Coins\` รับ EXP PET: \`+25 XP\``
     )
     .setImage(winnerPetObj.image)
     .setColor(0x00FF00);
@@ -368,6 +461,8 @@ async function handlePetLeaderboardCommand(interaction, serverConfigs) {
 module.exports = {
   PET_DATABASE,
   rollRandomPet,
+  findPetTargetChannel,
+  progressPetXp,
   petShopCommand,
   handlePetShopCommand,
   companionCommand,
