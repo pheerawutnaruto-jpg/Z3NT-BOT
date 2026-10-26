@@ -297,8 +297,8 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
       if (role) await member.roles.add(role);
     } catch (err) {}
 
-    await interaction.editReply({ 
-      content: `<:xp_active:1564107060021432370> เปิดใช้งาน XP x2 สำเร็จ! ( ⏱️**${remainingMins} นาที** `)\n\`Wallet : ${userStat.orbs.toLocaleString()} coins\`` 
+        await interaction.editReply({ 
+      content: `<:xp_active:1564107060021432370> เปิดใช้งาน XP x2 สำเร็จ! ( ⏱️**${remainingMins} นาที** )\n\`Wallet : ${userStat.orbs.toLocaleString()} coins\`` 
     });
     return true;
   }
