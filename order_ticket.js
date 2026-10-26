@@ -53,15 +53,15 @@ async function sendOrderReceipt(channel, customerUser, adminUser, product, payme
     : `<a:verified:1563350708193984612> ชำระเงินสำเร็จ (ดำเนินการโดยแอดมิน)`;
 
   const receiptEmbed = new EmbedBuilder()
-    .setTitle('<a:RECEIPT:1564058406170529813> 𝙕𝙀𝙉 𝘽𝙊𝙏 • OFFICIAL ORDER RECEIPT')
+    .setTitle(':zen2: 𝙕𝙀𝙉 𝘽𝙊𝙏 • OFFICIAL ORDER RECEIPT')
     .setDescription('ใบเสร็จรับเงินยืนยันการทำรายการสำเร็จ!')
     .setColor(COLORS.GREEN)
     .addFields(
-      { name: '<a:people:1564056325791424522> ผู้สั่งซื้อ', value: `<@${customerUser.id}>`, inline: true },
-      { name: '<a:purpletrolley:1564055854460829707> สินค้า', value: product.name, inline: true },
+      { name: '<a:zen4:1564056325791424522> ผู้สั่งซื้อ', value: `<@${customerUser.id}>`, inline: true },
+      { name: '<a:zen5:1564055854460829707> สินค้า', value: product.name, inline: true },
       { name: '<a:emoji_100:1560416789211516938> ยอดชำระ', value: `\`${product.price}\``, inline: true },
       { name: '<a:image0:1562554115257536552> ช่องทางชำระ', value: paymentMethod, inline: true },
-      { name: '<a:admin:1564054387004022885> ผู้อนุมัติรายการ', value: `<@${adminUser.id}>`, inline: true },
+      { name: '<a:zen6:1564054387004022885> ผู้อนุมัติรายการ', value: `<@${adminUser.id}>`, inline: true },
       { name: '<a:emoji_101:1560416845322920067> สถานะรายการ', value: statusText, inline: false },
       { name: '<a:mastercard:1564023498433757336> วันที่ทำรายการ', value: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }), inline: false }
     )
