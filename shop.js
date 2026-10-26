@@ -5,7 +5,7 @@ const { ROLES, IMAGES, COLORS } = require('./constants');
 
 const userCooldowns = new Map();
 
-// ปรับโครงสร้างข้อมูลตามที่คุณต้องการ (รวม description ให้อยู่ในบรรทัดเดียวกับราคา)
+// ปรับโครงสร้างข้อมูลรายการไอเทม
 const IN_GAME_ITEMS = [
   {
     id: 'gacha_box',
@@ -168,24 +168,20 @@ async function handleInGameShopPanel(interaction, serverConfigs) {
   const userStat = config.levels?.[userId];
   const userCoins = userStat ? (userStat.orbs || 0) : 0;
 
+  // จัดเรียงข้อความใหม่: รายการสินค้าอยู่ด้านบน และ "ยอดเหรียญของคุณ" อยู่ล่างสุด
+  const itemsText = IN_GAME_ITEMS.map(item => {
+    const emojiDisplay = typeof item.emoji === 'object' ? `<:${item.emoji.name}:${item.emoji.id}>` : item.emoji;
+    return `${emojiDisplay} **${item.name}** → **${item.price} Coins** ${item.description}\n------------------------`;
+  }).join('\n');
+
   const embed = new EmbedBuilder()
     .setTitle('<a:emoji_103:1560417845903491112> 𝙕𝙀𝙉 𝙎𝙃𝙊𝙋')
     .setDescription(
-      `<a:emoji_100:1560416789211516938> **ยอดเหรียญของคุณ:** \`${userCoins.toLocaleString()} Zen Coins\`\n\n` +
-      'เลือกไอเทมที่คุณต้องการได้จากรายการด้านล่างนี้:\n------------------------'
+      `------------------------\n` +
+      `${itemsText}\n` +
+      `<a:emoji_100:1560416789211516938> **ยอดเหรียญของคุณ:** \`${userCoins.toLocaleString()} Zen Coins\``
     )
-    .setColor(COLORS.GOLD);
-
-  IN_GAME_ITEMS.forEach(item => {
-    // แปลงรูปแบบ Emoji เพื่อนำไปแสดงผลใน Embed
-    const emojiDisplay = typeof item.emoji === 'object' ? `<:${item.emoji.name}:${item.emoji.id}>` : item.emoji;
-
-    embed.addFields({
-      name: `${emojiDisplay} **${item.name}** → **${item.price} coins** ${item.description}`,
-      value: '------------------------',
-      inline: false
-    });
-  });
+    .setColor('#66FFFF'); // เปลี่ยนสี Embed เป็น #66FFFF ตามต้องการ
 
   const row = new ActionRowBuilder();
   IN_GAME_ITEMS.forEach(item => {
@@ -194,7 +190,6 @@ async function handleInGameShopPanel(interaction, serverConfigs) {
       .setLabel(item.name.split(' (')[0])
       .setStyle(ButtonStyle.Primary);
 
-    // กำหนด Emoji ให้กับปุ่มอย่างถูกต้อง
     if (item.emoji) {
       button.setEmoji(item.emoji);
     }
