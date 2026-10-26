@@ -15,14 +15,14 @@ async function handleSetupQuestCommand(interaction) {
 
   const embed = new EmbedBuilder()
     .setTitle('<a:emoji_142:1564170617240948767> 𝙕𝙀𝙉 𝘽𝙊𝙏 • DAILY QUEST')
-    .setDescription('ลุ้นรับ **`coin`** ฟรีประจำเซิร์ฟเวอร์! (`สูงสุดถึง 150 coins`)')
+    .setDescription('ลุ้นรับ **`coin`** ฟรีประจำเซิร์ฟเวอร์! (`สูงสุดถึง 100 coins`)')
     .setColor(COLORS.PRIMARY)
     .setImage(IMAGES.QUEST_BANNER);
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('claim_daily_orb')
-      .setLabel('Daily') // เปลี่ยนชื่อปุ่มกลับเป็น Daily ตามต้องการ
+      .setLabel('Daily')
       .setEmoji('<a:emoji_142:1564170617240948767>')
       .setStyle(ButtonStyle.Success)
   );
@@ -80,12 +80,12 @@ async function handleQuestButton(interaction, serverConfigs, saveConfigs) {
     await interaction.editReply({ content: '<a:kitty:1563350578375950496> น่าเสียดาย! พรุ่งนี้เอาใหม่นะ!' });
   } else {
     await interaction.editReply({ 
-      content: `<a:emoji_142:1564170617240948767> **ผลการสุ่มกาชาปอง:**\n${roll.text}\n\`Wallet : ${userStat.orbs.toLocaleString()} coins\`` 
+      content: `<a:emoji_142:1564170617240948767> **ผลการสุ่มกาชาปอง:** คุณได้รับ **+${rewardCoins} coins** 🎉\n\`Wallet : ${userStat.orbs.toLocaleString()} coins\`` 
     });
-    return true;
-
-
   }
+
+  return true;
+}
 
 module.exports = {
   setupQuestCommand,
