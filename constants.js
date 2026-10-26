@@ -17,7 +17,7 @@ module.exports = {
 
   // 🖼️ ลิงก์รูปภาพและไอคอนมาตรฐาน (รวมระบบหลัก + Zen Pet System)
   IMAGES: {
-    DEFAULT_CINEMA: 'https://cdn.discordapp.com/attachments/1559878908348997774/1560429202589876295/1792105154505.jpg',
+    DEFAULT_CINEMA: 'https://cdn.discordapp.com/attachments/1559878908348997774/1564119084940005386/d9114a4e-a077-4949-b9b5-d99407b6c540.png?ex=6ae01ae9&is=6adec969&hm=52c76d5d6577a74e19d9e4b68a0f30ff3bf7668f1294bf1e699511d06fce9601&',
     ARTIST_BANNER: 'https://cdn.discordapp.com/attachments/1550576199829430382/1559721936588636220/IMG_7335.jpg',
     QUEST_BANNER: 'https://cdn.discordapp.com/attachments/1550576199829430382/1560524247216955432/IMG_7329.jpg',
     SHOP_STOREFRONT: 'https://cdn.discordapp.com/attachments/1559878908348997774/1560429209522806814/1792105478227.jpg',
