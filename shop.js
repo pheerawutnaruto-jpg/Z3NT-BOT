@@ -5,17 +5,20 @@ const { ROLES, IMAGES, COLORS } = require('./constants');
 
 const userCooldowns = new Map();
 
+// ปรับโครงสร้างแยก emoji ออกจาก name เพื่อให้ ปุ่ม (Button) และ Embed ดึงไปใช้ได้ถูกต้อง
 const IN_GAME_ITEMS = [
   {
     id: 'gacha_box',
-    name: '🎁 กาชาปอง',
+    name: 'กาชาปอง',
+    emoji: '🎁',
     price: 15,
     type: 'gacha',
     description: '• ลุ้นรับ Zen Coins สูงสุด 150 Coins!'
   },
   {
     id: 'xp_boost',
-    name: '<:xp:1564107013456269433> XP Boost (1 ชม.)',
+    name: 'XP Boost (1 ชม.)',
+    emoji: { name: 'xp', id: '1564107013456269433' }, // กำหนด Custom Emoji เป็น Object
     price: 30,
     type: 'buff',
     roleId: ROLES.XP_BOOSTER,
@@ -23,7 +26,8 @@ const IN_GAME_ITEMS = [
   },
   {
     id: 'role_artist_temp',
-    name: '🎨 Artist (3 วัน)',
+    name: 'Artist (3 วัน)',
+    emoji: '🎨',
     price: 75,
     type: 'role_temp',
     roleId: ROLES.ARTIST_TEMP,
@@ -173,8 +177,11 @@ async function handleInGameShopPanel(interaction, serverConfigs) {
     .setColor(COLORS.GOLD);
 
   IN_GAME_ITEMS.forEach(item => {
+    // แปลงรูปแบบ Emoji เพื่อนำไปแสดงผลใน Embed
+    const emojiDisplay = typeof item.emoji === 'object' ? `<:${item.emoji.name}:${item.emoji.id}>` : item.emoji;
+
     embed.addFields({
-      name: `${item.name} ➔ \`${item.price} Coins\``,
+      name: `${emojiDisplay} ${item.name} ➔ \`${item.price} Coins\``,
       value: `${item.description}\n──────────────────────`,
       inline: false
     });
@@ -182,13 +189,17 @@ async function handleInGameShopPanel(interaction, serverConfigs) {
 
   const row = new ActionRowBuilder();
   IN_GAME_ITEMS.forEach(item => {
-    row.addComponents(
-      new ButtonBuilder()
-        .setCustomId(`buy_item_${item.id}`)
-        .setLabel(item.name.split(' (')[0])
-        .setEmoji('1560417845903491112')
-        .setStyle(ButtonStyle.Primary)
-    );
+    const button = new ButtonBuilder()
+      .setCustomId(`buy_item_${item.id}`)
+      .setLabel(item.name.split(' (')[0])
+      .setStyle(ButtonStyle.Primary);
+
+    // กำหนด Emoji ให้กับปุ่มอย่างถูกต้อง
+    if (item.emoji) {
+      button.setEmoji(item.emoji);
+    }
+
+    row.addComponents(button);
   });
 
   await interaction.editReply({ embeds: [embed], components: [row] });
