@@ -177,7 +177,7 @@ async function handleInGameShopPanel(interaction, serverConfigs) {
     .setTitle('<a:emoji_103:1560417845903491112> 𝙕𝙀𝙉 𝙎𝙃𝙊𝙋')
     .setDescription(
       `${itemsText}\n\n` +
-      `<a:emoji_100:1560416789211516938> **ยอดเหรียญของคุณ:** \`${userCoins.toLocaleString()} coins\``
+      `<a:emoji_100:1560416789211516938> **Wallet:** \`${userCoins.toLocaleString()} coins\``
     )
     .setColor('#66FFFF');
 
