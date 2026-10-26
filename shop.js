@@ -125,7 +125,7 @@ async function handleSetupShopCommand(interaction) {
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('open_in_game_shop_panel')
-      .setLabel('เปิดแผงร้านค้าในเกม')
+      .setLabel('เปิดแผงร้านค้า')
       .setEmoji('1560417845903491112')
       .setStyle(ButtonStyle.Success)
   );
