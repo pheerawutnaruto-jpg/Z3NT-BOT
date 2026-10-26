@@ -13,7 +13,7 @@ const IN_GAME_ITEMS = [
     emoji: '<a:emoji_142:1564170617240948767>',
     price: 15,
     type: 'gacha',
-    description: 'สูงสุด 150 coins'
+    description: '`สูงสุด 150 coins`'
   },
   {
     id: 'xp_boost',
@@ -22,7 +22,7 @@ const IN_GAME_ITEMS = [
     price: 30,
     type: 'buff',
     roleId: ROLES.XP_BOOSTER,
-    description: 'x2'
+    description: '`x2`'
   },
   {
     id: 'role_artist_temp',
@@ -31,7 +31,7 @@ const IN_GAME_ITEMS = [
     price: 75,
     type: 'role_temp',
     roleId: ROLES.ARTIST_TEMP,
-    description: '`รับยศ Artist`'
+    description: '`ยศ Artist | 3d`'
   }
 ];
 
@@ -186,7 +186,7 @@ async function handleInGameShopPanel(interaction, serverConfigs) {
   // ย้ายยอดเหรียญของคุณมาไว้แถวล่างสุดในรูปแบบ Field แยกต่างหาก
   embed.addFields({
     name: '💰 กระเป๋าเงินของคุณ',
-    value: `ยอดคงเหลือ: **${userCoins.toLocaleString()} Zen Coins**`,
+    value: `ยอดคงเหลือ: `**${userCoins.toLocaleString()} Zen Coins**``,
     inline: false
   });
 
