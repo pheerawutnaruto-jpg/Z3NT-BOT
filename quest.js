@@ -63,7 +63,7 @@ async function handleQuestButton(interaction, serverConfigs, saveConfigs) {
     const remainingMs = cooldownTime - (now - userStat.lastDaily);
     const remainingHours = Math.floor(remainingMs / (1000 * 60 * 60));
     const remainingMinutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
-    await interaction.editReply({ content: `⏳ คุณรับไปแล้ว!\n กลับมาอีกครั้งใน **${remainingHours} h ${remainingMinutes} min**` });
+    await interaction.editReply({ content: `⏳ คุณรับไปแล้ว!\n กลับมาอีกครั้งใน **${remainingHours} h ${remainingMinutes} min.**` });
     return true;
   }
 
