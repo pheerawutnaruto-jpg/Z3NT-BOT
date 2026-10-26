@@ -15,21 +15,23 @@ async function handleSetupArtistCommand(interaction) {
   }
 
   const embed = new EmbedBuilder()
-    .setTitle('🎨 𝙕𝙀𝙉 𝘽𝙊𝙏 • ARTIST CARD CUSTOMIZER')
-    .setDescription('สำหรับสมาชิกที่มียศ **Artist** หรือ **Artist | 3d** กดปุ่มด้านล่างเพื่อเลือกเปลี่ยนพื้นหลังการ์ด `/level` หรือกระเป๋าเงิน `/coins` ส่วนตัวของคุณได้ทันที!\n──────────────────────')
+    .setTitle('<a:emoji_146:1564300643378667670> 𝙕𝙀𝙉 𝘽𝙊𝙏 • ARTIST CARD')
+    .setDescription('สำหรับยศ `Artist` หรือ `Artist | 3d`'/n 'เปลี่ยนพื้นหลังการ์ด `/level` หรือ กระเป๋าเงิน `/coins` ของคุณ!\n──────────────────────')
     .setColor(COLORS.PINK)
     .setImage(IMAGES.ARTIST_BANNER);
 
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('open_artist_level_card_modal')
-      .setLabel('🎨 เปลี่ยนรูปการ์ด Level')
-      .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId('open_artist_wallet_card_modal')
-      .setLabel('💰 เปลี่ยนรูปการ์ด Wallet')
-      .setStyle(ButtonStyle.Success)
-  );
+  new ButtonBuilder()
+    .setCustomId('open_artist_level_card_modal')
+    .setLabel('เปลี่ยนรูปการ์ด Level')
+    .setEmoji('<:emoji_143:1564202161309483048>')
+    .setStyle(ButtonStyle.Primary),
+  new ButtonBuilder()
+    .setCustomId('open_artist_wallet_card_modal')
+    .setLabel('เปลี่ยนรูปการ์ด Wallet')
+    .setEmoji('<a:emoji_100:1560416789211516938>')
+    .setStyle(ButtonStyle.Success)
+);
 
   await interaction.channel.send({ embeds: [embed], components: [row] });
   await interaction.reply({ content: '✅ ส่งแผงปุ่มตั้งค่าการ์ด Artist ไปยังห้องนี้สำเร็จแล้ว!', ephemeral: true });
