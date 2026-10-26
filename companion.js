@@ -179,7 +179,7 @@ async function handlePetShopCommand(interaction) {
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('buy_pet_egg')
-      .setLabel('🟢 ซื้อไข่วิญญาณ (500 Orbs)')
+      .setLabel('<a:egghatch:1564110551305682994> ซื้อไข่วิญญาณ (500 Orbs)')
       .setStyle(ButtonStyle.Success)
   );
 
@@ -355,7 +355,7 @@ async function handleCompanionButton(interaction, serverConfigs, saveConfigs) {
   let remainingBalance = userData.orbs !== undefined ? userData.orbs : userData.coins;
 
   await interaction.reply({
-    content: `<a:cuteghost:1563345975597080686> ซื้อไข่วิญญาณสำเร็จ!(ยอดคงเหลือ: \`${remainingBalance.toLocaleString()} Orbs\`)\n🎭 ได้รับยศสัตว์เลี้ยงเรียบร้อย!\n⏳ กำลังฟักไข่ ใช้เวลา **60 วินาที**\nพิมพ์ \`/pet\` เพื่อเช็กสถานะ!`,
+    content: `<a:cuteghost:1563345975597080686> ซื้อไข่วิญญาณสำเร็จ!\nพิมพ์ \`/pet\` เพื่อเช็กสถานะ!`,
     ephemeral: true
   });
 
