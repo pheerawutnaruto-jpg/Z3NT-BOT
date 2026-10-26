@@ -295,7 +295,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
       if (role) await member.roles.add(role);
     } catch (err) {}
 
-    await interaction.editReply({ content: `<:xp_active:1564107060021432370> เปิดใช้งาน XP x2 สำเร็จ! คุณได้รับสิทธิ์ XP Boost x2 นาน 1 ชั่วโมงเต็ม (คงเหลือ ${userStat.orbs.toLocaleString()} Coins)` });
+    await interaction.editReply({ content: `<:xp_active:1564107060021432370> เปิดใช้งาน XP x2 สำเร็จ!\n เช็กสถานะ `/boost-status` (ยอดคงเหลือ ${userStat.orbs.toLocaleString()} Coins)` });
     return true;
   }
 
