@@ -14,17 +14,18 @@ async function handleSetupQuestCommand(interaction) {
   }
 
   const embed = new EmbedBuilder()
-    .setTitle('🎁 𝙕𝙀𝙉 𝘽𝙊𝙏 • DAILY QUEST')
-    .setDescription('กดปุ่มด้านล่างเพื่อสุ่มรับ **Zen Coins** ฟรีประจำวัน (รีเซ็ตทุกๆ 19 ชั่วโมง) อัตราลุ้นโชคแบบ 50/50 ลุ้นรับสูงสุดถึง 100 Zen Coins!')
+    .setTitle('<a:emoji_142:1564170617240948767> 𝙕𝙀𝙉 𝘽𝙊𝙏 • DAILY QUEST')
+    .setDescription('ลุ้นรับ **Orbs** ฟรีประจำวัน! (สูงสุดถึง 150 Zen Coins)')
     .setColor(COLORS.PRIMARY)
     .setImage(IMAGES.QUEST_BANNER);
 
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('claim_daily_orb')
-      .setLabel('🎁 สุ่มรับ Zen Coins ประจำวัน')
-      .setStyle(ButtonStyle.Success)
-  );
+const row = new ActionRowBuilder().addComponents(
+  new ButtonBuilder()
+    .setCustomId('claim_daily_orb')
+    .setLabel('Daily')
+    .setEmoji('<a:emoji_142:1564170617240948767>')
+    .setStyle(ButtonStyle.Success)
+);
 
   await interaction.channel.send({ embeds: [embed], components: [row] });
   await interaction.reply({ content: '✅ ส่งแผงป้ายเควสต์ประจำวันถาวรไปยังห้องนี้สำเร็จแล้ว!', ephemeral: true });
@@ -62,7 +63,7 @@ async function handleQuestButton(interaction, serverConfigs, saveConfigs) {
     const remainingMs = cooldownTime - (now - userStat.lastDaily);
     const remainingHours = Math.floor(remainingMs / (1000 * 60 * 60));
     const remainingMinutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
-    await interaction.editReply({ content: `⏳ คุณรับรางวัลประจำวันไปแล้ว! กรุณารออีกประมาณ **${remainingHours} ชั่วโมง ${remainingMinutes} นาที** ถึงจะกดรับใหม่ได้ครับ` });
+    await interaction.editReply({ content: `⏳ คุณรับไปแล้ว!\n กลับมาอีกครั้งใน **${remainingHours} ชั่วโมง ${remainingMinutes} นาที**` });
     return true;
   }
 
@@ -76,9 +77,9 @@ async function handleQuestButton(interaction, serverConfigs, saveConfigs) {
   await saveConfigs(serverConfigs);
 
   if (rewardCoins === 0) {
-    await interaction.editReply({ content: `😢 น่าเสียดาย! รอบนี้ดวงไม่ดี สุ่มได้ **0 Zen Coins** (พยายามใหม่พรุ่งนี้เสี่ยงดวงใหม่นะ!)` });
+    await interaction.editReply({ content: `<a:kitty:1563350578375950496> น่าเสียดาย! พรุ่งนี้เอาใหม่นะ!)` });
   } else {
-    await interaction.editReply({ content: `🎉 ยินดีด้วย! คุณสุ่มรับ **${rewardCoins} Zen Coins** ประจำวันสำเร็จแล้ว! (ยอดสะสมปัจจุบัน: ${userStat.orbs.toLocaleString()} Zen Coins)` });
+    await interaction.editReply({ content: `<a:emoji_101:1560416845322920067> ยินดีด้วย! ได้รับ **${rewardCoins} Coins** ไปเต็มๆ! (`/coin`: ${userStat.orbs.toLocaleString()} Ords)` });
   }
   return true;
 }
