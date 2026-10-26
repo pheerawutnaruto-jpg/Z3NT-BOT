@@ -257,7 +257,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
 
   if (item.type === 'role_temp' && userStat.artistUntil && userStat.artistUntil > now) {
     const remainingDays = Math.ceil((userStat.artistUntil - now) / (1000 * 60 * 60 * 24));
-    await interaction.editReply({ content: `⚠️ คุณยังมีสิทธิ์ Artist ใช้งานอยู่\n (เหลือเวลาอีกประมาณ ${remainingDays} วัน) ไม่สามารถซื้อซ้ำได้ครับ!` });
+    await interaction.editReply({ content: `⚠️ คุณยังมีสิทธิ์ Artist | 3d ใช้งานอยู่\n (เหลือเวลาอีกประมาณ ${remainingDays} วัน) ไม่สามารถซื้อซ้ำได้ครับ!` });
     return true;
   }
 
