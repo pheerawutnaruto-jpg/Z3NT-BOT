@@ -27,7 +27,7 @@ const IN_GAME_ITEMS = [
   {
     id: 'role_artist_temp',
     name: 'Artist (3 วัน)',
-    emoji: '🎨',
+    emoji: '<:emoji_143:1564202161309483048>',
     price: 75,
     type: 'role_temp',
     roleId: ROLES.ARTIST_TEMP,
