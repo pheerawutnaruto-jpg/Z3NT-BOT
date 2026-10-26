@@ -301,7 +301,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
     const remainingMins = Math.ceil(remainingMs / (1000 * 60));
 
     await interaction.editReply({ 
-      content: `<:xp_active:1564107060021432370> เปิดใช้งาน XP x2 สำเร็จ! ( ⏱️ **${remainingMins} นาที** )\n\`Wallet : ${userStat.orbs.toLocaleString()} coins\`` 
+      content: `<:xp_active:1564107060021432370> เปิดใช้งาน XP x2 สำเร็จ! ( ⏱️ **${remainingMins}** นาที )\n\`Wallet : ${userStat.orbs.toLocaleString()} coins\`` 
     });
     return true;
   }
