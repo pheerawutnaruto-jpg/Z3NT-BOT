@@ -217,7 +217,7 @@ async function generateWelcomeCard(member) {
     ctx.beginPath();
     ctx.arc(130, 160, 75, 0, Math.PI * 2, true);
     ctx.stroke();
-  } catch (e) {}
+  } 
   
   ctx.fillStyle = '#66FFFF';
   ctx.font = 'bold 24px sans-serif';
