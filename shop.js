@@ -268,7 +268,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
 
   userStat.orbs -= item.price;
 
-  if (item.type === 'gacha') {
+    if (item.type === 'gacha') {
     const outcomes = [
       { reward: 0, text: '<a:cuteghost:1563345975597080686> เกลือ!' },
       { reward: 0, text: '0 coins ลองใหม่อีกครั้งนะ! <a:kitty:1563350578375950496>' },
@@ -280,7 +280,9 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
     userStat.orbs += roll.reward;
     await saveConfigs(serverConfigs);
 
-    await interaction.editReply({ content: `<a:emoji_142:1564170617240948767> **ผลการสุ่มกาชาปอง:**\n${roll.text}`\n `Wallet : ${userStat.orbs.toLocaleString()} coins` });
+    await interaction.editReply({ 
+      content: `<a:emoji_142:1564170617240948767> **ผลการสุ่มกาชาปอง:**\n${roll.text}\n\`Wallet : ${userStat.orbs.toLocaleString()} coins\`` 
+    });
     return true;
   }
 
@@ -295,7 +297,9 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
       if (role) await member.roles.add(role);
     } catch (err) {}
 
-    await interaction.editReply({ content: `<:xp_active:1564107060021432370> เปิดใช้งาน XP x2 สำเร็จ! ( เช็กสถานะ \`/boost-status\` )`\n `Wallet : ${userStat.orbs.toLocaleString()} coins` });
+    await interaction.editReply({ 
+      content: `<:xp_active:1564107060021432370> เปิดใช้งาน XP x2 สำเร็จ! ( เช็กสถานะ \`/boost-status\` )\n\`Wallet : ${userStat.orbs.toLocaleString()} coins\`` 
+    });
     return true;
   }
 
@@ -310,9 +314,12 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
       if (role) await member.roles.add(role);
     } catch (err) {}
 
-    await interaction.editReply({ content: `🎉 เช่าสำเร็จ! คุณได้รับยศ Artist และสิทธิ์แต่งการ์ดส่วนตัวเป็นเวลา 3 วันเต็ม!\n `Wallet : ${userStat.orbs.toLocaleString()} coins` });
+    await interaction.editReply({ 
+      content: `🎉 เช่าสำเร็จ! คุณได้รับยศ Artist และสิทธิ์แต่งการ์ดส่วนตัวเป็นเวลา 3 วันเต็ม!\n\`Wallet : ${userStat.orbs.toLocaleString()} coins\`` 
+    });
     return true;
   }
+
 
   return true;
 }
