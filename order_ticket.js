@@ -198,7 +198,7 @@ async function handleOrderPaymentButton(interaction) {
     if (!product) return false;
 
     const embed = new EmbedBuilder()
-      .setTitle('PromptPay QR <:shop:https://cdn.discordapp.com/emojis/1564114304339542036.webp?size=96>')
+      .setTitle('PromptPay QR <:shop:1564114304339542036>')
       .setDescription(
         `• **ผู้สั่งซื้อ:** <@${customerId}>\n` +
         `• **สินค้า:** ${product.name}\n` +
