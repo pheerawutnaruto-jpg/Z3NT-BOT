@@ -280,7 +280,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
     userStat.orbs += roll.reward;
     await saveConfigs(serverConfigs);
 
-    await interaction.editReply({ content: `<a:emoji_142:1564170617240948767> **ผลการสุ่มกาชาปอง:**\n${roll.text}\n( coins ปัจจุบันของคุณ: ${userStat.orbs.toLocaleString()} coins )` });
+    await interaction.editReply({ content: `<a:emoji_142:1564170617240948767> **ผลการสุ่มกาชาปอง:**\n${roll.text}`\n `( Wallet : ${userStat.orbs.toLocaleString()} coins )` });
     return true;
   }
 
@@ -295,7 +295,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
       if (role) await member.roles.add(role);
     } catch (err) {}
 
-    await interaction.editReply({ content: `<:xp_active:1564107060021432370> เปิดใช้งาน XP x2 สำเร็จ!\n เช็กสถานะ `/boost-status` ( ยอดคงเหลือ ${userStat.orbs.toLocaleString()} coins )` });
+    await interaction.editReply({ content: `<:xp_active:1564107060021432370> เปิดใช้งาน XP x2 สำเร็จ! ( เช็กสถานะ `/boost-status` )`\n `( Wallet : ${userStat.orbs.toLocaleString()} coins )` });
     return true;
   }
 
