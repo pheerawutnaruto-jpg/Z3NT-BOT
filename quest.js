@@ -15,7 +15,7 @@ async function handleSetupQuestCommand(interaction) {
 
   const embed = new EmbedBuilder()
     .setTitle('<a:emoji_142:1564170617240948767> 𝙕𝙀𝙉 𝘽𝙊𝙏 • DAILY QUEST')
-    .setDescription('ลุ้นรับ **Orbs** ฟรีประจำวัน! (สูงสุดถึง 150 Zen Coins)')
+    .setDescription('ลุ้นรับ **`Orbs`** ฟรีประจำเซิร์ฟเวอร์! (`สูงสุดถึง 150 Orbs`)')
     .setColor(COLORS.PRIMARY)
     .setImage(IMAGES.QUEST_BANNER);
 
