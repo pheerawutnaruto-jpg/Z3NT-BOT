@@ -223,7 +223,7 @@ function ensureGuildConfig(guildId) {
   }
   if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
   if (!config.embed) {
-    config.embed = { description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢1𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!' };
+    config.embed = { description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!' };
   }
   if (!config.autoClear) {
     config.autoClear = { enabled: false, time: '06:00', channelId: null };
@@ -874,7 +874,7 @@ client.on('interactionCreate', async interaction => {
 function getDashboardContent(config) {
   const channelName = config.channelId ? `<#${config.channelId}>` : 'ยังไม่ได้เลือกช่อง';
   const statusText = config.welcomeEnabled ? '✅ เปิดอยู่' : '❌ ปิดอยู่';
-  const msgPreview = config.embed?.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢1𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!';
+  const msgPreview = config.embed?.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!';
 
   const embed = new EmbedBuilder()
     .setTitle('⚙️ ตั้งค่าระบบต้อนรับ (Welcome Canvas)')
