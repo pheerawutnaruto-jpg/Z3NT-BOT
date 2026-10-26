@@ -113,7 +113,7 @@ async function handleSetupShopCommand(interaction) {
   const embed = new EmbedBuilder()
     .setTitle('<a:emoji_103:1560417845903491112> 𝙕𝙀𝙉 𝙎𝙃𝙊𝙋')
     .setDescription(
-      'ร้านค้าไอเทม `xp boost` และ `บัตรเช่ายศพิเศษประจำเซิร์ฟเวอร์`
+      'ร้านค้าไอเทม `xp boost` และ `บัตรเช่ายศพิเศษประจำเซิร์ฟเวอร์`'
     )
     .setImage(IMAGES.SHOP_STOREFRONT)
     .setColor(COLORS.GOLD);
