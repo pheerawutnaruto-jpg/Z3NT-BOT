@@ -37,11 +37,25 @@ function findPetTargetChannel(guild, config) {
   ) || null;
 }
 
-// 📢 ฟังก์ชันเช็กและฟักไข่อัตโนมัติ (แสดงการ์ด Embed สวยงามเมื่อไข่ฟัก)
+// 📢 ฟังก์ชันเช็กและฟักไข่อัตโนมัติ (พร้อมระบบ Auto-Fix เวลาไข่เก่าให้อัตโนมัติ)
 async function checkAndHatchPet(guild, userId, userData, client, serverConfig) {
   if (!userData.petEgg || userData.petEgg.isHatched) return false;
 
   const now = Date.now();
+  const expectedDuration = 60 * 1000; // เวลาฟักใหม่ (60 วินาที)
+
+  // 🛠️ Auto-Fix: ปรับไข่เก่า 24 ชม. ให้เหลือ 60 วิอัตโนมัติ
+  if (userData.petEgg.createdAt) {
+    const correctHatchUntil = userData.petEgg.createdAt + expectedDuration;
+    if (userData.petEgg.hatchUntil > correctHatchUntil) {
+      userData.petEgg.hatchUntil = correctHatchUntil;
+    }
+  } else {
+    // ถ้าเป็นไข่รุ่นเก่าที่ไม่มี createdAt บันทึกไว้ ให้ถือว่าถึงเวลาฟักทันที
+    userData.petEgg.createdAt = now - expectedDuration;
+    userData.petEgg.hatchUntil = now;
+  }
+
   if (now >= userData.petEgg.hatchUntil) {
     userData.petEgg.isHatched = true;
     userData.petEgg.hatchedPet = rollRandomPet();
@@ -159,7 +173,7 @@ async function progressPetXp(guildId, userId, xpAmount, client, serverConfigs, s
   }
 }
 
-// 🛒 คำสั่งเปิดร้านค้า (เพิ่มการเช็กสิทธิ์ Admin ป้องกันคนทั่วไปพิมพ์คำสั่ง)
+// 🛒 คำสั่งเปิดร้านค้า
 const petShopCommand = new SlashCommandBuilder()
   .setName('pet-shop')
   .setDescription('🛒 เปิดร้านค้าไข่วิญญาณ (เฉพาะแอดมิน)')
@@ -177,12 +191,12 @@ async function handlePetShopCommand(interaction) {
     .setColor(0xFFD700);
 
   const row = new ActionRowBuilder().addComponents(
-  new ButtonBuilder()
-    .setCustomId('buy_pet_egg')
-    .setLabel('ซื้อไข่วิญญาณ (500 Orbs)') // ใส่เฉพาะข้อความ
-    .setEmoji({ name: 'egghatch', id: '1564110551305682994', animated: true }) // ย้ายอีโมจิมาใส่ตรงนี้ (ใส่ animated: true สำหรับดุ๊กดิ๊ก)
-    .setStyle(ButtonStyle.Success)
-);
+    new ButtonBuilder()
+      .setCustomId('buy_pet_egg')
+      .setLabel('ซื้อไข่วิญญาณ (500 Orbs)')
+      .setEmoji({ name: 'egghatch', id: '1564110551305682994', animated: true })
+      .setStyle(ButtonStyle.Success)
+  );
 
   await interaction.reply({ content: '🛒 เปิดหน้าร้านค้าเรียบร้อย!', ephemeral: true });
   await interaction.channel.send({ embeds: [embed], components: [row] });
@@ -241,11 +255,23 @@ async function handlePetCommand(interaction, serverConfigs, saveConfigs, client)
   }
 
   if (!petEgg.isHatched) {
+    // 🛠️ Auto-Fix ป้องกัน NaN และปรับเวลาไข่เก่าเมื่อกด /pet
+    const expectedDuration = 60 * 1000;
+    if (petEgg.createdAt) {
+      const correctHatchUntil = petEgg.createdAt + expectedDuration;
+      if (petEgg.hatchUntil > correctHatchUntil) {
+        petEgg.hatchUntil = correctHatchUntil;
+      }
+    } else {
+      petEgg.createdAt = Date.now() - expectedDuration;
+      petEgg.hatchUntil = Date.now();
+    }
+
     const hatched = await checkAndHatchPet(interaction.guild, userId, userData, client, serverConfig);
     if (hatched) {
       if (saveConfigs) await saveConfigs(serverConfigs);
     } else {
-      const remainingSec = Math.ceil((petEgg.hatchUntil - Date.now()) / 1000);
+      const remainingSec = Math.max(0, Math.ceil((petEgg.hatchUntil - Date.now()) / 1000));
       return await interaction.reply({
         content: `🥚 ไข่วิญญาณของคุณกำลังฟัก... เหลือเวลาอีกประมาณ **${remainingSec} วินาที**`,
         ephemeral: true
@@ -288,7 +314,7 @@ async function handleCoinsCommand(interaction, serverConfigs) {
   await interaction.reply({ content: `🔮 ยอด Orbs ของคุณคือ: **${userCoins.toLocaleString()} Orbs**`, ephemeral: true });
 }
 
-// 🛒 ปุ่มซื้อไข่ (เชื่อมตรงกับ serverConfigs ตัวกลาง 100%)
+// 🛒 ปุ่มซื้อไข่
 async function handleCompanionButton(interaction, serverConfigs, saveConfigs) {
   if (!interaction.isButton() || interaction.customId !== 'buy_pet_egg') return false;
 
@@ -352,8 +378,6 @@ async function handleCompanionButton(interaction, serverConfigs, saveConfigs) {
       console.error('Error assigning pet role:', err);
     }
   }
-
-  let remainingBalance = userData.orbs !== undefined ? userData.orbs : userData.coins;
 
   await interaction.reply({
     content: `<a:cuteghost:1563345975597080686> ซื้อไข่วิญญาณสำเร็จ!\nพิมพ์ \`/pet\` เพื่อเช็กสถานะ!`,
@@ -529,7 +553,6 @@ async function handleBattleButtons(interaction, serverConfigs, saveConfigs) {
   winnerData.petEgg.battlesCount = (winnerData.petEgg.battlesCount || 0) + 1;
   loserData.petEgg.battlesCount = (loserData.petEgg.battlesCount || 0) + 1;
 
-  // 📈 คำนวณเลเวลเดิมก่อนดูดซับ XP และเช็กเลเวลใหม่หลังดูดซับ
   const oldLevel = winnerData.petEgg.petLevel || 1;
   winnerData.petEgg.petXp = (winnerData.petEgg.petXp || 0) + loserXpValue;
 
@@ -557,7 +580,6 @@ async function handleBattleButtons(interaction, serverConfigs, saveConfigs) {
     await saveConfigs(serverConfigs);
   }
 
-  // 📢 ส่งข้อความแจ้งเตือนเลเวลอัปทันทีหากสัตว์เลี้ยงเลเวลพุ่งขึ้นจากการชนะประลอง
   if (newLevel > oldLevel) {
     const targetChannel = findPetTargetChannel(interaction.guild, serverConfig);
     if (targetChannel) {
