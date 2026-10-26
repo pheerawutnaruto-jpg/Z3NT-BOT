@@ -186,7 +186,7 @@ async function handleInGameShopPanel(interaction, serverConfigs) {
   // ย้ายยอดเหรียญของคุณมาไว้แถวล่างสุดในรูปแบบ Field แยกต่างหาก
   embed.addFields({
     name: '💰 กระเป๋าเงินของคุณ',
-    value: `ยอดคงเหลือ: `**${userCoins.toLocaleString()} Zen Coins**``,
+    value: 'ยอดคงเหลือ: `**${userCoins.toLocaleString()} Zen Coins**`',
     inline: false
   });
 
