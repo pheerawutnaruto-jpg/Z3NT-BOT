@@ -16,7 +16,7 @@ async function handleSetupArtistCommand(interaction) {
 
   const embed = new EmbedBuilder()
     .setTitle('<a:emoji_146:1564300643378667670> 𝙕𝙀𝙉 𝘽𝙊𝙏 • ARTIST CARD')
-    .setDescription('สำหรับยศ `Artist` หรือ `Artist | 3d`'/n 'เปลี่ยนพื้นหลังการ์ด `/level` หรือ กระเป๋าเงิน `/coins` ของคุณ!\n──────────────────────')
+    .setDescription('สำหรับยศ `Artist` หรือ `Artist | 3d`\n เปลี่ยนพื้นหลังการ์ด `/level` หรือ กระเป๋าเงิน `/coins` ของคุณ!'\n──────────────────────')
     .setColor(COLORS.PINK)
     .setImage(IMAGES.ARTIST_BANNER);
 
