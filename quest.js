@@ -15,7 +15,7 @@ async function handleSetupQuestCommand(interaction) {
 
   const embed = new EmbedBuilder()
     .setTitle('<a:emoji_142:1564170617240948767> 𝙕𝙀𝙉 𝘽𝙊𝙏 • DAILY QUEST')
-    .setDescription('ลุ้นรับ **`Orbs`** ฟรีประจำเซิร์ฟเวอร์! (`สูงสุดถึง 150 Orbs`)')
+    .setDescription('ลุ้นรับ **`coin`** ฟรีประจำเซิร์ฟเวอร์! (`สูงสุดถึง 150 coins`)')
     .setColor(COLORS.PRIMARY)
     .setImage(IMAGES.QUEST_BANNER);
 
@@ -63,7 +63,7 @@ async function handleQuestButton(interaction, serverConfigs, saveConfigs) {
     const remainingMs = cooldownTime - (now - userStat.lastDaily);
     const remainingHours = Math.floor(remainingMs / (1000 * 60 * 60));
     const remainingMinutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
-    await interaction.editReply({ content: `⏳ คุณรับไปแล้ว!\n กลับมาอีกครั้งใน **${remainingHours} ชั่วโมง ${remainingMinutes} นาที**` });
+    await interaction.editReply({ content: `⏳ คุณรับไปแล้ว!\n กลับมาอีกครั้งใน **${remainingHours} h ${remainingMinutes} min**` });
     return true;
   }
 
@@ -79,10 +79,10 @@ async function handleQuestButton(interaction, serverConfigs, saveConfigs) {
   if (rewardCoins === 0) {
     await interaction.editReply({ content: '<a:kitty:1563350578375950496> น่าเสียดาย! พรุ่งนี้เอาใหม่นะ!' });
   } else {
-    await interaction.editReply({ content: `<a:emoji_101:1560416845322920067> ยินดีด้วย! ได้รับ **${rewardCoins} Coins** ไปเต็มๆ! (ยอดรวม: ${userStat.orbs.toLocaleString()} Coins)` });
+    await interaction.editReply({ content: `<a:emoji_101:1560416845322920067> ยินดีด้วย! ได้รับ **${rewardCoins} coins** ไปเต็มๆ!\n\`Wallet : ${userStat.orbs.toLocaleString()} coins\`` 
+    });
+    return true;
   }
-  return true;
-}
 
 module.exports = {
   setupQuestCommand,
