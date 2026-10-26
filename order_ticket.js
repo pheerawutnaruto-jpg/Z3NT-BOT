@@ -144,7 +144,7 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
     });
 
     const ticketEmbed = new EmbedBuilder()
-      .setTitle(`<a:emoji_101:1560416845322920067> รายละเอียดออร์เดอร์: ${product.name}`<a:delivery:1564061624711774289>)
+      .setTitle(`<a:emoji_101:1560416845322920067> รายละเอียดออร์เดอร์: ${product.name}<a:delivery:1564061624711774289>`)
       .setDescription(
         `• **ผู้สั่งซื้อ:** <@${user.id}>\n` +
         `• **สินค้า:** ${product.name}\n` +
