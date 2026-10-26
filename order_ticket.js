@@ -17,13 +17,13 @@ const ORDER_PRODUCTS = {
 function buildStorefrontPayload() {
   const embed = new EmbedBuilder()
     .setTitle('<a:emoji_103:1560417845903491112> 𝙕𝙀𝙉 𝘽𝙊𝙏 • SELECT STORE')
-    .setDescription('ศูนย์รวมการสั่งซื้อยศถาวรและแพ็กเกจพิเศษ สะดวก และเป็นส่วนตัว\n\n📌 **วิธีใช้งาน:** เลือกรายการสินค้าที่ต้องการจากกล่องตัวเลือกด้านล่างได้ทันที')
+    .setDescription('ศูนย์รวมการสั่งซื้อยศถาวรและแพ็กเกจพิเศษ สะดวก และเป็นส่วนตัว\n\n')
     .setColor(COLORS.GREEN)
     .setImage(IMAGES.DEFAULT_CINEMA);
 
   const selectMenu = new StringSelectMenuBuilder()
     .setCustomId('select_product_order')
-    .setPlaceholder('🛒 เลือกสินค้าที่ต้องการสั่งซื้อ')
+    .setPlaceholder(' เลือกสินค้าที่ต้องการสั่งซื้อ')
     .addOptions([
       { label: 'BOT PREMIUM (รายเดือน)', description: 'สต็อกไม่จำกัด • ฿399.00 / 1 เดือน • ยศ: Bot Premium', value: 'product_bot_premium', emoji: '💎' },
       { label: 'ยศ Artist ถาวร', description: 'สต็อกไม่จำกัด • ฿69.00 / ถาวร • สิทธิ์แต่งการ์ดส่วนตัว', value: 'product_artist_role', emoji: '🎨' },
