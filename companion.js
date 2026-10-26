@@ -171,7 +171,7 @@ async function handlePetShopCommand(interaction) {
   }
 
   const embed = new EmbedBuilder()
-    .setTitle('🥚 ร้านค้าไข่วิญญาณ (Zen Pet Shop)')
+    .setTitle('<a:egg:1564110672801824818> 𝙕𝙀𝙉 𝙎𝙃𝙊𝙋')
     .setDescription('ซื้อไข่วิญญาณลึกลับเพื่อฟักเป็นสัตว์เลี้ยงคู่กาย!\n\n**ราคา:** `500 Orbs`\n**ระยะเวลาฟัก:** `60 วินาที`')
     .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1563060185633652816/image0.jpg')
     .setColor(0xFFD700);
@@ -355,7 +355,7 @@ async function handleCompanionButton(interaction, serverConfigs, saveConfigs) {
   let remainingBalance = userData.orbs !== undefined ? userData.orbs : userData.coins;
 
   await interaction.reply({
-    content: `🎉 ซื้อไข่วิญญาณสำเร็จ! หักไป **${eggCost} Orbs** (ยอดคงเหลือ: \`${remainingBalance.toLocaleString()} Orbs\`)\n🎭 ได้รับยศสัตว์เลี้ยงเรียบร้อย!\n⏳ กำลังฟักไข่ ใช้เวลา **60 วินาที** พิมพ์ \`/pet\` เพื่อเช็กสถานะได้เลย!`,
+    content: `<a:cuteghost:1563345975597080686> ซื้อไข่วิญญาณสำเร็จ!(ยอดคงเหลือ: \`${remainingBalance.toLocaleString()} Orbs\`)\n🎭 ได้รับยศสัตว์เลี้ยงเรียบร้อย!\n⏳ กำลังฟักไข่ ใช้เวลา **60 วินาที**\nพิมพ์ \`/pet\` เพื่อเช็กสถานะ!`,
     ephemeral: true
   });
 
