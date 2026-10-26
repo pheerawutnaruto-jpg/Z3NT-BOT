@@ -16,9 +16,9 @@ const ORDER_PRODUCTS = {
 
 function buildStorefrontPayload() {
   const embed = new EmbedBuilder()
-    .setTitle('<a:emoji_103:1560417845903491112> 𝙕𝙀𝙉 𝘽𝙊𝙏 • SELECT STORE')
-    .setDescription('ศูนย์รวมการสั่งซื้อยศถาวรและแพ็กเกจพิเศษ สะดวก และเป็นส่วนตัว\n\n')
-    .setColor(COLORS.GREEN)
+    .setTitle('<a:emoji_103:1560417845903491112> 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM STORE')
+    .setDescription('ซื้อยศถาวร สะดวก ปลอดภัย และเป็นส่วนตัว (` bot premium`  ยังเป็น ` beta`  ครับ)\n\n')
+    .setColor(COLORS.#66FFFF)
     .setImage(IMAGES.DEFAULT_CINEMA);
 
   const selectMenu = new StringSelectMenuBuilder()
@@ -54,7 +54,7 @@ async function sendOrderReceipt(channel, customerUser, adminUser, product, payme
 
   const receiptEmbed = new EmbedBuilder()
     .setTitle('<:RECEIPT:1564092694026916050> 𝙕𝙀𝙉 𝘽𝙊𝙏 • OFFICIAL ORDER RECEIPT')
-    .setDescription('ใบเสร็จรับเงินยืนยันการทำรายการสำเร็จ!')
+    .setDescription('ใบเสร็จยืนยันการทำรายการสำเร็จ!')
     .setColor(COLORS.GREEN)
     .addFields(
       { name: '<:people:1564056325791424522> ผู้สั่งซื้อ', value: `<@${customerUser.id}>`, inline: true },
@@ -144,20 +144,20 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
     });
 
     const ticketEmbed = new EmbedBuilder()
-      .setTitle(`สินค้า : ${product.name} <:delivery:1564092608563781743>`)
+      .setTitle(` สินค้า : ${product.name} <:delivery:1564092608563781743>`)
       .setDescription(
         `• **ผู้สั่งซื้อ:** <@${user.id}>\n` +
         `• **สินค้า:** ${product.name}\n` +
         `• **ยอดที่ต้องชำระ:** \`${product.price}\`\n\n` +
         `──────────────────────\n` +
-        `**ขั้นตอนการชำระเงิน**<a:emoji_101:1560416845322920067>\n` +
-        `1. กดปุ่ม **PromptPay QR** ด้านล่างเพื่อสแกนโอนเงิน\n` +
-        `2. ส่งรูปสลิปโอนเงินลงในห้องนี้\n` +
-        `3. รอแอดมินกดปุ่มอนุมัติเพื่อรับยศและใบเสร็จอัตโนมัติครับ!`
+        `**ขั้นตอนการชำระสินค้า** <a:emoji_101:1560416845322920067>\n` +
+        `1. กดปุ่ม **PromptPay QR** ด้านล่างเพื่อสแกนโอน\n` +
+        `2. ส่งรูปสลิปโอนลงในห้องนี้ได้เลยครับ\n` +
+        `3. รอแอดมินกดปุ่มอนุมัติเพื่อสินค้าและใบเสร็จอัตโนมัติครับ!`
       )
       .setImage(IMAGES.NEW_ORDER_GIF)
       .setColor(COLORS.GOLD)
-      .setFooter({ text: 'ช่องทางชำระเงินปลอดภัย' });
+      .setFooter({ text: 'ช่องทางชำระที่ปลอดภัย' });
 
     const payRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -175,7 +175,7 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
         .setStyle(ButtonStyle.Danger)
     );
 
-    await ticketChannel.send({ content: ` ออร์เดอร์ใหม่จาก <@${user.id}>`, embeds: [ticketEmbed], components: [payRow] });
+    await ticketChannel.send({ content: `<a:newstext:1564121222034358443> ออร์เดอร์ใหม่จาก <@${user.id}>`, embeds: [ticketEmbed], components: [payRow] });
     await interaction.editReply({ content: `✅ สร้างห้องออร์เดอร์ส่วนตัวให้คุณสำเร็จแล้ว: <#${ticketChannel.id}>`, embeds: [] });
   } catch (err) {
     console.error('Error creating order ticket channel:', err);
@@ -198,14 +198,14 @@ async function handleOrderPaymentButton(interaction) {
     if (!product) return false;
 
     const embed = new EmbedBuilder()
-      .setTitle('💳 ช่องทางชำระเงิน PromptPay QR')
+      .setTitle('PromptPay QR <:shop:https://cdn.discordapp.com/emojis/1564114304339542036.webp?size=96>')
       .setDescription(
         `• **ผู้สั่งซื้อ:** <@${customerId}>\n` +
         `• **สินค้า:** ${product.name}\n` +
         `• **ยอดชำระ:** \`${product.price}\`\n\n` +
         `──────────────────────\n` +
-        `📌 **สแกน QR Code ด้านล่างเพื่อโอนเงิน:**\n` +
-        `*เมื่อโอนเงินเรียบร้อยแล้ว ส่งรูปสลิปหลักฐานในห้องนี้เพื่อให้แอดมินกดปุ่มอนุมัติและรับยศอัตโนมัติได้เลยครับ!*`
+        `📌 **สแกน QR Code ด้านล่าง:**\n` +
+        `*ชำระเรียบร้อยแล้ว ส่งรูปสลิปหลักฐานในห้องนี้เพื่อให้แอดมินกดปุ่มยืนยันและรับยศอัตโนมัติได้เลยครับ!*`
       )
       .setImage(IMAGES.PROMPTPAY_QR)
       .setColor(COLORS.GREEN)
