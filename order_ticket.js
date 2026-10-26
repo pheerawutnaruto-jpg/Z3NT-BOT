@@ -17,7 +17,7 @@ const ORDER_PRODUCTS = {
 function buildStorefrontPayload() {
   const embed = new EmbedBuilder()
     .setTitle('<a:emoji_103:1560417845903491112> 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM STORE')
-    .setDescription('ซื้อยศถาวร สะดวก ปลอดภัย และเป็นส่วนตัว (`bot premium`  ยังเป็น `beta`  ครับ)\n\n')
+    .setDescription('ซื้อยศถาวร สะดวก ปลอดภัย และเป็นส่วนตัว \n\n')
     .setColor(COLORS.GRAY)
     .setImage(IMAGES.DEFAULT_CINEMA);
 
