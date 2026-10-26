@@ -106,7 +106,7 @@ const httpServer = http.createServer((req, res) => {
 
           const embed = new EmbedBuilder()
             .setColor(COLORS.PRIMARY || '#2b2d31')
-            .setImage('https://cdn.discordapp.com/attachments/1559878908348997774/1564115743430148257/Gemini_Generated_Image_wv640rwv640rwv64-Photoroom-Photoroom.png?ex=6ae017cd&is=6adec64d&hm=7afa1abcb270458e502ee26be73fc512e9a92a75c5e0b8ffad55a3f847dc098c&')
+            .setImage('https://media.discordapp.net/attachments/1559878908348997774/1564127326558486628/6-update-stamp-6.png?ex=6ae02296&is=6aded116&hm=e8c4469466337b716cfff18ae49a4ef74e2abf11b8088873ae19d5725476415f&=&format=webp&quality=lossless&width=1376&height=945')
             .addFields(
               { name: '🟢 Announcement Bot', value: `**Version:**\n\`${repoName}\``, inline: false },
               { name: 'Changelog:', value: `\`\`\`diff\n${changelogText}\n\`\`\``, inline: false },
