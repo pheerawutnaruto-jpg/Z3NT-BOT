@@ -15,7 +15,7 @@ const IN_GAME_ITEMS = [
   },
   {
     id: 'xp_boost',
-    name: '<:xp:1564107013456269433> น้ำยาคูณ XP (1 ชม.)',
+    name: '<:xp:1564107013456269433> XP Boost (1 ชม.)',
     price: 30,
     type: 'buff',
     roleId: ROLES.XP_BOOSTER,
@@ -23,7 +23,7 @@ const IN_GAME_ITEMS = [
   },
   {
     id: 'role_artist_temp',
-    name: '🎨 บัตรเช่า Artist (3 วัน)',
+    name: '🎨 Artist (3 วัน)',
     price: 75,
     type: 'role_temp',
     roleId: ROLES.ARTIST_TEMP,
@@ -111,10 +111,9 @@ async function handleSetupShopCommand(interaction) {
   }
 
   const embed = new EmbedBuilder()
-    .setTitle('<a:emoji_103:1560417845903491112> 𝙕𝙀𝙉 𝘽𝙊𝙏 • IN-GAME STOREFRONT')
+    .setTitle('<a:emoji_103:1560417845903491112> 𝙕𝙀𝙉 𝙎𝙃𝙊𝙋')
     .setDescription(
-      'ยินดีต้อนรับสู่ศูนย์รวมไอเทม บัฟ และบัตรเช่ายศพิเศษประจำเซิร์ฟเวอร์!\n\n' +
-      '📌 **วิธีใช้งาน:** คลิกปุ่มด้านล่างเพื่อเปิดหน้าต่างร้านค้าและใช้ Zen Coins เลือกซื้อสินค้าได้ทันทีครับ'
+      'ร้านค้าไอเทม `xp boost` และ `บัตรเช่ายศพิเศษประจำเซิร์ฟเวอร์`
     )
     .setImage(IMAGES.SHOP_STOREFRONT)
     .setColor(COLORS.GOLD);
@@ -122,7 +121,7 @@ async function handleSetupShopCommand(interaction) {
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('open_in_game_shop_panel')
-      .setLabel('🛒 เปิดแผงร้านค้าในเกม')
+      .setLabel('เปิดแผงร้านค้าในเกม')
       .setEmoji('1560417845903491112')
       .setStyle(ButtonStyle.Success)
   );
@@ -166,10 +165,10 @@ async function handleInGameShopPanel(interaction, serverConfigs) {
   const userCoins = userStat ? (userStat.orbs || 0) : 0;
 
   const embed = new EmbedBuilder()
-    .setTitle('🛒 𝙕𝙀𝙉 𝘽𝙊𝙏 • IN-GAME SHOP')
+    .setTitle('<a:emoji_103:1560417845903491112> 𝙕𝙀𝙉 𝙎𝙃𝙊𝙋')
     .setDescription(
       `<a:emoji_100:1560416789211516938> **ยอดเหรียญของคุณ:** \`${userCoins.toLocaleString()} Zen Coins\`\n\n` +
-      'เลือกซื้อไอเทมหรือบัฟที่คุณต้องการได้จากรายการด้านล่างนี้เลยครับ:\n──────────────────────'
+      'เลือกไอเทมที่คุณต้องการได้จากรายการด้านล่างนี้:\n──────────────────────'
     )
     .setColor(COLORS.GOLD);
 
