@@ -144,13 +144,13 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
     });
 
     const ticketEmbed = new EmbedBuilder()
-      .setTitle(`<a:emoji_101:1560416845322920067> Order : ${product.name} <:delivery:1564092608563781743>`)
+      .setTitle(`ORDER : ${product.name} <:delivery:1564092608563781743>`)
       .setDescription(
         `• **ผู้สั่งซื้อ:** <@${user.id}>\n` +
         `• **สินค้า:** ${product.name}\n` +
         `• **ยอดที่ต้องชำระ:** \`${product.price}\`\n\n` +
         `──────────────────────\n` +
-        `<a:emoji_87:1557232624664191048>**ขั้นตอนการชำระเงิน:**\n` +
+        `**ขั้นตอนการชำระเงิน**<a:emoji_101:1560416845322920067>\n` +
         `1. กดปุ่ม **PromptPay QR** ด้านล่างเพื่อสแกนโอนเงิน\n` +
         `2. ส่งรูปสลิปโอนเงินลงในห้องนี้\n` +
         `3. รอแอดมินกดปุ่มอนุมัติเพื่อรับยศและใบเสร็จอัตโนมัติครับ!`
