@@ -281,7 +281,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
     await saveConfigs(serverConfigs);
 
     await interaction.editReply({ 
-      content: `<a:emoji_142:1564170617240948767> **Daily**\n${roll.text}\n\`Wallet : ${userStat.orbs.toLocaleString()} coins\`` 
+      content: `<a:emoji_142:1564170617240948767> **กาชาปอง**\n${roll.text}\n\`Wallet : ${userStat.orbs.toLocaleString()} coins\`` 
     });
     return true;
   }
