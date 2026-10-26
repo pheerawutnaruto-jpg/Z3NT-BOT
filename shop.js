@@ -168,7 +168,6 @@ async function handleInGameShopPanel(interaction, serverConfigs) {
   const userStat = config.levels?.[userId];
   const userCoins = userStat ? (userStat.orbs || 0) : 0;
 
-  // สร้างรายการสินค้าให้อยู่ในรูปแบบบรรทัดต่อบรรทัด พร้อมอีโมจิถุงเงินที่ด้านล่างสุด
   const itemsText = IN_GAME_ITEMS.map(item => {
     const emojiDisplay = typeof item.emoji === 'object' ? `<:${item.emoji.name}:${item.emoji.id}>` : item.emoji;
     return `${emojiDisplay} **${item.name}** • \`${item.price} coins\`\n└ ${item.description}`;
@@ -180,7 +179,7 @@ async function handleInGameShopPanel(interaction, serverConfigs) {
       `${itemsText}\n\n` +
       `<a:emoji_100:1560416789211516938> **ยอดเหรียญของคุณ:** \`${userCoins.toLocaleString()} coins\``
     )
-    .setColor('#66FFFF'); // สีฟ้าสว่างตามต้องการ
+    .setColor('#66FFFF');
 
   const row = new ActionRowBuilder();
   IN_GAME_ITEMS.forEach(item => {
@@ -266,9 +265,10 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
     return true;
   }
 
-  userStat.orbs -= item.price;
+  // ป้องกันเคสที่ userStat.orbs เป็น undefined แล้วกลายเป็น NaN
+  userStat.orbs = (userStat.orbs || 0) - item.price;
 
-    if (item.type === 'gacha') {
+  if (item.type === 'gacha') {
     const outcomes = [
       { reward: 0, text: '<a:cuteghost:1563345975597080686> เกลือ!' },
       { reward: 0, text: '0 coins ลองใหม่อีกครั้งนะ! <a:kitty:1563350578375950496>' },
@@ -319,7 +319,6 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
     });
     return true;
   }
-
 
   return true;
 }
