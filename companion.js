@@ -177,11 +177,12 @@ async function handlePetShopCommand(interaction) {
     .setColor(0xFFD700);
 
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('buy_pet_egg')
-      .setLabel('<a:egghatch:1564110551305682994> ซื้อไข่วิญญาณ (500 Orbs)')
-      .setStyle(ButtonStyle.Success)
-  );
+  new ButtonBuilder()
+    .setCustomId('buy_pet_egg')
+    .setLabel('ซื้อไข่วิญญาณ (500 Orbs)') // ใส่เฉพาะข้อความ
+    .setEmoji({ name: 'egghatch', id: '1564110551305682994', animated: true }) // ย้ายอีโมจิมาใส่ตรงนี้ (ใส่ animated: true สำหรับดุ๊กดิ๊ก)
+    .setStyle(ButtonStyle.Success)
+);
 
   await interaction.reply({ content: '🛒 เปิดหน้าร้านค้าเรียบร้อย!', ephemeral: true });
   await interaction.channel.send({ embeds: [embed], components: [row] });
