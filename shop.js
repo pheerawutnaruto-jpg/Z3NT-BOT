@@ -53,7 +53,7 @@ const addCoinsCommand = new SlashCommandBuilder()
   .setDescription('💎 [PREMIUM] เติม coins ให้กับสมาชิก (สำหรับ Admin)')
   .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
   .addUserOption(option => option.setName('user').setDescription('เลือกสมาชิกที่ต้องการเติมเหรียญ').setRequired(true))
-  .addIntegerOption(option => option.setName('amount').setDescription('จำนวน Zen Coins ที่ต้องการเติม').setRequired(true));
+  .addIntegerOption(option => option.setName('amount').setDescription('จำนวน coins ที่ต้องการเติม').setRequired(true));
 
 async function handleCoinsCommand(interaction, serverConfigs) {
   const guildId = interaction.guildId;
@@ -295,7 +295,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
       if (role) await member.roles.add(role);
     } catch (err) {}
 
-    await interaction.editReply({ content: `<:xp_active:1564107060021432370> เปิดใช้งาน XP x2 สำเร็จ! ( เช็กสถานะ `/boost-status` )`\n `( Wallet : ${userStat.orbs.toLocaleString()} coins )` });
+    await interaction.editReply({ content: `<:xp_active:1564107060021432370> เปิดใช้งาน XP x2 สำเร็จ! ( เช็กสถานะ `/boost-status` )`\n `Wallet : ${userStat.orbs.toLocaleString()} coins` });
     return true;
   }
 
