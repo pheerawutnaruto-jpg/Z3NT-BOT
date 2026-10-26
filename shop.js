@@ -10,7 +10,7 @@ const IN_GAME_ITEMS = [
   {
     id: 'gacha_box',
     name: 'กาชาปอง',
-    emoji: '🎁',
+    emoji: '<a:emoji_142:1564170617240948767>',
     price: 15,
     type: 'gacha',
     description: '• ลุ้นรับ Zen Coins สูงสุด 150 Coins!'
