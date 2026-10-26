@@ -281,7 +281,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
     await saveConfigs(serverConfigs);
 
     await interaction.editReply({ 
-      content: `<a:emoji_142:1564170617240948767> **ผลการสุ่มกาชาปอง:**\n${roll.text}\n\`Wallet : ${userStat.orbs.toLocaleString()} coins\`` 
+      content: `<a:emoji_142:1564170617240948767> **Daily**\n${roll.text}\n\`Wallet : ${userStat.orbs.toLocaleString()} coins\`` 
     });
     return true;
   }
@@ -298,7 +298,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
     } catch (err) {}
 
     await interaction.editReply({ 
-      content: `<:xp_active:1564107060021432370> เปิดใช้งาน XP x2 สำเร็จ! ( เช็กสถานะ \`/boost-status\` )\n\`Wallet : ${userStat.orbs.toLocaleString()} coins\`` 
+      content: `<:xp_active:1564107060021432370> เปิดใช้งาน XP x2 สำเร็จ! ( \`/boost-status\` )\n\`Wallet : ${userStat.orbs.toLocaleString()} coins\`` 
     });
     return true;
   }
