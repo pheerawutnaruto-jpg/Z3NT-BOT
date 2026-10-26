@@ -144,7 +144,7 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
     });
 
     const ticketEmbed = new EmbedBuilder()
-      .setTitle(`🎟️ รายละเอียดออร์เดอร์: ${product.name}`)
+      .setTitle(`<a:emoji_101:1560416845322920067> รายละเอียดออร์เดอร์: ${product.name}`)
       .setDescription(
         `• **ผู้สั่งซื้อ:** <@${user.id}>\n` +
         `• **สินค้า:** ${product.name}\n` +
@@ -175,7 +175,7 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
         .setStyle(ButtonStyle.Danger)
     );
 
-    await ticketChannel.send({ content: `🔔 ออร์เดอร์ใหม่จาก <@${user.id}>`, embeds: [ticketEmbed], components: [payRow] });
+    await ticketChannel.send({ content: `<a:delivery:1564061624711774289> ออร์เดอร์ใหม่จาก <@${user.id}>`, embeds: [ticketEmbed], components: [payRow] });
     await interaction.editReply({ content: `✅ สร้างห้องออร์เดอร์ส่วนตัวให้คุณสำเร็จแล้ว: <#${ticketChannel.id}>`, embeds: [] });
   } catch (err) {
     console.error('Error creating order ticket channel:', err);
