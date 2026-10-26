@@ -272,9 +272,9 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
     const outcomes = [
       { reward: 0, text: '<a:cuteghost:1563345975597080686> เกลือ!' },
       { reward: 0, text: 'ลองใหม่อีกครั้งนะ! <a:kitty:1563350578375950496>' },
-      { reward: 5, text: 'ได้เศษเหรียญปลอบใจ! รับไป 5 Zen Coins' },
-      { reward: 20, text: 'พอมีโชค! รับไป 20 Zen Coins <a:emoji_145:1564216100915515432>' },
-      { reward: 150, text: 'แจ็กพอตแตกกระจาย! รับไปเต็มๆ 150 Zen Coins <a:emoji_144:1564216078530514995><a:emoji_101:1560416845322920067>' }
+      { reward: 5, text: 'ได้เศษเหรียญปลอบใจ! รับไป 5 Zen Coins <a:emoji_145:1564216100915515432>' },
+      { reward: 20, text: 'พอมีโชค! รับไป 20 Zen Coins <a:emoji_144:1564216078530514995>' },
+      { reward: 150, text: 'แจ็กพอตแตกกระจาย! รับไปเต็มๆ 150 Zen Coins <a:emoji_101:1560416845322920067>' }
     ];
     const roll = outcomes[Math.floor(Math.random() * outcomes.length)];
     userStat.orbs += roll.reward;
