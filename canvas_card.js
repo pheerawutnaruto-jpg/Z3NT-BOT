@@ -212,6 +212,13 @@ async function generateWelcomeCard(member) {
     ctx.restore();
   }
 
+    ctx.strokeStyle = '#66FFFF';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(130, 160, 75, 0, Math.PI * 2, true);
+    ctx.stroke();
+  } catch (e) {}
+  
   ctx.fillStyle = '#66FFFF';
   ctx.font = 'bold 24px sans-serif';
   ctx.fillText('WELCOME TO THE SERVER', 240, 105);
@@ -223,6 +230,15 @@ async function generateWelcomeCard(member) {
   ctx.fillStyle = '#AAAAAA';
   ctx.font = '22px sans-serif';
   ctx.fillText(`Member #${member.guild.memberCount} • Enjoy your stay!`, 240, 205);
+
+  ctx.fillStyle = 'rgba(102, 255, 255, 0.15)';
+  ctx.beginPath();
+  ctx.roundRect(240, 225, 280, 40, 10);
+  ctx.fill();
+
+  ctx.fillStyle = '#66FFFF';
+  ctx.font = 'bold 18px sans-serif';
+  ctx.fillText('ZEN TH COMMUNITY', 260, 252);
 
   return new AttachmentBuilder(await canvas.encode('png'), { name: 'welcome-card.png' });
 }
