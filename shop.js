@@ -298,7 +298,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
     } catch (err) {}
 
     await interaction.editReply({ 
-      content: `<:xp_active:1564107060021432370> เปิดใช้งาน XP x2 สำเร็จ! ( \`/boost-status\` )\n\`Wallet : ${userStat.orbs.toLocaleString()} coins\`` 
+      content: `<:xp_active:1564107060021432370> เปิดใช้งาน XP x2 สำเร็จ! ( \`⏱️**${remainingMins} นาที**\` )\n\`Wallet : ${userStat.orbs.toLocaleString()} coins\`` 
     });
     return true;
   }
