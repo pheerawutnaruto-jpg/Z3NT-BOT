@@ -19,13 +19,13 @@ async function handleSetupQuestCommand(interaction) {
     .setColor(COLORS.PRIMARY)
     .setImage(IMAGES.QUEST_BANNER);
 
-const row = new ActionRowBuilder().addComponents(
-  new ButtonBuilder()
-    .setCustomId('claim_daily_orb')
-    .setLabel('Daily')
-    .setEmoji('<a:emoji_142:1564170617240948767>')
-    .setStyle(ButtonStyle.Success)
-);
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('claim_daily_orb')
+      .setLabel('Daily') // เปลี่ยนชื่อปุ่มกลับเป็น Daily ตามต้องการ
+      .setEmoji('<a:emoji_142:1564170617240948767>')
+      .setStyle(ButtonStyle.Success)
+  );
 
   await interaction.channel.send({ embeds: [embed], components: [row] });
   await interaction.reply({ content: '✅ ส่งแผงป้ายเควสต์ประจำวันถาวรไปยังห้องนี้สำเร็จแล้ว!', ephemeral: true });
@@ -77,9 +77,9 @@ async function handleQuestButton(interaction, serverConfigs, saveConfigs) {
   await saveConfigs(serverConfigs);
 
   if (rewardCoins === 0) {
-    await interaction.editReply({ content: `<a:kitty:1563350578375950496> น่าเสียดาย! พรุ่งนี้เอาใหม่นะ!)` });
+    await interaction.editReply({ content: '<a:kitty:1563350578375950496> น่าเสียดาย! พรุ่งนี้เอาใหม่นะ!' });
   } else {
-    await interaction.editReply({ content: `<a:emoji_101:1560416845322920067> ยินดีด้วย! ได้รับ **${rewardCoins} Coins** ไปเต็มๆ! (`/coin`: ${userStat.orbs.toLocaleString()} Ords)` });
+    await interaction.editReply({ content: `<a:emoji_101:1560416845322920067> ยินดีด้วย! ได้รับ **${rewardCoins} Coins** ไปเต็มๆ! (ยอดรวม: ${userStat.orbs.toLocaleString()} Coins)` });
   }
   return true;
 }
