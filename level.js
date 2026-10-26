@@ -144,13 +144,13 @@ async function giveXpToUser(guildId, userId, amount, contextObj, serverConfigs, 
 
             await member.roles.add(roleToGive).catch(() => {});
             if (targetChannel) {
-              const customRewardMsg = (config.levelConfig.roleRewardMessage || '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!')
+              const customRewardMsg = (config.levelConfig.roleRewardMessage || '<a:spinningcrown:1563350810652446901> ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!')
                 .replace('{user}', `<@${userId}>`)
                 .replace('{role}', `<@&${rewardRoleId}>`)
                 .replace('{level}', userStat.level);
 
               const embed = new EmbedBuilder()
-                .setTitle('👑 ยศรางวัลเลเวลอัปพิเศษ!')
+                .setTitle('<a:spinningcrown:1563350810652446901> ยศรางวัลเลเวลอัปพิเศษ!')
                 .setDescription(customRewardMsg)
                 .setColor(config.levelConfig.embedColor || COLORS.PRIMARY);
 
@@ -244,7 +244,7 @@ function handleLeveling(message, serverConfigs, saveConfigs, client) {
     config.levelConfig = {
       enabled: true, minXp: 15, maxXp: 25, cmdXp: 20, xpMultiplier: 100, channelId: null,
       levelUpMessage: 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว!',
-      roleRewardMessage: '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!',
+      roleRewardMessage: '<a:spinningcrown:1563350810652446901> ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!',
       cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD',
       cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**',
       embedColor: COLORS.PRIMARY,
@@ -383,7 +383,7 @@ function getLevelDashboardContent(config) {
     config.levelConfig = {
       enabled: true, minXp: 15, maxXp: 25, cmdXp: 20, xpMultiplier: 100, channelId: null,
       levelUpMessage: 'ยินดีด้วยคุณ {user}! เลเวลอัปขึ้นเป็น **Level {level}** แล้ว!',
-      roleRewardMessage: '👑 ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!',
+      roleRewardMessage: '<a:spinningcrown:1563350810652446901> ยินดีด้วยคุณ {user} ได้รับยศพิเศษ {role} เนื่องในโอกาสอัปถึง Level {level}!',
       cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD',
       cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**',
       embedColor: COLORS.PRIMARY,
