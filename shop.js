@@ -15,7 +15,7 @@ const IN_GAME_ITEMS = [
   },
   {
     id: 'xp_boost',
-    name: '⚡ น้ำยาคูณ XP (1 ชม.)',
+    name: '<:xp:1564107013456269433> น้ำยาคูณ XP (1 ชม.)',
     price: 30,
     type: 'buff',
     roleId: ROLES.XP_BOOSTER,
@@ -148,7 +148,7 @@ async function handleBoostStatusCommand(interaction, serverConfigs) {
   const remainingMins = Math.ceil(remainingMs / (1000 * 60));
 
   const embed = new EmbedBuilder()
-    .setTitle('⚡ XP BOOSTER STATUS')
+    .setTitle('<:xp:1564107013456269433> XP BOOSTER STATUS')
     .setDescription(`สถานะบัฟคูณ XP 2 เท่าของคุณ:\n⏳ คงเหลือเวลาอีกประมาณ **${remainingMins} นาที**`)
     .setColor(COLORS.GREEN);
 
@@ -291,7 +291,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
       if (role) await member.roles.add(role);
     } catch (err) {}
 
-    await interaction.editReply({ content: `⚡ เปิดใช้งานน้ำยาคูณ XP สำเร็จ! คุณได้รับสิทธิ์คูณ XP 2 เท่า นาน 1 ชั่วโมงเต็ม (คงเหลือ ${userStat.orbs.toLocaleString()} Coins)` });
+    await interaction.editReply({ content: `<:xp:1564107013456269433> เปิดใช้งานน้ำยาคูณ XP สำเร็จ! คุณได้รับสิทธิ์คูณ XP 2 เท่า นาน 1 ชั่วโมงเต็ม (คงเหลือ ${userStat.orbs.toLocaleString()} Coins)` });
     return true;
   }
 
