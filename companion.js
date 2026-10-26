@@ -63,7 +63,7 @@ async function checkAndHatchPet(guild, userId, userData, client, serverConfig) {
         .setColor(0xFFD700);
 
       await targetChannel.send({
-        content: `<@${userId}>`,
+        content: `<@${userId}> <a:egghatch:1564110551305682994>`,
         embeds: [embed]
       }).catch(() => {});
     }
