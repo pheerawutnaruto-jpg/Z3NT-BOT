@@ -175,7 +175,7 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
         .setStyle(ButtonStyle.Danger)
     );
 
-    await ticketChannel.send({ content: `<a:newstext:1564121222034358443> ออร์เดอร์ใหม่จาก <@${user.id}>`, embeds: [ticketEmbed], components: [payRow] });
+    await ticketChannel.send({ content: `ออร์เดอร์ใหม่จาก <@${user.id}> <a:newstext:1564121222034358443>`, embeds: [ticketEmbed], components: [payRow] });
     await interaction.editReply({ content: `✅ สร้างห้องออร์เดอร์ส่วนตัวให้คุณสำเร็จแล้ว: <#${ticketChannel.id}>`, embeds: [] });
   } catch (err) {
     console.error('Error creating order ticket channel:', err);
