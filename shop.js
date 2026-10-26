@@ -151,8 +151,8 @@ async function handleBoostStatusCommand(interaction, serverConfigs) {
   const remainingMins = Math.ceil(remainingMs / (1000 * 60));
 
   const embed = new EmbedBuilder()
-    .setTitle('<:xp:1564107013456269433> XP BOOSTER STATUS')
-    .setDescription(`สถานะบัฟคูณ XP 2 เท่าของคุณ:\n⏳ คงเหลือเวลาอีกประมาณ **${remainingMins} นาที**`)
+    .setTitle('<:xp_active:1564107060021432370> XP BOOSTER STATUS')
+    .setDescription(`สถานะ XP x2:\n⏳ คงเหลือเวลาอีกประมาณ **${remainingMins} นาที**`)
     .setColor(COLORS.GREEN);
 
   await interaction.reply({ embeds: [embed], ephemeral: true });
@@ -206,7 +206,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
 
   const guildId = interaction.guildId;
   if (!(await isServerPremium(guildId, serverConfigs))) {
-    await interaction.reply({ content: '❌ ระบบร้านค้านี้ใช้งานได้เฉพาะเซิร์ฟเวอร์พรีเมียมเท่านั้นครับ!', ephemeral: true });
+    await interaction.reply({ content: '❌ ระบบร้านค้านี้ใช้งานได้เฉพาะเซิร์ฟเวอร์พรีเมียมเท่านั้น!', ephemeral: true });
     return true;
   }
 
@@ -236,7 +236,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
     try {
       const member = await interaction.guild.members.fetch(userId);
       if (member.roles.cache.has(ROLES.ARTIST_PERM)) {
-        await interaction.editReply({ content: '❌ คุณมียศ **Artist ถาวร** อยู่แล้วครับ! ไม่จำเป็นต้องซื้อบัตรเช่า Artist | 3d เพิ่มเติม' });
+        await interaction.editReply({ content: '❌ คุณมียศ **Artist ถาวร** อยู่แล้วครับ! ไม่จำเป็นต้องซื้อบัตรเช่า Artist | 3d' });
         return true;
       }
     } catch (e) {}
@@ -271,8 +271,8 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
   if (item.type === 'gacha') {
     const outcomes = [
       { reward: 0, text: '<a:cuteghost:1563345975597080686> เกลือ!' },
-      { reward: 0, text: 'ลองใหม่อีกครั้งนะ! <a:kitty:1563350578375950496>' },
-      { reward: 5, text: 'ได้เศษเหรียญปลอบใจ! รับไป 5 Zen Coins <a:emoji_145:1564216100915515432>' },
+      { reward: 0, text: '0 coin ลองใหม่อีกครั้งนะ! <a:kitty:1563350578375950496>' },
+      { reward: 5, text: 'เศษเหรียญปลอบใจ! รับไป 5 Zen Coins <a:emoji_145:1564216100915515432>' },
       { reward: 20, text: 'พอมีโชค! รับไป 20 Zen Coins <a:emoji_144:1564216078530514995>' },
       { reward: 150, text: 'แจ็กพอตแตกกระจาย! รับไปเต็มๆ 150 Zen Coins <a:emoji_101:1560416845322920067>' }
     ];
@@ -295,7 +295,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
       if (role) await member.roles.add(role);
     } catch (err) {}
 
-    await interaction.editReply({ content: `<:xp:1564107013456269433> เปิดใช้งานน้ำยาคูณ XP สำเร็จ! คุณได้รับสิทธิ์คูณ XP 2 เท่า นาน 1 ชั่วโมงเต็ม (คงเหลือ ${userStat.orbs.toLocaleString()} Coins)` });
+    await interaction.editReply({ content: `<:xp_active:1564107060021432370> เปิดใช้งาน XP x2 สำเร็จ! คุณได้รับสิทธิ์ XP Boost x2 นาน 1 ชั่วโมงเต็ม (คงเหลือ ${userStat.orbs.toLocaleString()} Coins)` });
     return true;
   }
 
