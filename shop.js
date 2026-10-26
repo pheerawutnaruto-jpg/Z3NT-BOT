@@ -5,7 +5,7 @@ const { ROLES, IMAGES, COLORS } = require('./constants');
 
 const userCooldowns = new Map();
 
-// ปรับโครงสร้างแยก emoji ออกจาก name เพื่อให้ ปุ่ม (Button) และ Embed ดึงไปใช้ได้ถูกต้อง
+// ปรับโครงสร้างข้อมูลตามที่คุณต้องการ (รวม description ให้อยู่ในบรรทัดเดียวกับราคา)
 const IN_GAME_ITEMS = [
   {
     id: 'gacha_box',
@@ -13,7 +13,7 @@ const IN_GAME_ITEMS = [
     emoji: '<a:emoji_142:1564170617240948767>',
     price: 15,
     type: 'gacha',
-    description: '• ลุ้นรับ Zen Coins สูงสุด 150 Coins!'
+    description: '(สูงสุด 150 coins)'
   },
   {
     id: 'xp_boost',
@@ -22,7 +22,7 @@ const IN_GAME_ITEMS = [
     price: 30,
     type: 'buff',
     roleId: ROLES.XP_BOOSTER,
-    description: '• คูณ XP 2 เท่า พร้อมรับยศ Xp Booster'
+    description: '(x2)'
   },
   {
     id: 'role_artist_temp',
@@ -31,7 +31,7 @@ const IN_GAME_ITEMS = [
     price: 75,
     type: 'role_temp',
     roleId: ROLES.ARTIST_TEMP,
-    description: '• รับยศ Artist และสิทธิ์เปลี่ยนการ์ด /level & /coins'
+    description: '(รับยศ Artist)'
   }
 ];
 
@@ -172,7 +172,7 @@ async function handleInGameShopPanel(interaction, serverConfigs) {
     .setTitle('<a:emoji_103:1560417845903491112> 𝙕𝙀𝙉 𝙎𝙃𝙊𝙋')
     .setDescription(
       `<a:emoji_100:1560416789211516938> **ยอดเหรียญของคุณ:** \`${userCoins.toLocaleString()} Zen Coins\`\n\n` +
-      'เลือกไอเทมที่คุณต้องการได้จากรายการด้านล่างนี้:\n──────────────────────'
+      'เลือกไอเทมที่คุณต้องการได้จากรายการด้านล่างนี้:\n------------------------'
     )
     .setColor(COLORS.GOLD);
 
@@ -181,8 +181,8 @@ async function handleInGameShopPanel(interaction, serverConfigs) {
     const emojiDisplay = typeof item.emoji === 'object' ? `<:${item.emoji.name}:${item.emoji.id}>` : item.emoji;
 
     embed.addFields({
-      name: `${emojiDisplay} ${item.name} ➔ \`${item.price} Coins\``,
-      value: `${item.description}\n──────────────────────`,
+      name: `${emojiDisplay} **${item.name}** → **${item.price} coins** ${item.description}`,
+      value: '------------------------',
       inline: false
     });
   });
