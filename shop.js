@@ -31,7 +31,7 @@ const IN_GAME_ITEMS = [
     price: 75,
     type: 'role_temp',
     roleId: ROLES.ARTIST_TEMP,
-    description: 'รับยศ Artist'
+    description: '`รับยศ Artist`'
   }
 ];
 
