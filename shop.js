@@ -13,11 +13,11 @@ const IN_GAME_ITEMS = [
     emoji: '<a:emoji_142:1564170617240948767>',
     price: 15,
     type: 'gacha',
-    description: 'สูงสุด 150 coins'
+    description: 'สูงสุด 150 Orbs'
   },
   {
     id: 'xp_boost',
-    name: 'XP Boost (1 ชม.)',
+    name: 'XP Boost ( 1 hr. )',
     emoji: { name: 'xp', id: '1564107013456269433' },
     price: 30,
     type: 'buff',
@@ -26,7 +26,7 @@ const IN_GAME_ITEMS = [
   },
   {
     id: 'role_artist_temp',
-    name: 'Artist (3 วัน)',
+    name: 'Artist ( 3 days)',
     emoji: '<:emoji_143:1564202161309483048>',
     price: 75,
     type: 'role_temp',
@@ -46,11 +46,11 @@ const boostStatusCommand = new SlashCommandBuilder()
 
 const coinsCommand = new SlashCommandBuilder()
   .setName('coins')
-  .setDescription('💎 [PREMIUM] เช็กยอด Zen Coins และกระเป๋าเงินของคุณ');
+  .setDescription('💎 [PREMIUM] เช็กยอด Orbs และกระเป๋าเงินของคุณ');
 
 const addCoinsCommand = new SlashCommandBuilder()
   .setName('add-coins')
-  .setDescription('💎 [PREMIUM] เติม Zen Coins ให้กับสมาชิก (สำหรับ Admin)')
+  .setDescription('💎 [PREMIUM] เติม Orbs ให้กับสมาชิก (สำหรับ Admin)')
   .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
   .addUserOption(option => option.setName('user').setDescription('เลือกสมาชิกที่ต้องการเติมเหรียญ').setRequired(true))
   .addIntegerOption(option => option.setName('amount').setDescription('จำนวน Zen Coins ที่ต้องการเติม').setRequired(true));
@@ -71,7 +71,7 @@ async function handleCoinsCommand(interaction, serverConfigs) {
   const userCoins = userStat.orbs || 0;
   const embed = new EmbedBuilder()
     .setTitle('💰 WALLET • ยอดเหรียญของคุณ')
-    .setDescription(`ยอด Zen Coins คงเหลือในกระเป๋าของ <@${userId}>:\n**${userCoins.toLocaleString()} Zen Coins**`)
+    .setDescription(`ยอด Orbs คงเหลือในกระเป๋าของ <@${userId}>:\n**${userCoins.toLocaleString()} Orbs**`)
     .setColor(COLORS.GOLD)
     .setTimestamp();
 
@@ -103,8 +103,8 @@ async function handleAddCoinsCommand(interaction, serverConfigs, saveConfigs) {
   userStat.orbs = Math.max(0, (userStat.orbs || 0) + amount);
   await saveConfigs(serverConfigs);
 
-  const actionText = amount >= 0 ? `เติม Zen Coins จำนวน **+${amount.toLocaleString()} Coins**` : `หัก Zen Coins จำนวน **${amount.toLocaleString()} Coins**`;
-  await interaction.reply({ content: `✅ ${actionText} ให้กับคุณ <@${userId}> สำเร็จแล้ว! (ยอดคงเหลือ: ${userStat.orbs.toLocaleString()} Coins)`, ephemeral: true });
+  const actionText = amount >= 0 ? `เติม Orbs จำนวน **+${amount.toLocaleString()} Orbs**` : `หัก Orbs จำนวน **${amount.toLocaleString()} Orbs**`;
+  await interaction.reply({ content: `✅ ${actionText} ให้กับคุณ <@${userId}> สำเร็จแล้ว! ( ยอดคงเหลือ: ${userStat.orbs.toLocaleString()} Orbs )`, ephemeral: true });
   return true;
 }
 
@@ -143,7 +143,7 @@ async function handleBoostStatusCommand(interaction, serverConfigs) {
   const now = Date.now();
 
   if (!userStat || !userStat.boostUntil || userStat.boostUntil <= now) {
-    await interaction.reply({ content: '❌ คุณยังไม่ได้เปิดใช้งานน้ำยาคูณ XP หรือบัฟหมดอายุไปแล้วครับ!', ephemeral: true });
+    await interaction.reply({ content: '❌ คุณยังไม่ได้เปิดใช้งาน XP x2 หรือบัฟหมดอายุไปแล้วครับ!', ephemeral: true });
     return true;
   }
 
@@ -171,14 +171,14 @@ async function handleInGameShopPanel(interaction, serverConfigs) {
   // สร้างรายการสินค้าให้อยู่ในรูปแบบบรรทัดต่อบรรทัด พร้อมอีโมจิถุงเงินที่ด้านล่างสุด
   const itemsText = IN_GAME_ITEMS.map(item => {
     const emojiDisplay = typeof item.emoji === 'object' ? `<:${item.emoji.name}:${item.emoji.id}>` : item.emoji;
-    return `${emojiDisplay} **${item.name}** • \`${item.price} Coins\`\n└ ${item.description}`;
+    return `${emojiDisplay} **${item.name}** • \`${item.price} Orbs\`\n└ ${item.description}`;
   }).join('\n\n');
 
   const embed = new EmbedBuilder()
     .setTitle('<a:emoji_103:1560417845903491112> 𝙕𝙀𝙉 𝙎𝙃𝙊𝙋')
     .setDescription(
       `${itemsText}\n\n` +
-      `<a:emoji_100:1560416789211516938> **ยอดเหรียญของคุณ:** \`${userCoins.toLocaleString()} Zen Coins\``
+      `<a:emoji_100:1560416789211516938> **ยอดเหรียญของคุณ:** \`${userCoins.toLocaleString()} Orbs\``
     )
     .setColor('#66FFFF'); // สีฟ้าสว่างตามต้องการ
 
@@ -257,12 +257,12 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
 
   if (item.type === 'role_temp' && userStat.artistUntil && userStat.artistUntil > now) {
     const remainingDays = Math.ceil((userStat.artistUntil - now) / (1000 * 60 * 60 * 24));
-    await interaction.editReply({ content: `⚠️ คุณยังมีสิทธิ์ Artist ใช้งานอยู่ (เหลือเวลาอีกประมาณ ${remainingDays} วัน) ไม่สามารถซื้อซ้ำซ้อนได้ครับ!` });
+    await interaction.editReply({ content: `⚠️ คุณยังมีสิทธิ์ Artist ใช้งานอยู่\n (เหลือเวลาอีกประมาณ ${remainingDays} วัน) ไม่สามารถซื้อซ้ำได้ครับ!` });
     return true;
   }
 
   if (userCoins < item.price) {
-    await interaction.editReply({ content: `❌ Zen Coins ของคุณไม่พอ! (คุณมี ${userCoins} Coins แต่สินค้าราคา ${item.price} Coins)` });
+    await interaction.editReply({ content: `❌ Orbs ของคุณมีไม่พอ!\n ( คุณมี ${userCoins} Orbs สินค้าราคา ${item.price} Orbs )` });
     return true;
   }
 
@@ -271,16 +271,16 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
   if (item.type === 'gacha') {
     const outcomes = [
       { reward: 0, text: '<a:cuteghost:1563345975597080686> เกลือ!' },
-      { reward: 0, text: '0 coin ลองใหม่อีกครั้งนะ! <a:kitty:1563350578375950496>' },
-      { reward: 5, text: 'เศษเหรียญปลอบใจ! รับไป 5 Zen Coins <a:emoji_145:1564216100915515432>' },
-      { reward: 20, text: 'พอมีโชค! รับไป 20 Zen Coins <a:emoji_144:1564216078530514995>' },
-      { reward: 150, text: 'แจ็กพอตแตกกระจาย! รับไปเต็มๆ 150 Zen Coins <a:emoji_101:1560416845322920067>' }
+      { reward: 0, text: '0 Orbs ลองใหม่อีกครั้งนะ! <a:kitty:1563350578375950496>' },
+      { reward: 5, text: 'เศษเหรียญปลอบใจ! รับไป 5 Orbs <a:emoji_145:1564216100915515432>' },
+      { reward: 20, text: 'พอมีโชค! รับไป 20 Orbs <a:emoji_144:1564216078530514995>' },
+      { reward: 150, text: 'แจ็กพอตแตกกระจาย! รับไปเต็มๆ 150 Orbs <a:emoji_101:1560416845322920067>' }
     ];
     const roll = outcomes[Math.floor(Math.random() * outcomes.length)];
     userStat.orbs += roll.reward;
     await saveConfigs(serverConfigs);
 
-    await interaction.editReply({ content: `<a:emoji_142:1564170617240948767> **ผลการสุ่มกาชาปอง:**\n${roll.text}\n(ยอด Zen Coins ปัจจุบันของคุณ: ${userStat.orbs.toLocaleString()} Coins)` });
+    await interaction.editReply({ content: `<a:emoji_142:1564170617240948767> **ผลการสุ่มกาชาปอง:**\n${roll.text}\n( Orbs ปัจจุบันของคุณ: ${userStat.orbs.toLocaleString()} Orbs )` });
     return true;
   }
 
@@ -295,7 +295,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
       if (role) await member.roles.add(role);
     } catch (err) {}
 
-    await interaction.editReply({ content: `<:xp_active:1564107060021432370> เปิดใช้งาน XP x2 สำเร็จ!\n เช็กสถานะ `/boost-status` (ยอดคงเหลือ ${userStat.orbs.toLocaleString()} Coins)` });
+    await interaction.editReply({ content: `<:xp_active:1564107060021432370> เปิดใช้งาน XP x2 สำเร็จ!\n เช็กสถานะ `/boost-status` ( ยอดคงเหลือ ${userStat.orbs.toLocaleString()} Orbs )` });
     return true;
   }
 
@@ -310,7 +310,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
       if (role) await member.roles.add(role);
     } catch (err) {}
 
-    await interaction.editReply({ content: `🎉 เช่าสำเร็จ! คุณได้รับยศ Artist และสิทธิ์แต่งการ์ดส่วนตัวเป็นเวลา 3 วันเต็ม! (คงเหลือ ${userStat.orbs.toLocaleString()} Coins)` });
+    await interaction.editReply({ content: `🎉 เช่าสำเร็จ! คุณได้รับยศ Artist และสิทธิ์แต่งการ์ดส่วนตัวเป็นเวลา 3 วันเต็ม! ( คงเหลือ ${userStat.orbs.toLocaleString()} Orbs )` });
     return true;
   }
 
