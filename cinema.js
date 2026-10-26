@@ -40,7 +40,7 @@ async function handleSetupCinemaCommand(interaction) {
     new ButtonBuilder()
       .setCustomId('cinema_temp_ticket')
       .setLabel('🎟️ 250c ( movie | 1d )')
-      .setStyle(ButtonStyle.Yellow)
+      .setStyle(ButtonStyle.Success)
   );
 
   await channel.send({ embeds: [embed], components: [row] });
