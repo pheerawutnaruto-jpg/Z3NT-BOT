@@ -567,7 +567,7 @@ async function handleBattleButtons(interaction, serverConfigs, saveConfigs) {
   }
 
   const resultEmbed = new EmbedBuilder()
-    .setTitle('🏆 ผลการประลองฮาร์ดคอร์!')
+    .setTitle('🏆 ผลการประลอง!')
     .setDescription(
       `🎉 **ผู้ชนะ:** <@${winnerId}> (${winnerPet.name})!\n` +
       `💀 **ผู้แพ้:** <@${loserId}> สัตว์เลี้ยงเสียชีวิตและหายไปจากโลกนี้แล้ว!\n\n` +
