@@ -5,7 +5,7 @@ const { ROLES, IMAGES, COLORS } = require('./constants');
 
 const userCooldowns = new Map();
 
-// ปรับโครงสร้างข้อมูลรายการไอเทม
+// โครงสร้างข้อมูลรายการไอเทม
 const IN_GAME_ITEMS = [
   {
     id: 'gacha_box',
@@ -13,16 +13,16 @@ const IN_GAME_ITEMS = [
     emoji: '<a:emoji_142:1564170617240948767>',
     price: 15,
     type: 'gacha',
-    description: '(สูงสุด 150 coins)'
+    description: 'สูงสุด 150 coins'
   },
   {
     id: 'xp_boost',
     name: 'XP Boost (1 ชม.)',
-    emoji: { name: 'xp', id: '1564107013456269433' }, // กำหนด Custom Emoji เป็น Object
+    emoji: { name: 'xp', id: '1564107013456269433' },
     price: 30,
     type: 'buff',
     roleId: ROLES.XP_BOOSTER,
-    description: '(x2)'
+    description: 'x2'
   },
   {
     id: 'role_artist_temp',
@@ -31,7 +31,7 @@ const IN_GAME_ITEMS = [
     price: 75,
     type: 'role_temp',
     roleId: ROLES.ARTIST_TEMP,
-    description: '(รับยศ Artist)'
+    description: 'รับยศ Artist'
   }
 ];
 
@@ -168,20 +168,27 @@ async function handleInGameShopPanel(interaction, serverConfigs) {
   const userStat = config.levels?.[userId];
   const userCoins = userStat ? (userStat.orbs || 0) : 0;
 
-  // จัดเรียงข้อความใหม่: รายการสินค้าอยู่ด้านบน และ "ยอดเหรียญของคุณ" อยู่ล่างสุด
-  const itemsText = IN_GAME_ITEMS.map(item => {
-    const emojiDisplay = typeof item.emoji === 'object' ? `<:${item.emoji.name}:${item.emoji.id}>` : item.emoji;
-    return `${emojiDisplay} **${item.name}** → **${item.price} Coins** ${item.description}\n------------------------`;
-  }).join('\n');
-
   const embed = new EmbedBuilder()
     .setTitle('<a:emoji_103:1560417845903491112> 𝙕𝙀𝙉 𝙎𝙃𝙊𝙋')
-    .setDescription(
-      `------------------------\n` +
-      `${itemsText}\n` +
-      `<a:emoji_100:1560416789211516938> **ยอดเหรียญของคุณ:** \`${userCoins.toLocaleString()} Zen Coins\``
-    )
-    .setColor('#66FFFF'); // เปลี่ยนสี Embed เป็น #66FFFF ตามต้องการ
+    .setColor('#66FFFF'); // เปลี่ยนสี Embed เป็นสีฟ้าสว่าง
+
+  // วนลูปสร้าง Field แต่ละไอเทมให้ดูเป็นระเบียบ สบายตา
+  IN_GAME_ITEMS.forEach(item => {
+    const emojiDisplay = typeof item.emoji === 'object' ? `<:${item.emoji.name}:${item.emoji.id}>` : item.emoji;
+    
+    embed.addFields({
+      name: `${emojiDisplay} **${item.name}**  •  \`${item.price} Coins\``,
+      value: `└ ${item.description}`,
+      inline: false
+    });
+  });
+
+  // ย้ายยอดเหรียญของคุณมาไว้แถวล่างสุดในรูปแบบ Field แยกต่างหาก
+  embed.addFields({
+    name: '💰 กระเป๋าเงินของคุณ',
+    value: `ยอดคงเหลือ: **${userCoins.toLocaleString()} Zen Coins**`,
+    inline: false
+  });
 
   const row = new ActionRowBuilder();
   IN_GAME_ITEMS.forEach(item => {
