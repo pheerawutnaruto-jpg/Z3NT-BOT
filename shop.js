@@ -13,7 +13,7 @@ const IN_GAME_ITEMS = [
     emoji: '<a:emoji_142:1564170617240948767>',
     price: 15,
     type: 'gacha',
-    description: '`สูงสุด 150 coins`'
+    description: 'สูงสุด 150 coins'
   },
   {
     id: 'xp_boost',
@@ -22,7 +22,7 @@ const IN_GAME_ITEMS = [
     price: 30,
     type: 'buff',
     roleId: ROLES.XP_BOOSTER,
-    description: '`x2`'
+    description: 'x2'
   },
   {
     id: 'role_artist_temp',
@@ -31,7 +31,7 @@ const IN_GAME_ITEMS = [
     price: 75,
     type: 'role_temp',
     roleId: ROLES.ARTIST_TEMP,
-    description: '`ยศ Artist | 3d`'
+    description: 'รับยศ Artist'
   }
 ];
 
@@ -125,7 +125,7 @@ async function handleSetupShopCommand(interaction) {
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('open_in_game_shop_panel')
-      .setLabel('เปิดแผงร้านค้า')
+      .setLabel('เปิดแผงร้านค้าในเกม')
       .setEmoji('1560417845903491112')
       .setStyle(ButtonStyle.Success)
   );
@@ -168,27 +168,19 @@ async function handleInGameShopPanel(interaction, serverConfigs) {
   const userStat = config.levels?.[userId];
   const userCoins = userStat ? (userStat.orbs || 0) : 0;
 
+  // สร้างรายการสินค้าให้อยู่ในรูปแบบบรรทัดต่อบรรทัด พร้อมอีโมจิถุงเงินที่ด้านล่างสุด
+  const itemsText = IN_GAME_ITEMS.map(item => {
+    const emojiDisplay = typeof item.emoji === 'object' ? `<:${item.emoji.name}:${item.emoji.id}>` : item.emoji;
+    return `${emojiDisplay} **${item.name}** • \`${item.price} Coins\`\n└ ${item.description}`;
+  }).join('\n\n');
+
   const embed = new EmbedBuilder()
     .setTitle('<a:emoji_103:1560417845903491112> 𝙕𝙀𝙉 𝙎𝙃𝙊𝙋')
-    .setColor('#66FFFF'); // เปลี่ยนสี Embed เป็นสีฟ้าสว่าง
-
-  // วนลูปสร้าง Field แต่ละไอเทมให้ดูเป็นระเบียบ สบายตา
-  IN_GAME_ITEMS.forEach(item => {
-    const emojiDisplay = typeof item.emoji === 'object' ? `<:${item.emoji.name}:${item.emoji.id}>` : item.emoji;
-    
-    embed.addFields({
-      name: `${emojiDisplay} **${item.name}**  •  \`${item.price} Coins\``,
-      value: `└ ${item.description}`,
-      inline: false
-    });
-  });
-
-  // ย้ายยอดเหรียญของคุณมาไว้แถวล่างสุดในรูปแบบ Field แยกต่างหาก
-  embed.addFields({
-    name: '💰 กระเป๋าเงินของคุณ',
-    value: 'ยอดคงเหลือ: **`${userCoins.toLocaleString()} Zen Coins`**',
-    inline: false
-  });
+    .setDescription(
+      `${itemsText}\n\n` +
+      `<a:emoji_100:1560416789211516938> **ยอดเหรียญของคุณ:** \`${userCoins.toLocaleString()} Zen Coins\``
+    )
+    .setColor('#66FFFF'); // สีฟ้าสว่างตามต้องการ
 
   const row = new ActionRowBuilder();
   IN_GAME_ITEMS.forEach(item => {
