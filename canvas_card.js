@@ -212,6 +212,13 @@ async function generateWelcomeCard(member) {
     ctx.restore();
   }
 
+  // กรอบวงกลมรอบรูปโปรไฟล์ (ลบ catch ที่เกินออกแล้ว)
+  ctx.strokeStyle = '#66FFFF';
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.arc(130, 160, 75, 0, Math.PI * 2, true);
+  ctx.stroke();
+
   ctx.fillStyle = '#66FFFF';
   ctx.font = 'bold 24px sans-serif';
   ctx.fillText('WELCOME TO THE SERVER', 240, 105);
@@ -224,25 +231,15 @@ async function generateWelcomeCard(member) {
   ctx.font = '22px sans-serif';
   ctx.fillText(`Member #${member.guild.memberCount} • Enjoy your stay!`, 240, 205);
 
-  // 🏷️ เพิ่มโค้ดส่วนนี้กลับเข้าไปเพื่อวาดกล่อง "ZEN TH COMMUNITY" ด้านล่าง
-  const pillX = 240;
-  const pillY = 228;
-  const pillW = 210;
-  const pillH = 32;
-
-  ctx.fillStyle = 'rgba(102, 255, 255, 0.1)';
-  safeRoundRect(ctx, pillX, pillY, pillW, pillH, 16);
+  // กล่องข้อความ ZEN TH COMMUNITY ด้านล่าง
+  ctx.fillStyle = 'rgba(102, 255, 255, 0.15)';
+  ctx.beginPath();
+  ctx.roundRect(240, 225, 280, 40, 10);
   ctx.fill();
 
-  ctx.strokeStyle = '#66FFFF';
-  ctx.lineWidth = 1.5;
-  safeRoundRect(ctx, pillX, pillY, pillW, pillH, 16);
-  ctx.stroke();
-
   ctx.fillStyle = '#66FFFF';
-  ctx.font = 'bold 14px sans-serif';
-  ctx.fillText('ZEN TH COMMUNITY', pillX + 16, pillY + 21);
-  // -------------------------------------------------------------
+  ctx.font = 'bold 18px sans-serif';
+  ctx.fillText('ZEN TH COMMUNITY', 260, 252);
 
   return new AttachmentBuilder(await canvas.encode('png'), { name: 'welcome-card.png' });
 }
