@@ -79,9 +79,12 @@ async function handleQuestButton(interaction, serverConfigs, saveConfigs) {
   if (rewardCoins === 0) {
     await interaction.editReply({ content: '<a:kitty:1563350578375950496> น่าเสียดาย! พรุ่งนี้เอาใหม่นะ!' });
   } else {
-    await interaction.editReply({ content: `<a:emoji_101:1560416845322920067> ยินดีด้วย! ได้รับ **${rewardCoins} coins** ไปเต็มๆ!\n\`Wallet : ${userStat.orbs.toLocaleString()} coins\`` 
+    await interaction.editReply({ 
+      content: `<a:emoji_142:1564170617240948767> **ผลการสุ่มกาชาปอง:**\n${roll.text}\n\`Wallet : ${userStat.orbs.toLocaleString()} coins\`` 
     });
     return true;
+
+
   }
 
 module.exports = {
