@@ -1,5 +1,5 @@
 // artist_card.js
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, PermissionFlagsBits, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SectionBuilder, ThumbnailBuilder, MessageFlags } = require('discord.js');
 const { ROLES, IMAGES, COLORS } = require('./constants');
 const { isServerPremium } = require('./license');
 
@@ -14,14 +14,30 @@ async function handleSetupArtistCommand(interaction) {
     return true;
   }
 
-  const embed = new EmbedBuilder()
-    .setTitle('<a:emoji_146:1564300643378667670> 𝙕𝙀𝙉 𝘽𝙊𝙏 • ARTIST CARD')
-    .setDescription(
-      'สำหรับยศ `Artist` หรือ `Artist | 3d`'
-    )
-    .setColor(COLORS.PINK)
-    .setImage(IMAGES.ARTIST_BANNER);
+  // ==========================================
+  // 1. หัวข้อหลักด้วย Components V2 (Text Display)
+  // ==========================================
+  const headerText = new TextDisplayBuilder()
+    .setContent('<a:emoji_146:1564300643378667670> **𝙕𝙀𝙉 𝘽𝙊𝙏 • ARTIST CARD**\nสำหรับยศ `Artist` หรือ `Artist | 3d`');
 
+  // เส้นคั่น
+  const divider = new SeparatorBuilder().setVisible(true).setSpacing('medium');
+
+  // ==========================================
+  // 2. ส่วนรูปภาพแบนเนอร์ประกบข้าง (Section + Thumbnail)
+  // ==========================================
+  const artistThumbnail = new ThumbnailBuilder()
+    .setURL(IMAGES.ARTIST_BANNER);
+
+  const artistSection = new SectionBuilder()
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent('🎨 **ระบบปรับแต่งการ์ดส่วนตัว**\nกดปุ่มด้านล่างเพื่อเปลี่ยนรูปพื้นหลังการ์ด Level และ Wallet ของคุณได้ทันที!')
+    )
+    .setThumbnailAccessory(artistThumbnail);
+
+  // ==========================================
+  // 3. แถบปุ่มกด (Action Row + Buttons)
+  // ==========================================
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('open_artist_level_card_modal')
@@ -35,8 +51,24 @@ async function handleSetupArtistCommand(interaction) {
       .setStyle(ButtonStyle.Success)
   );
 
-  await interaction.channel.send({ embeds: [embed], components: [row] });
-  await interaction.reply({ content: '✅ ส่งแผงปุ่มตั้งค่าการ์ด Artist ไปยังห้องนี้สำเร็จแล้ว!', ephemeral: true });
+  // ==========================================
+  // 4. ประกอบร่างลงใน Container (กล่อง V2)
+  // ==========================================
+  const mainContainer = new ContainerBuilder()
+    .setAccentColor(COLORS.PINK) // ใช้สีพิงค์ตามเดิม
+    .addComponents(
+      headerText,
+      divider,
+      artistSection,
+      row // นำ ActionRow มาใส่ไว้ใน Container V2 ได้เลย
+    );
+
+  await interaction.channel.send({
+    components: [mainContainer],
+    flags: MessageFlags.IsComponentsV2 // ⚠️ สำคัญมากสำหรับ Components V2
+  });
+
+  await interaction.reply({ content: '✅ ส่งแผงปุ่มตั้งค่าการ์ด Artist แบบ V2 ไปยังห้องนี้สำเร็จแล้ว!', ephemeral: true });
   return true;
 }
 
