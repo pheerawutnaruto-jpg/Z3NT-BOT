@@ -17,8 +17,8 @@ const ORDER_PRODUCTS = {
 function buildStorefrontPayload() {
   const embed = new EmbedBuilder()
     .setTitle('<a:emoji_103:1560417845903491112> 𝙕𝙀𝙉 𝘽𝙊𝙏 • PREMIUM STORE')
-    .setDescription('ซื้อยศถาวร สะดวก ปลอดภัย และเป็นส่วนตัว (` bot premium`  ยังเป็น ` beta`  ครับ)\n\n')
-    .setColor(COLORS.#66FFFF)
+    .setDescription('ซื้อยศถาวร สะดวก ปลอดภัย และเป็นส่วนตัว \n\n')
+    .setColor('#66FFFF')
     .setImage(IMAGES.DEFAULT_CINEMA);
 
   const selectMenu = new StringSelectMenuBuilder()
@@ -175,7 +175,7 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
         .setStyle(ButtonStyle.Danger)
     );
 
-    await ticketChannel.send({ content: `<a:newstext:1564121222034358443> ออร์เดอร์ใหม่จาก <@${user.id}>`, embeds: [ticketEmbed], components: [payRow] });
+    await ticketChannel.send({ content: `ออร์เดอร์ใหม่จาก <@${user.id}> <a:newstext:1564121222034358443>`, embeds: [ticketEmbed], components: [payRow] });
     await interaction.editReply({ content: `✅ สร้างห้องออร์เดอร์ส่วนตัวให้คุณสำเร็จแล้ว: <#${ticketChannel.id}>`, embeds: [] });
   } catch (err) {
     console.error('Error creating order ticket channel:', err);
@@ -198,7 +198,7 @@ async function handleOrderPaymentButton(interaction) {
     if (!product) return false;
 
     const embed = new EmbedBuilder()
-      .setTitle('PromptPay QR <:shop:https://cdn.discordapp.com/emojis/1564114304339542036.webp?size=96>')
+      .setTitle('PromptPay QR <:shop:1564114304339542036>')
       .setDescription(
         `• **ผู้สั่งซื้อ:** <@${customerId}>\n` +
         `• **สินค้า:** ${product.name}\n` +
