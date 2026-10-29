@@ -32,14 +32,17 @@ async function handleSetupCinemaCommand(interaction) {
   const embed = new EmbedBuilder()
     .setTitle('🎟️ 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼 • BOX OFFICE')
     .setDescription(
-      '✨ **บริการจำหน่ายตั๋วรับชมภาพยนตร์** ✨)
+      '✨ **บริการจำหน่ายตั๋วรับชมภาพยนตร์** ✨\n\n' +
+      `> <@&${ROLES.CINEMA_TEMP}> ( 250c / 1 วัน )\n\n` +
+      '📍 กรุณาตรวจสอบเหรียญในกระเป๋าของคุณก่อนกดซื้อตั๋ว'
+    )
     .setColor(COLORS.RED)
     .setImage(imageUrl);
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('cinema_temp_ticket')
-      .setLabel('🎟️ 250c ( movie | 1d )')
+      .setLabel('🎟️ ซื้อตั๋ว (1 วัน)')
       .setStyle(ButtonStyle.Success)
   );
 
@@ -55,7 +58,7 @@ const cinemaBroadcastCommand = new SlashCommandBuilder()
 
 async function handleCinemaBroadcastCommand(interaction, serverConfigs) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-    await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้นครับ!', ephemeral: true });
+    await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้นที่จะใช้คำสั่งนี้ได้ครับ!', ephemeral: true });
     return true;
   }
 
@@ -63,7 +66,7 @@ async function handleCinemaBroadcastCommand(interaction, serverConfigs) {
   if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
   if (!serverConfigs[guildId].cinemaBroadcast) {
     serverConfigs[guildId].cinemaBroadcast = {
-      title: 'ภาพยนตร์เรื่องใหม่',
+      title: 'ภาพยนตร์ฟอร์มยักษ์เรื่องใหม่',
       dateStr: '01/01/1999',
       channelId: null,
       roleId: ROLES.CINEMA_COMING_SOON,
@@ -270,15 +273,17 @@ async function handleCinemaButton(interaction, serverConfigs, saveConfigs) {
         .setTitle('🍿 𝙕𝙀𝙉 𝘾𝙄𝙉𝙀𝙈𝘼 • COMING SOON')
         .setDescription(
           `🎬 **ชื่อเรื่อง:** ${config.title}\n` +
-          `📅 **วันที่ฉาย:** ${config.dateStr})
+          `📅 **วันที่ฉาย:** ${config.dateStr}\n\n` +
+          `> <@&${ROLES.CINEMA_PERM}> ( 350c / 21 วัน )`
+        )
         .setColor(COLORS.GOLD)
         .setImage(imageUrl)
-        .setFooter({ text: '💡 แนะนำพิเศษ: บัตร 21 วันคุ้มกว่า รับชมภาพยนตร์ยาวๆ!' });
+        .setFooter({ text: '💡 แนะนำพิเศษ: ซื้อตั๋ว 21 วันคุ้มกว่า รับชมภาพยนตร์ยาวๆ!' });
 
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId('cinema_perm_ticket')
-          .setLabel('🎫 350c (M | Pass)')
+          .setLabel('🎫 ซื้อตั๋ว (21 วัน)')
           .setStyle(ButtonStyle.Danger)
       );
 
