@@ -1,4 +1,3 @@
-// index.js
 process.on('unhandledRejection', error => {
   console.error('Unhandled promise rejection:', error);
 });
@@ -44,7 +43,7 @@ const {
   setupCinemaCommand,
   cinemaBroadcastCommand,
   handleSetupCinemaCommand,
-  handleCinemaBroadcastCommand,
+  handleCinemaBroadcastCommand, // ✅ นำเข้าฟังก์ชันที่ถูกต้อง
   handleCinemaButton,
   handleCinemaSelect,
   handleCinemaModal
@@ -242,7 +241,7 @@ client.once('ready', async () => {
   console.log(`Bot Online แล้วจ้า: ${client.user.tag}`);
 
   startVoiceXpCron(client, serverConfigs, saveConfigs);
-  startPetHatchCron(client, serverConfigs, saveConfigs); // 👈 เปิดใช้งานระบบเช็กและฟักไข่อัตโนมัติทุก 10 วินาที
+  startPetHatchCron(client, serverConfigs, saveConfigs);
   loadAllAutoCinemaCrons(client, serverConfigs);
 
   const commands = [
@@ -506,7 +505,7 @@ client.on('interactionCreate', async interaction => {
     if (cmd === 'setup-media-guard') return await handleSetupMediaGuardCommand(interaction, serverConfigs, saveConfigs);
     if (cmd === 'setup-showcase') return await handleSetupShowcaseCommand(interaction, serverConfigs, saveConfigs);
     if (cmd === 'cinema-setup') return await handleSetupCinemaCommand(interaction);
-    if (cmd === 'cinema-broadcast') return await handleSetupCinemaBroadcastCommand(interaction, serverConfigs);
+    if (cmd === 'cinema-broadcast') return await handleCinemaBroadcastCommand(interaction, serverConfigs); // ✅ แก้ไขให้เรียกใช้ชื่อฟังก์ชันที่ถูกต้อง
     if (cmd === 'auto-cinema') return await handleAutoCinemaCommand(interaction, serverConfigs);
     if (cmd === 'set-level') return await handleSetLevelCommand(interaction, serverConfigs);
     if (cmd === 'set-security') {
