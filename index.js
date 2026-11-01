@@ -1,4 +1,4 @@
-Process.on('unhandledRejection', error => {
+process.on('unhandledRejection', error => {
   console.error('Unhandled promise rejection:', error);
 });
 
@@ -570,7 +570,6 @@ client.on('interactionCreate', async interaction => {
       if (await handleShopButton(interaction, serverConfigs, saveConfigs)) return;
       if (await handleArtistButton(interaction, serverConfigs)) return;
 
-      // ✅ แก้ไขส่วนจัดการปุ่ม: ปรับเปลี่ยนเป็น update ตรงๆ ป้องกันการหลุด Interaction
       if (id === 'toggle_welcome') {
         config.welcomeEnabled = !config.welcomeEnabled;
         await saveConfigs(serverConfigs);
