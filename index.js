@@ -845,7 +845,7 @@ client.on('interactionCreate', async interaction => {
         return await interaction.reply({ content: `📌 กรุณาเลือกยศสำหรับ Level ${targetLevel}:`, components: [row], ephemeral: true });
       }
       if (interaction.customId === 'deleteRoleRewardModal') {
-        const targetLevel = interaction.fields.getTextInputValue('targetLevel').trim();
+        const targetLevel = interaction.fields.getTextInputValue('deleteRoleRewardModal').trim();
         if (!config.levelConfig.roleRewards || !config.levelConfig.roleRewards[targetLevel]) {
           return await interaction.reply({ content: `❌ ไม่พบข้อมูลยศรางวัลสำหรับ Level ${targetLevel} ครับ!`, ephemeral: true });
         }
