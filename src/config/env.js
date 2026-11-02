@@ -1,4 +1,4 @@
-const requiredEnv = ['DISCORD_TOKEN'];
+const requiredEnv = ['DISCORD_TOKEN', 'UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN'];
 
 function getEnv(name) {
   return process.env[name];
@@ -15,7 +15,9 @@ function validateEnv() {
   return {
     DISCORD_TOKEN: getEnv('DISCORD_TOKEN'),
     TEST_GUILD_ID: getEnv('TEST_GUILD_ID') || null,
-    PORT: getEnv('PORT') || '3000'
+    PORT: getEnv('PORT') || '3000',
+    UPSTASH_REDIS_REST_URL: getEnv('UPSTASH_REDIS_REST_URL'),
+    UPSTASH_REDIS_REST_TOKEN: getEnv('UPSTASH_REDIS_REST_TOKEN')
   };
 }
 
