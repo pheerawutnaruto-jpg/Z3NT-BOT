@@ -4,6 +4,7 @@ const { isServerPremium } = require('./license');
 const { ROLES, IMAGES, COLORS } = require('./constants');
 
 const userCooldowns = new Map();
+const purchaseLocks = new Set();
 
 // โครงสร้างข้อมูลรายการไอเทม
 const IN_GAME_ITEMS = [
@@ -217,6 +218,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
 
   const userId = interaction.user.id;
   const now = Date.now();
+  const purchaseKey = `${guildId}:${userId}`;
 
   if (userCooldowns.has(userId)) {
     const expirationTime = userCooldowns.get(userId) + 2000;
@@ -225,111 +227,127 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
       return true;
     }
   }
+
+  if (purchaseLocks.has(purchaseKey)) {
+    await interaction.editReply({ content: '⏳ กำลังประมวลผลคำสั่งซื้อของคุณอยู่ โปรดรอสักครู่...' });
+    return true;
+  }
+
+  purchaseLocks.add(purchaseKey);
   userCooldowns.set(userId, now);
 
-  const itemId = customId.replace('buy_item_', '');
-  const item = IN_GAME_ITEMS.find(i => i.id === itemId);
-  if (!item) return true;
+  try {
+    const itemId = customId.replace('buy_item_', '');
+    const item = IN_GAME_ITEMS.find(i => i.id === itemId);
+    if (!item) {
+      await interaction.editReply({ content: '❌ ไม่พบสินค้านี้ในร้านค้า' });
+      return true;
+    }
 
-  if (item.id === 'role_artist_temp') {
+    if (item.id === 'role_artist_temp') {
+      try {
+        const member = await interaction.guild.members.fetch(userId);
+        if (member.roles.cache.has(ROLES.ARTIST_PERM)) {
+          await interaction.editReply({ content: '❌ คุณมียศ **Artist ถาวร** อยู่แล้วครับ!' });
+          return true;
+        }
+      } catch (e) {}
+    }
+
+    if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
+    if (!serverConfigs[guildId].levels) serverConfigs[guildId].levels = {};
+    if (!serverConfigs[guildId].levels[userId]) {
+      serverConfigs[guildId].levels[userId] = {
+        xp: 0, level: 1, orbs: 0, lastDaily: 0,
+        boostUntil: 0, artistUntil: 0, cinemaPermUntil: 0, cinemaTempUntil: 0,
+        customTheme: '', customWalletTheme: ''
+      };
+    }
+
+    const userStat = serverConfigs[guildId].levels[userId];
+    const userCoins = userStat.orbs || 0;
+
+    if (item.type === 'role_temp' && userStat.artistUntil && userStat.artistUntil > now) {
+      const remainingDays = Math.ceil((userStat.artistUntil - now) / (1000 * 60 * 60 * 24));
+      await interaction.editReply({ content: `⚠️ คุณยังมีสิทธิ์ Artist | 3d ใช้งานอยู่\n (เหลือเวลาอีกประมาณ **${remainingDays} วัน**)` });
+      return true;
+    }
+
+    if (userCoins < item.price) {
+      await interaction.editReply({ content: `❌ coins ของคุณมีไม่พอ!\n ( คุณมี ${userCoins} coins สินค้าราคา ${item.price} coins )` });
+      return true;
+    }
+
+    const originalCoins = userStat.orbs || 0;
+    userStat.orbs = Math.max(0, originalCoins - item.price);
+
     try {
-      const member = await interaction.guild.members.fetch(userId);
-      if (member.roles.cache.has(ROLES.ARTIST_PERM)) {
-        await interaction.editReply({ content: '❌ คุณมียศ **Artist ถาวร** อยู่แล้วครับ!' });
+      if (item.type === 'gacha') {
+        const outcomes = [
+          { reward: 0, text: '<a:cuteghost:1563345975597080686> เกลือ!' },
+          { reward: 0, text: '0 coins ลองใหม่อีกครั้งนะ! <a:kitty:1563350578375950496>' },
+          { reward: 5, text: 'เศษเหรียญปลอบใจ! รับไป 5 coins <a:emoji_145:1564216100915515432>' },
+          { reward: 20, text: 'พอมีโชค! รับไป 20 coins <a:emoji_144:1564216078530514995>' },
+          { reward: 150, text: 'แจ็กพอตแตกกระจาย! รับไปเต็มๆ 150 coins <a:emoji_101:1560416845322920067>' }
+        ];
+        const roll = outcomes[Math.floor(Math.random() * outcomes.length)];
+        userStat.orbs += roll.reward;
+        await saveConfigs(serverConfigs);
+
+        await interaction.editReply({
+          content: `<a:emoji_142:1564170617240948767> **กาชาปอง**\n${roll.text}\n\`Wallet : ${userStat.orbs.toLocaleString()} coins\``
+        });
         return true;
       }
-    } catch (e) {}
-  }
 
-  if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
-  if (!serverConfigs[guildId].levels) serverConfigs[guildId].levels = {};
-  if (!serverConfigs[guildId].levels[userId]) {
-    serverConfigs[guildId].levels[userId] = {
-      xp: 0, level: 1, orbs: 0, lastDaily: 0,
-      boostUntil: 0, artistUntil: 0, cinemaPermUntil: 0, cinemaTempUntil: 0,
-      customTheme: '', customWalletTheme: ''
-    };
-  }
+      if (item.type === 'buff') {
+        const oneHour = 60 * 60 * 1000;
+        userStat.boostUntil = (userStat.boostUntil && userStat.boostUntil > now ? userStat.boostUntil : now) + oneHour;
+        await saveConfigs(serverConfigs);
 
-  const userStat = serverConfigs[guildId].levels[userId];
-  const userCoins = userStat.orbs || 0;
+        try {
+          const member = await interaction.guild.members.fetch(userId);
+          const role = await interaction.guild.roles.fetch(item.roleId);
+          if (role) await member.roles.add(role);
+        } catch (err) {}
 
-  if (item.type === 'role_temp' && userStat.artistUntil && userStat.artistUntil > now) {
-    const remainingDays = Math.ceil((userStat.artistUntil - now) / (1000 * 60 * 60 * 24));
-    await interaction.editReply({ content: `⚠️ คุณยังมีสิทธิ์ Artist | 3d ใช้งานอยู่\n (เหลือเวลาอีกประมาณ **${remainingDays} วัน**)` });
+        const remainingMs = userStat.boostUntil - now;
+        const remainingMins = Math.ceil(remainingMs / (1000 * 60));
+
+        await interaction.editReply({
+          content: `<:xp_active:1564107060021432370> เปิดใช้งาน XP x2 สำเร็จ! ( ⏱️ **${remainingMins}** นาที )\n\`Wallet : ${userStat.orbs.toLocaleString()} coins\``
+        });
+        return true;
+      }
+
+      if (item.type === 'role_temp') {
+        const threeDays = 3 * 24 * 60 * 60 * 1000;
+        userStat.artistUntil = (userStat.artistUntil && userStat.artistUntil > now ? userStat.artistUntil : now) + threeDays;
+        await saveConfigs(serverConfigs);
+
+        try {
+          const member = await interaction.guild.members.fetch(userId);
+          const role = await interaction.guild.roles.fetch(item.roleId);
+          if (role) await member.roles.add(role);
+        } catch (err) {}
+
+        await interaction.editReply({
+          content: `🎉 เช่าสำเร็จ! คุณได้รับยศ Artist และสิทธิ์แต่งการ์ดส่วนตัวเป็นเวลา 3 วัน\n\`Wallet : ${userStat.orbs.toLocaleString()} coins\``
+        });
+        return true;
+      }
+    } catch (err) {
+      userStat.orbs = originalCoins;
+      console.error('Shop purchase failed:', err);
+      await interaction.editReply({ content: '❌ การซื้อสินค้าไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' });
+      return true;
+    }
+
+    await interaction.editReply({ content: '❌ ประเภทสินค้าไม่ถูกต้อง' });
     return true;
+  } finally {
+    purchaseLocks.delete(purchaseKey);
   }
-
-  if (userCoins < item.price) {
-    await interaction.editReply({ content: `❌ coins ของคุณมีไม่พอ!\n ( คุณมี ${userCoins} coins สินค้าราคา ${item.price} coins )` });
-    return true;
-  }
-
-  const originalCoins = userStat.orbs || 0;
-  userStat.orbs = Math.max(0, originalCoins - item.price);
-
-  try {
-    if (item.type === 'gacha') {
-      const outcomes = [
-        { reward: 0, text: '<a:cuteghost:1563345975597080686> เกลือ!' },
-        { reward: 0, text: '0 coins ลองใหม่อีกครั้งนะ! <a:kitty:1563350578375950496>' },
-        { reward: 5, text: 'เศษเหรียญปลอบใจ! รับไป 5 coins <a:emoji_145:1564216100915515432>' },
-        { reward: 20, text: 'พอมีโชค! รับไป 20 coins <a:emoji_144:1564216078530514995>' },
-        { reward: 150, text: 'แจ็กพอตแตกกระจาย! รับไปเต็มๆ 150 coins <a:emoji_101:1560416845322920067>' }
-      ];
-      const roll = outcomes[Math.floor(Math.random() * outcomes.length)];
-      userStat.orbs += roll.reward;
-      await saveConfigs(serverConfigs);
-
-      await interaction.editReply({
-        content: `<a:emoji_142:1564170617240948767> **กาชาปอง**\n${roll.text}\n\`Wallet : ${userStat.orbs.toLocaleString()} coins\``
-      });
-      return true;
-    }
-
-    if (item.type === 'buff') {
-      const oneHour = 60 * 60 * 1000;
-      userStat.boostUntil = (userStat.boostUntil && userStat.boostUntil > now ? userStat.boostUntil : now) + oneHour;
-      await saveConfigs(serverConfigs);
-
-      try {
-        const member = await interaction.guild.members.fetch(userId);
-        const role = await interaction.guild.roles.fetch(item.roleId);
-        if (role) await member.roles.add(role);
-      } catch (err) {}
-
-      const remainingMs = userStat.boostUntil - now;
-      const remainingMins = Math.ceil(remainingMs / (1000 * 60));
-
-      await interaction.editReply({
-        content: `<:xp_active:1564107060021432370> เปิดใช้งาน XP x2 สำเร็จ! ( ⏱️ **${remainingMins}** นาที )\n\`Wallet : ${userStat.orbs.toLocaleString()} coins\``
-      });
-      return true;
-    }
-
-    if (item.type === 'role_temp') {
-      const threeDays = 3 * 24 * 60 * 60 * 1000;
-      userStat.artistUntil = (userStat.artistUntil && userStat.artistUntil > now ? userStat.artistUntil : now) + threeDays;
-      await saveConfigs(serverConfigs);
-
-      try {
-        const member = await interaction.guild.members.fetch(userId);
-        const role = await interaction.guild.roles.fetch(item.roleId);
-        if (role) await member.roles.add(role);
-      } catch (err) {}
-
-      await interaction.editReply({
-        content: `🎉 เช่าสำเร็จ! คุณได้รับยศ Artist และสิทธิ์แต่งการ์ดส่วนตัวเป็นเวลา 3 วัน\n\`Wallet : ${userStat.orbs.toLocaleString()} coins\``
-      });
-      return true;
-    }
-  } catch (err) {
-    userStat.orbs = originalCoins;
-    console.error('Shop purchase failed:', err);
-    await interaction.editReply({ content: '❌ การซื้อสินค้าไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' });
-  }
-
-  return true;
 }
 
 module.exports = {
