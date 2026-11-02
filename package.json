@@ -2,9 +2,9 @@
   "name": "my-discord-bot",
   "version": "1.0.0",
   "description": "Discord Bot on Render",
-  "main": "index.js",
+  "main": "src/bootstrap.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node src/bootstrap.js"
   },
   "dependencies": {
     "@napi-rs/canvas": "^0.1.62",
