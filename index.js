@@ -2,7 +2,7 @@ process.on('unhandledRejection', error => {
   console.error('Unhandled promise rejection:', error);
 });
 
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, RoleSelectMenuBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, ChannelType, RoleSelectMenuBuilder, PermissionFlagsBits } = require('discord.js');
 const http = require('http');
 const cron = require('node-cron');
 const { Redis } = require('@upstash/redis');
@@ -127,11 +127,13 @@ const httpServer = http.createServer((req, res) => {
         if (data.commits && data.repository) {
           const repoName = data.repository.name;
           const commits = data.commits;
-          let changelogText = commits.map(c => `+ ${c.message}`).join('\n');
+          const changelogText = commits.map(c => `+ ${c.message}`).join('\n');
 
           const embed = new EmbedBuilder()
             .setColor(COLORS.PRIMARY || '#2b2d31')
             .setImage('https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExbzJudGQ0bWtubTFsOG5mMWk5ZXdydXhwMjJnejZxOHVjeWtrdGlrYiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/O7BtZQ0ceoVz4pDdC7/giphy.gif')
+            .setTitle('🚀 New Release')
+            .setDescription('A new update has been published.')
             .addFields(
               { name: '🟢 Announcement Bot', value: `**Version:**\n\`${repoName}\``, inline: false },
               { name: 'Changelog:', value: `\`\`\`diff\n${changelogText}\n\`\`\``, inline: false },
@@ -200,6 +202,7 @@ async function loadConfigs() {
 
 async function saveConfigs(configs) {
   if (saveTimeout) clearTimeout(saveTimeout);
+
   saveTimeout = setTimeout(async () => {
     try {
       await redis.set('server_configs', JSON.stringify(configs));
@@ -308,7 +311,7 @@ client.once('ready', async () => {
     setPetChannelCommand,
     setPetRoleCommand,
     new SlashCommandBuilder().setName('clear').setDescription('ลบข้อความในแชทจำนวน 1-100 ข้อความ').addIntegerOption(option => option.setName('amount').setDescription('จำนวนข้อความ').setRequired(true).setMinValue(1).setMaxValue(100)),
-    new SlashCommandBuilder().setName('set-autoclear').setDescription('💎 [PREMIUM] ตั้งเวลาระบบลบข้อความอัตโนมัติ').addStringOption(option => option.setName('time').setDescription('เวลา HH:MM').setRequired(true)).addChannelOption(option => option.setName('channel').setDescription('เลือกห้อง').setRequired(true))
+    new SlashCommandBuilder().setName('set-autoclear').setDescription('💎 [PREMIUM] ตั้งเวลาระบบลบข้อความอัตโนมัติ').addStringOption(option => option.setName('time').setDescription('เวลาในรูปแบบ HH:MM').setRequired(true)).addChannelOption(option => option.setName('channel').setDescription('เลือกห้องที่ต้องการลบข้อความ').setRequired(true)),
   ].map(command => command.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
@@ -534,7 +537,7 @@ client.on('interactionCreate', async interaction => {
         await interaction.channel.bulkDelete(messages, true);
         await interaction.editReply({ content: `🧹 ลบข้อความจำนวน **${amount}** เรียบร้อย!` });
       } catch (err) {
-        await interaction.editReply({ content: '❌ เกิดข้อผิดพลาด ไม่สามารถลบข้อความเก่าเกิน 14 วันได้', ephemeral: true });
+        await interaction.editReply({ content: '❌ เกิดข้อผิดพลาด ไม่สามารถลบข้อความเก่าเกิน 14 วันได้' });
       }
       return;
     }
@@ -569,13 +572,13 @@ client.on('interactionCreate', async interaction => {
     if (await handleShopButton(interaction, serverConfigs, saveConfigs)) return;
     if (await handleArtistButton(interaction, serverConfigs)) return;
 
-    if (['toggle_welcome', 'toggle_autorole', 'toggle_level', 'toggle_voice_xp', 'edit_voice_amount', 'edit_level_rate', 'edit_level_card', 'edit_level_messages', 'set_role_reward', 'delete_role_reward', 'sec_config_time', 'edit_welcome_msg', 'test_welcome'].includes(id)) {
+    if (['toggle_welcome', 'toggle_autorole', 'toggle_level', 'toggle_voice_xp', 'edit_voice_amount', 'edit_level_rate', 'edit_level_card', 'edit_level_messages', 'set_role_reward', 'delete_role_reward', 'edit_welcome_msg', 'test_welcome', 'sec_toggle_main', 'sec_toggle_link', 'sec_toggle_spam', 'sec_toggle_mrbeast', 'sec_config_time', 'sec_reset'].includes(id)) {
       if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
         return await interaction.reply({ content: '❌ เฉพาะผู้ดูแลระบบ (Administrator) เท่านั้นถึงจะกดใช้งานปุ่มนี้ได้', ephemeral: true });
       }
     }
 
-    const modalButtons = ['edit_voice_amount', 'edit_level_rate', 'edit_level_card', 'edit_level_messages', 'set_role_reward', 'delete_role_reward', 'sec_config_time', 'edit_welcome_msg', 'test_welcome', 'select_channel'];
+    const modalButtons = ['edit_voice_amount', 'edit_level_rate', 'edit_level_card', 'edit_level_messages', 'set_role_reward', 'delete_role_reward', 'sec_config_time', 'edit_welcome_msg', 'test_welcome', 'sec_toggle_main', 'sec_toggle_link', 'sec_toggle_spam', 'sec_toggle_mrbeast', 'sec_reset'];
     if (!modalButtons.includes(id)) {
       await interaction.deferUpdate().catch(() => {});
     }
@@ -775,7 +778,7 @@ client.on('interactionCreate', async interaction => {
       pendingRoleRewardImages.delete(`${interaction.user.id}_${levelNum}`);
 
       return await interaction.editReply({
-        content: `✅ ตั้งค่ายศรางวัลสำเร็จ! ยศ <@&${selectedRoleId}> ถูกย้ายมาอยู่ที่ Level ${levelNum} เรียบร้อย!`,
+        content: `✅ ตั้งค่ายศรางวัลสำเร็จ! ยศ <@&${selectedRoleId}> ถูกย้ายมาอยู่ที่ Level ${levelNum} เรียบร้อยแล้ว!`,
         embeds: [getLevelDashboardContent(config).embeds[0]],
         components: getLevelDashboardContent(config).components
       });
@@ -870,7 +873,7 @@ function getDashboardContent(config) {
 
   const embed = new EmbedBuilder()
     .setTitle('⚙️ ตั้งค่าระบบต้อนรับ (Welcome Canvas)')
-    .setDescription('ระบบจะส่งข้อความต้อนรับพร้อมรูปการ์ด Canvas อัตโนมัติเมื่อมีสมาชิกใหม่เข้ามา')
+    .setDescription('ระบบจะส่งข้อความต้อนรับพร้อมรูปการ์ด Canvas อัตโนมัติเมื่อมีสมาชิกใหม่เข้ามาในเซิร์ฟเวอร์')
     .setColor(COLORS.DISCORD_BLURPLE)
     .addFields(
       { name: '📥 สถานะ', value: statusText, inline: true },
@@ -894,7 +897,7 @@ function getAutoroleDashboardContent(config) {
   const statusText = config.autoroleEnabled ? '✅ เปิดอยู่' : '❌ ปิดอยู่';
   const embed = new EmbedBuilder()
     .setTitle('🛡️ ตั้งค่าระบบ Autorole')
-    .setDescription('เมื่อเลือกยศด้านล่าง ระบบจะเปิดใช้งานการแจกยศอัตโนมัติให้สมาชิกใหม่')
+    .setDescription('เมื่อเลือกยศด้านล่าง ระบบจะเปิดใช้งานการแจกยศอัตโนมัติให้สมาชิกใหม่ทันที')
     .setColor(COLORS.DISCORD_BLURPLE)
     .addFields(
       { name: '📥 สถานะ', value: statusText, inline: true },
