@@ -230,7 +230,7 @@ function startVoiceXpCron(client, serverConfigs, saveConfigs) {
     if (globalUpdated) {
       await saveConfigs(serverConfigs);
     }
-  }, { timezone: "Asia/Bangkok" });
+  }, { timezone: 'Asia/Bangkok' });
 }
 
 function handleLeveling(message, serverConfigs, saveConfigs, client) {
@@ -260,9 +260,11 @@ function handleLeveling(message, serverConfigs, saveConfigs, client) {
   const min = Math.min(lConfig.minXp || 15, lConfig.maxXp || 25);
   const max = Math.max(lConfig.minXp || 15, lConfig.maxXp || 25);
   const earnedXp = Math.floor(Math.random() * (max - min + 1)) + min;
-  
+
   // ✅ ส่ง client เข้าไปเพื่อให้ระบบสัตว์เลี้ยงทำงานแจ้งเตือนได้สมบูรณ์
-  giveXpToUser(guildId, message.author.id, earnedXp, message, serverConfigs, saveConfigs, false, true, client);
+  giveXpToUser(guildId, message.author.id, earnedXp, message, serverConfigs, saveConfigs, false, true, client).catch((err) => {
+    console.error('Error in handleLeveling giveXpToUser:', err);
+  });
 }
 
 function handleCommandLeveling(interaction, serverConfigs, saveConfigs, client) {
@@ -276,7 +278,9 @@ function handleCommandLeveling(interaction, serverConfigs, saveConfigs, client) 
   if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
 
   const cmdXp = config.levelConfig.cmdXp || 20;
-  giveXpToUser(guildId, interaction.user.id, cmdXp, interaction, serverConfigs, saveConfigs, false, true, client);
+  giveXpToUser(guildId, interaction.user.id, cmdXp, interaction, serverConfigs, saveConfigs, false, true, client).catch((err) => {
+    console.error('Error in handleCommandLeveling giveXpToUser:', err);
+  });
 }
 
 const levelCommand = new SlashCommandBuilder()
@@ -295,7 +299,7 @@ async function handleLevelCommand(interaction, serverConfigs) {
 
   const config = serverConfigs[guildId] || {};
   const levels = config.levels || {};
-  const lConfig = config.levelConfig || { xpMultiplier: 100, cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD', cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**', embedColor: COLORS.PRIMARY, statsCardImageUrl: '' };
+  const lConfig = config.levelConfig || { xpMultiplier: 100, cardTitle: '📊 𝙕𝙀𝙉 𝘽𝙊𝙏 • STATS CARD', cardDescription: 'การ์ดข้อมูลเลเวลของ **{user}**', embedColor: COLORS.PRIMARY };
 
   const userStat = levels[userId] || { xp: 0, level: 1, customTheme: '' };
   const hasPremium = await isServerPremium(guildId, serverConfigs);
@@ -438,7 +442,7 @@ function getLevelDashboardContent(config) {
   );
 
   const channelRow = new ActionRowBuilder().addComponents(
-    new ChannelSelectMenuBuilder().setCustomId('select_level_channel').setPlaceholder('📂 เลือกห้องสำหรับส่งข้อความแจ้งเตือนเลเวลอัป').addChannelTypes(ChannelType.GuildText)
+    new ChannelSelectMenuBuilder().setCustomId('select_level_channel').setPlaceholder('📂 เลือกห้องสำหรับส่งข้อความแจ้งเตือนเลเวล').addChannelTypes(ChannelType.GuildText)
   );
 
   return { embeds: [embed], components: [row1, row2, row3, channelRow] };
