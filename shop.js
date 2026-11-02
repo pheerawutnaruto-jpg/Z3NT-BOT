@@ -205,7 +205,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
 
   const guildId = interaction.guildId;
   if (!(await isServerPremium(guildId, serverConfigs))) {
-    await interaction.reply({ content: '❌ ระบบร้านค้านี้ใช้งานได้เฉพาะเซิร์ฟเวอร์พรีเมียมเท่านั้น!', ephemeral: true });
+    await interaction.reply({ content: '❌ ระบบร้านค้านี้ใช้งานได้เฉพาะเซิร์ฟเวอร์พรีเมียมเท่านั้นครับ!', ephemeral: true });
     return true;
   }
 
@@ -256,7 +256,7 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
 
   if (item.type === 'role_temp' && userStat.artistUntil && userStat.artistUntil > now) {
     const remainingDays = Math.ceil((userStat.artistUntil - now) / (1000 * 60 * 60 * 24));
-    await interaction.editReply({ content: `⚠️ คุณยังมีสิทธิ์ Artist | 3d ใช้งานอยู่\n (เหลือเวลาอีกประมาณ ${remainingDays} วัน) ไม่สามารถซื้อซ้ำได้ครับ!` });
+    await interaction.editReply({ content: `⚠️ คุณยังมีสิทธิ์ Artist | 3d ใช้งานอยู่\n (เหลือเวลาอีกประมาณ **${remainingDays} วัน**)` });
     return true;
   }
 
@@ -265,62 +265,68 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
     return true;
   }
 
-  // ป้องกันเคสที่ userStat.orbs เป็น undefined แล้วกลายเป็น NaN
-  userStat.orbs = (userStat.orbs || 0) - item.price;
+  const originalCoins = userStat.orbs || 0;
+  userStat.orbs = Math.max(0, originalCoins - item.price);
 
-  if (item.type === 'gacha') {
-    const outcomes = [
-      { reward: 0, text: '<a:cuteghost:1563345975597080686> เกลือ!' },
-      { reward: 0, text: '0 coins ลองใหม่อีกครั้งนะ! <a:kitty:1563350578375950496>' },
-      { reward: 5, text: 'เศษเหรียญปลอบใจ! รับไป 5 coins <a:emoji_145:1564216100915515432>' },
-      { reward: 20, text: 'พอมีโชค! รับไป 20 coins <a:emoji_144:1564216078530514995>' },
-      { reward: 150, text: 'แจ็กพอตแตกกระจาย! รับไปเต็มๆ 150 coins <a:emoji_101:1560416845322920067>' }
-    ];
-    const roll = outcomes[Math.floor(Math.random() * outcomes.length)];
-    userStat.orbs += roll.reward;
-    await saveConfigs(serverConfigs);
+  try {
+    if (item.type === 'gacha') {
+      const outcomes = [
+        { reward: 0, text: '<a:cuteghost:1563345975597080686> เกลือ!' },
+        { reward: 0, text: '0 coins ลองใหม่อีกครั้งนะ! <a:kitty:1563350578375950496>' },
+        { reward: 5, text: 'เศษเหรียญปลอบใจ! รับไป 5 coins <a:emoji_145:1564216100915515432>' },
+        { reward: 20, text: 'พอมีโชค! รับไป 20 coins <a:emoji_144:1564216078530514995>' },
+        { reward: 150, text: 'แจ็กพอตแตกกระจาย! รับไปเต็มๆ 150 coins <a:emoji_101:1560416845322920067>' }
+      ];
+      const roll = outcomes[Math.floor(Math.random() * outcomes.length)];
+      userStat.orbs += roll.reward;
+      await saveConfigs(serverConfigs);
 
-    await interaction.editReply({ 
-      content: `<a:emoji_142:1564170617240948767> **กาชาปอง**\n${roll.text}\n\`Wallet : ${userStat.orbs.toLocaleString()} coins\`` 
-    });
-    return true;
-  }
+      await interaction.editReply({
+        content: `<a:emoji_142:1564170617240948767> **กาชาปอง**\n${roll.text}\n\`Wallet : ${userStat.orbs.toLocaleString()} coins\``
+      });
+      return true;
+    }
 
     if (item.type === 'buff') {
-    const oneHour = 60 * 60 * 1000;
-    userStat.boostUntil = (userStat.boostUntil && userStat.boostUntil > now ? userStat.boostUntil : now) + oneHour;
-    await saveConfigs(serverConfigs);
+      const oneHour = 60 * 60 * 1000;
+      userStat.boostUntil = (userStat.boostUntil && userStat.boostUntil > now ? userStat.boostUntil : now) + oneHour;
+      await saveConfigs(serverConfigs);
 
-    try {
-      const member = await interaction.guild.members.fetch(userId);
-      const role = await interaction.guild.roles.fetch(item.roleId);
-      if (role) await member.roles.add(role);
-    } catch (err) {}
+      try {
+        const member = await interaction.guild.members.fetch(userId);
+        const role = await interaction.guild.roles.fetch(item.roleId);
+        if (role) await member.roles.add(role);
+      } catch (err) {}
 
-    const remainingMs = userStat.boostUntil - now;
-    const remainingMins = Math.ceil(remainingMs / (1000 * 60));
+      const remainingMs = userStat.boostUntil - now;
+      const remainingMins = Math.ceil(remainingMs / (1000 * 60));
 
-    await interaction.editReply({ 
-      content: `<:xp_active:1564107060021432370> เปิดใช้งาน XP x2 สำเร็จ! ( ⏱️ **${remainingMins}** นาที )\n\`Wallet : ${userStat.orbs.toLocaleString()} coins\`` 
-    });
-    return true;
-  }
+      await interaction.editReply({
+        content: `<:xp_active:1564107060021432370> เปิดใช้งาน XP x2 สำเร็จ! ( ⏱️ **${remainingMins}** นาที )\n\`Wallet : ${userStat.orbs.toLocaleString()} coins\``
+      });
+      return true;
+    }
 
-  if (item.type === 'role_temp') {
-    const threeDays = 3 * 24 * 60 * 60 * 1000;
-    userStat.artistUntil = (userStat.artistUntil && userStat.artistUntil > now ? userStat.artistUntil : now) + threeDays;
-    await saveConfigs(serverConfigs);
+    if (item.type === 'role_temp') {
+      const threeDays = 3 * 24 * 60 * 60 * 1000;
+      userStat.artistUntil = (userStat.artistUntil && userStat.artistUntil > now ? userStat.artistUntil : now) + threeDays;
+      await saveConfigs(serverConfigs);
 
-    try {
-      const member = await interaction.guild.members.fetch(userId);
-      const role = await interaction.guild.roles.fetch(item.roleId);
-      if (role) await member.roles.add(role);
-    } catch (err) {}
+      try {
+        const member = await interaction.guild.members.fetch(userId);
+        const role = await interaction.guild.roles.fetch(item.roleId);
+        if (role) await member.roles.add(role);
+      } catch (err) {}
 
-    await interaction.editReply({ 
-      content: `🎉 เช่าสำเร็จ! คุณได้รับยศ Artist และสิทธิ์แต่งการ์ดส่วนตัวเป็นเวลา 3 วันเต็ม!\n\`Wallet : ${userStat.orbs.toLocaleString()} coins\`` 
-    });
-    return true;
+      await interaction.editReply({
+        content: `🎉 เช่าสำเร็จ! คุณได้รับยศ Artist และสิทธิ์แต่งการ์ดส่วนตัวเป็นเวลา 3 วัน\n\`Wallet : ${userStat.orbs.toLocaleString()} coins\``
+      });
+      return true;
+    }
+  } catch (err) {
+    userStat.orbs = originalCoins;
+    console.error('Shop purchase failed:', err);
+    await interaction.editReply({ content: '❌ การซื้อสินค้าไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' });
   }
 
   return true;
