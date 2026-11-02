@@ -2,13 +2,13 @@ process.on('unhandledRejection', error => {
   console.error('Unhandled promise rejection:', error);
 });
 
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, ChannelType, RoleSelectMenuBuilder, PermissionFlagsBits } = require('discord.js');
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, RoleSelectMenuBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
 const http = require('http');
 const cron = require('node-cron');
 const { Redis } = require('@upstash/redis');
 
 const { validateEnv, getGuildId } = require('./src/config/env');
-const { debugLog } = require('./src/utils/debug');
+const { debugLog, debugError } = require('./src/utils/debug');
 
 validateEnv();
 const TEST_GUILD_ID = getGuildId();
@@ -92,7 +92,31 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
 });
 
+const bootHealth = {
+  startedAt: Date.now(),
+  readyAt: null,
+  ready: false,
+  guildCount: 0,
+  lastInteractionAt: null,
+  lastCommandName: null,
+};
+
 const httpServer = http.createServer((req, res) => {
+  if (req.method === 'GET' && req.url === '/health') {
+    const uptimeSeconds = Math.max(0, Math.floor((Date.now() - bootHealth.startedAt) / 1000));
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      status: bootHealth.ready ? 'ok' : 'starting',
+      ready: bootHealth.ready,
+      uptimeSeconds,
+      guildCount: bootHealth.guildCount,
+      lastInteractionAt: bootHealth.lastInteractionAt,
+      lastCommandName: bootHealth.lastCommandName,
+      timestamp: new Date().toISOString()
+    }));
+    return;
+  }
+
   if (req.method === 'POST' && req.url === '/github-webhook') {
     let body = '';
     req.on('data', chunk => { body += chunk; });
@@ -125,7 +149,7 @@ const httpServer = http.createServer((req, res) => {
                   }
                 }
               } catch (err) {
-                console.error('Error sending github log:', err);
+                debugError('Error sending github log', err);
               }
             }
           }
@@ -134,7 +158,7 @@ const httpServer = http.createServer((req, res) => {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ status: 'success' }));
       } catch (e) {
-        console.error('Webhook parse error:', e);
+        debugError('Webhook parse error', e);
         res.writeHead(400, { 'Content-Type': 'text/plain' });
         res.end('Bad Request');
       }
@@ -145,7 +169,9 @@ const httpServer = http.createServer((req, res) => {
   }
 });
 
-httpServer.listen(process.env.PORT || 3000);
+httpServer.listen(process.env.PORT || 3000, () => {
+  debugLog('HTTP health endpoint listening', { port: process.env.PORT || 3000 });
+});
 
 const client = new Client({
   intents: [
@@ -167,7 +193,7 @@ async function loadConfigs() {
       return typeof data === 'string' ? JSON.parse(data) : data;
     }
   } catch (e) {
-    console.error('Error loading config from Redis:', e);
+    debugError('Error loading config from Redis', e);
   }
   return {};
 }
@@ -178,7 +204,7 @@ async function saveConfigs(configs) {
     try {
       await redis.set('server_configs', JSON.stringify(configs));
     } catch (e) {
-      console.error('Error saving config to Redis:', e);
+      debugError('Error saving config to Redis', e);
     }
   }, 1500);
 }
@@ -242,6 +268,10 @@ const spamTracker = new Map();
 client.once('ready', async () => {
   serverConfigs = await loadConfigs();
   console.log(`Bot Online แล้วจ้า: ${client.user.tag}`);
+  bootHealth.ready = true;
+  bootHealth.readyAt = Date.now();
+  bootHealth.guildCount = client.guilds.cache.size;
+
   debugLog('Bot ready', { tag: client.user.tag, testGuildId: TEST_GUILD_ID, guildCount: client.guilds.cache.size });
 
   startVoiceXpCron(client, serverConfigs, saveConfigs);
@@ -254,7 +284,7 @@ client.once('ready', async () => {
     new SlashCommandBuilder().setName('set-autorole').setDescription('ตั้งค่าระบบแจกยศอัตโนมัติสำหรับสมาชิกใหม่').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     new SlashCommandBuilder().setName('set-security').setDescription('เปิดแผงควบคุมระบบป้องกันความปลอดภัยขั้นสูง').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     new SlashCommandBuilder().setName('bot-info').setDescription('✨ แสดงข้อมูลและหน้าพรีเซนต์แนะนำตัวของ Zen Bot'),
-    new SlashCommandBuilder().setName('set-dev-log').setDescription('🛠️ ตั้งค่าห้องสำหรับรับแจ้งเตือน Live GitHub Dev Stream').addChannelOption(option => option.setName('channel').setDescription('เลือกห้องรับแจ้งเตือนโค้ดอัปเดต').addChannelTypes(ChannelType.GuildText)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('set-dev-log').setDescription('🛠️ ตั้งค่าห้องสำหรับรับแจ้งเตือน Live GitHub Dev Stream').addChannelOption(option => option.setName('channel').setDescription('เลือกห้อง').setRequired(true)),
     levelCommand,
     leaderboardCommand,
     setupQuestCommand,
@@ -277,8 +307,8 @@ client.once('ready', async () => {
     petLeaderboardCommand,
     setPetChannelCommand,
     setPetRoleCommand,
-    new SlashCommandBuilder().setName('clear').setDescription('ลบข้อความในแชทจำนวน 1-100 ข้อความ').addIntegerOption(option => option.setName('amount').setDescription('จำนวนข้อความที่ต้องการลบ (1-100)').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
-    new SlashCommandBuilder().setName('set-autoclear').setDescription('💎 [PREMIUM] ตั้งเวลาระบบลบข้อความอัตโนมัติ').addStringOption(option => option.setName('time').setDescription('ระบุเวลาในรูปแบบ HH:MM เช่น 06:00').setRequired(true)).addChannelOption(option => option.setName('channel').setDescription('เลือกห้องที่ต้องการให้ลบข้อความอัตโนมัติ').addChannelTypes(ChannelType.GuildText)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('clear').setDescription('ลบข้อความในแชทจำนวน 1-100 ข้อความ').addIntegerOption(option => option.setName('amount').setDescription('จำนวนข้อความ').setRequired(true).setMinValue(1).setMaxValue(100)),
+    new SlashCommandBuilder().setName('set-autoclear').setDescription('💎 [PREMIUM] ตั้งเวลาระบบลบข้อความอัตโนมัติ').addStringOption(option => option.setName('time').setDescription('เวลา HH:MM').setRequired(true)).addChannelOption(option => option.setName('channel').setDescription('เลือกห้อง').setRequired(true))
   ].map(command => command.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
@@ -286,14 +316,16 @@ client.once('ready', async () => {
   try {
     if (TEST_GUILD_ID) {
       await rest.put(Routes.applicationGuildCommands(client.user.id, TEST_GUILD_ID), { body: commands });
-      console.log(`ลงทะเบียนคำสั่งสำหรับ guild ${TEST_GUILD_ID} สำเร็จ!`);
+      debugLog('Slash command registration complete', { guildId: TEST_GUILD_ID, commandCount: commands.length });
     } else {
       await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
-      console.log('ลงทะเบียนคำสั่งทั้งหมดสำเร็จเรียบร้อย!');
+      debugLog('Slash command registration complete', { mode: 'global', commandCount: commands.length });
     }
   } catch (error) {
-    console.error('Command register failed:', error);
+    debugError('Command register failed', error);
   }
+
+  debugLog('Bot health checks active', { ready: bootHealth.ready, port: process.env.PORT || 3000 });
 
   for (const guildId in serverConfigs) {
     const config = serverConfigs[guildId];
@@ -325,7 +357,7 @@ function setupCronJob(guildId, timeStr, channelId) {
         console.log(`✅ ลบข้อความอัตโนมัติเวลา ${timeStr} สำเร็จในห้อง #${channel.name}`);
       }
     } catch (err) {
-      console.error(`❌ เกิดข้อผิดพลาดในการลบข้อความอัตโนมัติ (Guild: ${guildId}):`, err);
+      debugError(`Auto-clear error for guild ${guildId}`, err);
     }
   }, { timezone: 'Asia/Bangkok' });
 }
@@ -364,7 +396,7 @@ client.on('guildMemberAdd', async member => {
         await member.roles.add(role);
       }
     } catch (err) {
-      console.error('Autorole error:', err);
+      debugError('Autorole error', err);
     }
   }
 
@@ -382,11 +414,16 @@ client.on('guildMemberAdd', async member => {
 
     await channel.send({ content: finalDesc, files: [attachment] });
   } catch (err) {
-    console.error('Send welcome error:', err);
+    debugError('Send welcome error', err);
   }
 });
 
 client.on('interactionCreate', async interaction => {
+  bootHealth.lastInteractionAt = Date.now();
+  if (interaction.isChatInputCommand()) {
+    bootHealth.lastCommandName = interaction.commandName;
+  }
+
   debugLog('Interaction received', {
     type: interaction.type,
     commandName: interaction.isChatInputCommand() ? interaction.commandName : null,
@@ -497,7 +534,7 @@ client.on('interactionCreate', async interaction => {
         await interaction.channel.bulkDelete(messages, true);
         await interaction.editReply({ content: `🧹 ลบข้อความจำนวน **${amount}** เรียบร้อย!` });
       } catch (err) {
-        await interaction.editReply({ content: '❌ เกิดข้อผิดพลาด ไม่สามารถลบข้อความเก่าเกิน 14 วันได้' });
+        await interaction.editReply({ content: '❌ เกิดข้อผิดพลาด ไม่สามารถลบข้อความเก่าเกิน 14 วันได้', ephemeral: true });
       }
       return;
     }
@@ -532,13 +569,13 @@ client.on('interactionCreate', async interaction => {
     if (await handleShopButton(interaction, serverConfigs, saveConfigs)) return;
     if (await handleArtistButton(interaction, serverConfigs)) return;
 
-    if (['toggle_welcome', 'toggle_autorole', 'toggle_level', 'toggle_voice_xp', 'edit_voice_amount', 'edit_level_rate', 'edit_level_card', 'edit_level_messages', 'set_role_reward', 'delete_role_reward', 'edit_welcome_msg', 'test_welcome', 'sec_toggle_main', 'sec_toggle_link', 'sec_toggle_spam', 'sec_toggle_mrbeast', 'sec_config_time', 'sec_reset'].includes(id) || id.startsWith('sec_')) {
+    if (['toggle_welcome', 'toggle_autorole', 'toggle_level', 'toggle_voice_xp', 'edit_voice_amount', 'edit_level_rate', 'edit_level_card', 'edit_level_messages', 'set_role_reward', 'delete_role_reward', 'sec_config_time', 'edit_welcome_msg', 'test_welcome'].includes(id)) {
       if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-        return await interaction.reply({ content: '❌ เฉพาะผู้ดูแลระบบ (Administrator) เท่านั้นถึงจะกดใช้งานปุ่มได้', ephemeral: true });
+        return await interaction.reply({ content: '❌ เฉพาะผู้ดูแลระบบ (Administrator) เท่านั้นถึงจะกดใช้งานปุ่มนี้ได้', ephemeral: true });
       }
     }
 
-    const modalButtons = ['edit_voice_amount', 'edit_level_rate', 'edit_level_card', 'edit_level_messages', 'set_role_reward', 'delete_role_reward', 'sec_config_time', 'edit_welcome_msg', 'test_welcome'];
+    const modalButtons = ['edit_voice_amount', 'edit_level_rate', 'edit_level_card', 'edit_level_messages', 'set_role_reward', 'delete_role_reward', 'sec_config_time', 'edit_welcome_msg', 'test_welcome', 'select_channel'];
     if (!modalButtons.includes(id)) {
       await interaction.deferUpdate().catch(() => {});
     }
@@ -609,7 +646,7 @@ client.on('interactionCreate', async interaction => {
     }
     if (id === 'edit_welcome_msg') {
       const modal = new ModalBuilder().setCustomId('editWelcomeMsgModal').setTitle('แก้ไขข้อความต้อนรับ');
-      const descInput = new TextInputBuilder().setCustomId('welcomeDesc').setLabel('ข้อความต้อนรับ (ใช้ {user} และ {server} ได้)').setStyle(TextInputStyle.Paragraph).setValue(config.embed?.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}**').setRequired(true);
+      const descInput = new TextInputBuilder().setCustomId('welcomeDesc').setLabel('ข้อความต้อนรับ (ใช้ {user} และ {server} ได้)').setStyle(TextInputStyle.Paragraph).setValue(config.embed?.description || '').setRequired(true);
       modal.addComponents(new ActionRowBuilder().addComponents(descInput));
       return await interaction.showModal(modal);
     }
@@ -627,7 +664,7 @@ client.on('interactionCreate', async interaction => {
           await channel.send({ content: finalDesc, files: [attachment] });
         }
       } catch (err) {
-        console.error('Test welcome error:', err);
+        debugError('Test welcome error', err);
       }
       return;
     }
@@ -738,7 +775,7 @@ client.on('interactionCreate', async interaction => {
       pendingRoleRewardImages.delete(`${interaction.user.id}_${levelNum}`);
 
       return await interaction.editReply({
-        content: `✅ ตั้งค่ายศรางวัลสำเร็จ! ยศ <@&${selectedRoleId}> ถูกย้ายมาอยู่ที่ Level ${levelNum} เรียบร้อย`,
+        content: `✅ ตั้งค่ายศรางวัลสำเร็จ! ยศ <@&${selectedRoleId}> ถูกย้ายมาอยู่ที่ Level ${levelNum} เรียบร้อย!`,
         embeds: [getLevelDashboardContent(config).embeds[0]],
         components: getLevelDashboardContent(config).components
       });
@@ -895,4 +932,3 @@ async function sendAutoroleDashboard(target) {
 }
 
 client.login(process.env.DISCORD_TOKEN);
-
