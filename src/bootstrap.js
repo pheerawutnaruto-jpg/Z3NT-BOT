@@ -1,6 +1,6 @@
 const { validateEnv, getGuildId } = require('./config/env');
 const { debugLog } = require('./utils/debug');
-const { patchGuildCommandRegistration } = require('./discord/commandRegistration');
+const { patchGuildCommandRegistration } = require('./commandRegistration');
 
 validateEnv();
 patchGuildCommandRegistration();
