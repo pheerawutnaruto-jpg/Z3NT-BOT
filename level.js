@@ -233,7 +233,7 @@ function startVoiceXpCron(client, serverConfigs, saveConfigs) {
   }, { timezone: 'Asia/Bangkok' });
 }
 
-function handleLeveling(message, serverConfigs, saveConfigs, client) {
+async function handleLeveling(message, serverConfigs, saveConfigs, client) {
   if (!message.guild || message.author.bot) return;
 
   const guildId = message.guild.id;
@@ -261,13 +261,14 @@ function handleLeveling(message, serverConfigs, saveConfigs, client) {
   const max = Math.max(lConfig.minXp || 15, lConfig.maxXp || 25);
   const earnedXp = Math.floor(Math.random() * (max - min + 1)) + min;
 
-  // ✅ ส่ง client เข้าไปเพื่อให้ระบบสัตว์เลี้ยงทำงานแจ้งเตือนได้สมบูรณ์
-  giveXpToUser(guildId, message.author.id, earnedXp, message, serverConfigs, saveConfigs, false, true, client).catch((err) => {
+  try {
+    await giveXpToUser(guildId, message.author.id, earnedXp, message, serverConfigs, saveConfigs, false, true, client);
+  } catch (err) {
     console.error('Error in handleLeveling giveXpToUser:', err);
-  });
+  }
 }
 
-function handleCommandLeveling(interaction, serverConfigs, saveConfigs, client) {
+async function handleCommandLeveling(interaction, serverConfigs, saveConfigs, client) {
   if (!interaction.guild || interaction.user.bot) return;
 
   const guildId = interaction.guild.id;
@@ -278,9 +279,11 @@ function handleCommandLeveling(interaction, serverConfigs, saveConfigs, client) 
   if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
 
   const cmdXp = config.levelConfig.cmdXp || 20;
-  giveXpToUser(guildId, interaction.user.id, cmdXp, interaction, serverConfigs, saveConfigs, false, true, client).catch((err) => {
+  try {
+    await giveXpToUser(guildId, interaction.user.id, cmdXp, interaction, serverConfigs, saveConfigs, false, true, client);
+  } catch (err) {
     console.error('Error in handleCommandLeveling giveXpToUser:', err);
-  });
+  }
 }
 
 const levelCommand = new SlashCommandBuilder()
