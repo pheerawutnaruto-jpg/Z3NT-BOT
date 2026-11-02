@@ -109,16 +109,25 @@ async function handleSecurityMessage(message, config, spamTracker) {
   const rawTimeout = sec.timeoutSeconds || 60;
   const timeoutMs = rawTimeout >= 1000 ? rawTimeout : rawTimeout * 1000;
 
-  // 1. ตรวจสอบ Anti-Link
+  // 1. ตรวจสอบ Anti-Link เฉพาะ Discord invite เท่านั้น
   if (sec.antiLink) {
     const inviteRegex = /(discord\.(gg|io|me|li)|discordapp\.com\/invite|discord\.com\/invite)\/[a-zA-Z0-9]+/i;
-    const urlRegex = /https?:\/\/[^\s]+/i;
-    if (inviteRegex.test(content) || urlRegex.test(content)) {
-      await message.delete().catch(() => {});
+    if (inviteRegex.test(content)) {
+      try {
+        await message.delete();
+      } catch (err) {
+        // ignore delete failures; still apply punishment if possible
+      }
+
       await applyPunishment(message.member, sec.actions?.invite, timeoutMs, 'Anti-Link Protection');
-      message.channel.send({ content: `⚠️ <@${message.author.id}> ห้ามส่งลิงก์ในห้องนี้ครับ!` }).then(msg => {
-        setTimeout(() => msg.delete().catch(() => {}), 4000);
-      }).catch(() => {});
+
+      try {
+        const sent = await message.channel.send({ content: `⚠️ <@${message.author.id}> ห้ามส่งลิงก์ในห้องนี้ครับ!` });
+        setTimeout(() => sent.delete().catch(() => {}), 4000);
+      } catch (err) {
+        // ignore notification failures
+      }
+
       return true;
     }
   }
@@ -128,34 +137,63 @@ async function handleSecurityMessage(message, config, spamTracker) {
     const beastKeywords = ['mrbeast', 'giveaway free nitro', 'claim free nitro', 'steam gift card free'];
     const lowerContent = content.toLowerCase();
     if (beastKeywords.some(keyword => lowerContent.includes(keyword))) {
-      await message.delete().catch(() => {});
+      try {
+        await message.delete();
+      } catch (err) {
+        // ignore delete failures
+      }
+
       await applyPunishment(message.member, sec.actions?.mrbeast || { timeout: true }, timeoutMs, 'Anti-MrBeast Auto-Punish');
-      await message.channel.send({ content: `🚨 ตรวจพบบอทสแปมหลอกลวง (<@${message.author.id}>) ทำการลบข้อความและลงโทษเรียบร้อย!` }).catch(() => {});
+
+      try {
+        const sent = await message.channel.send({ content: `🚨 ตรวจพบบอทสแปมหลอกลวง (<@${message.author.id}>) ทำการลบข้อความและลงโทษตามกฎความปลอดภัย` });
+        setTimeout(() => sent.delete().catch(() => {}), 5000);
+      } catch (err) {
+        // ignore notification failures
+      }
+
       return true;
     }
   }
 
-  // 3. ตรวจสอบ Anti-Spam
+  // 3. ตรวจสอบ Anti-Spam + cleanup memory
   if (sec.antiSpam) {
     const userId = message.author.id;
     const now = Date.now();
     if (!spamTracker.has(userId)) {
       spamTracker.set(userId, []);
     }
+
     const timestamps = spamTracker.get(userId);
     timestamps.push(now);
 
     const windowMs = (sec.spamSeconds || 6) * 1000;
     const recentMessages = timestamps.filter(time => now - time < windowMs);
-    spamTracker.set(userId, recentMessages);
+
+    if (recentMessages.length > 200) {
+      spamTracker.delete(userId);
+      spamTracker.set(userId, recentMessages.slice(-200));
+    } else {
+      spamTracker.set(userId, recentMessages);
+    }
 
     if (recentMessages.length >= (sec.spamCount || 3)) {
-      await message.delete().catch(() => {});
+      try {
+        await message.delete();
+      } catch (err) {
+        // ignore delete failures
+      }
+
       spamTracker.set(userId, []);
       await applyPunishment(message.member, sec.actions?.spam || { timeout: true }, timeoutMs, 'Anti-Spam Auto-Punish');
-      message.channel.send({ content: `⚠️ <@${userId}> คุณพิมพ์ข้อความเร็วเกินไป (สแปม) จึงถูกลงโทษตามกฎของเซิร์ฟเวอร์!` }).then(msg => {
-        setTimeout(() => msg.delete().catch(() => {}), 5000);
-      }).catch(() => {});
+
+      try {
+        const sent = await message.channel.send({ content: `⚠️ <@${userId}> คุณพิมพ์ข้อความเร็วเกินไป (สแปม) จึงถูกลงโทษตามกฎความปลอดภัย` });
+        setTimeout(() => sent.delete().catch(() => {}), 5000);
+      } catch (err) {
+        // ignore notification failures
+      }
+
       return true;
     }
   }
