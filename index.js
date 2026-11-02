@@ -2,10 +2,16 @@ process.on('unhandledRejection', error => {
   console.error('Unhandled promise rejection:', error);
 });
 
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, RoleSelectMenuBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, ChannelType, RoleSelectMenuBuilder, PermissionFlagsBits } = require('discord.js');
 const http = require('http');
 const cron = require('node-cron');
 const { Redis } = require('@upstash/redis');
+
+const { validateEnv, getGuildId } = require('./src/config/env');
+const { debugLog } = require('./src/utils/debug');
+
+validateEnv();
+const TEST_GUILD_ID = getGuildId();
 
 const { IMAGES, COLORS } = require('./constants');
 const { getSecurityDashboardContent, handleSecurityMessage } = require('./security');
@@ -43,7 +49,7 @@ const {
   setupCinemaCommand,
   cinemaBroadcastCommand,
   handleSetupCinemaCommand,
-  handleCinemaBroadcastCommand, // ✅ นำเข้าฟังก์ชันที่ถูกต้อง
+  handleCinemaBroadcastCommand,
   handleCinemaButton,
   handleCinemaSelect,
   handleCinemaModal
@@ -61,8 +67,6 @@ const {
   handleSetupShowcaseCommand,
   handleShowcaseMessage
 } = require('./media_showcase');
-
-// 🐾 นำเข้าระบบ Zen Pet จาก companion.js (รวมถึง startPetHatchCron)
 const {
   rollRandomPet,
   petShopCommand,
@@ -88,7 +92,6 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
 });
 
-// 🌐 HTTP Server รองรับทั้ง Health Check และ GitHub Webhook
 const httpServer = http.createServer((req, res) => {
   if (req.method === 'POST' && req.url === '/github-webhook') {
     let body = '';
@@ -96,11 +99,10 @@ const httpServer = http.createServer((req, res) => {
     req.on('end', async () => {
       try {
         const data = JSON.parse(body);
-        
+
         if (data.commits && data.repository) {
           const repoName = data.repository.name;
           const commits = data.commits;
-          
           let changelogText = commits.map(c => `+ ${c.message}`).join('\n');
 
           const embed = new EmbedBuilder()
@@ -128,7 +130,7 @@ const httpServer = http.createServer((req, res) => {
             }
           }
         }
-        
+
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ status: 'success' }));
       } catch (e) {
@@ -142,6 +144,7 @@ const httpServer = http.createServer((req, res) => {
     res.end('Bot is running!\n');
   }
 });
+
 httpServer.listen(process.env.PORT || 3000);
 
 const client = new Client({
@@ -222,7 +225,7 @@ function ensureGuildConfig(guildId) {
   }
   if (!config.levelConfig.roleRewards) config.levelConfig.roleRewards = {};
   if (!config.embed) {
-    config.embed = { description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!' };
+    config.embed = { description: '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}**' };
   }
   if (!config.autoClear) {
     config.autoClear = { enabled: false, time: '06:00', channelId: null };
@@ -239,6 +242,7 @@ const spamTracker = new Map();
 client.once('ready', async () => {
   serverConfigs = await loadConfigs();
   console.log(`Bot Online แล้วจ้า: ${client.user.tag}`);
+  debugLog('Bot ready', { tag: client.user.tag, testGuildId: TEST_GUILD_ID, guildCount: client.guilds.cache.size });
 
   startVoiceXpCron(client, serverConfigs, saveConfigs);
   startPetHatchCron(client, serverConfigs, saveConfigs);
@@ -250,11 +254,7 @@ client.once('ready', async () => {
     new SlashCommandBuilder().setName('set-autorole').setDescription('ตั้งค่าระบบแจกยศอัตโนมัติสำหรับสมาชิกใหม่').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     new SlashCommandBuilder().setName('set-security').setDescription('เปิดแผงควบคุมระบบป้องกันความปลอดภัยขั้นสูง').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     new SlashCommandBuilder().setName('bot-info').setDescription('✨ แสดงข้อมูลและหน้าพรีเซนต์แนะนำตัวของ Zen Bot'),
-    new SlashCommandBuilder()
-      .setName('set-dev-log')
-      .setDescription('🛠️ ตั้งค่าห้องสำหรับรับแจ้งเตือน Live GitHub Dev Stream')
-      .addChannelOption(option => option.setName('channel').setDescription('เลือกห้องรับแจ้งเตือนโค้ดอัปเดต').addChannelTypes(ChannelType.GuildText).setRequired(true))
-      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('set-dev-log').setDescription('🛠️ ตั้งค่าห้องสำหรับรับแจ้งเตือน Live GitHub Dev Stream').addChannelOption(option => option.setName('channel').setDescription('เลือกห้องรับแจ้งเตือนโค้ดอัปเดต').addChannelTypes(ChannelType.GuildText)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     levelCommand,
     leaderboardCommand,
     setupQuestCommand,
@@ -277,22 +277,22 @@ client.once('ready', async () => {
     petLeaderboardCommand,
     setPetChannelCommand,
     setPetRoleCommand,
-    new SlashCommandBuilder().setName('clear').setDescription('ลบข้อความในแชทจำนวน 1-100 ข้อความ')
-      .addIntegerOption(option => option.setName('amount').setDescription('จำนวนข้อความที่ต้องการลบ (1-100)').setRequired(true))
-      .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
-    new SlashCommandBuilder().setName('set-autoclear').setDescription('💎 [PREMIUM] ตั้งเวลาระบบลบข้อความอัตโนมัติ')
-      .addStringOption(option => option.setName('time').setDescription('ระบุเวลาในรูปแบบ HH:MM เช่น 06:00').setRequired(true))
-      .addChannelOption(option => option.setName('channel').setDescription('เลือกห้องที่ต้องการให้ลบข้อความอัตโนมัติ').addChannelTypes(ChannelType.GuildText).setRequired(true))
-      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('clear').setDescription('ลบข้อความในแชทจำนวน 1-100 ข้อความ').addIntegerOption(option => option.setName('amount').setDescription('จำนวนข้อความที่ต้องการลบ (1-100)').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
+    new SlashCommandBuilder().setName('set-autoclear').setDescription('💎 [PREMIUM] ตั้งเวลาระบบลบข้อความอัตโนมัติ').addStringOption(option => option.setName('time').setDescription('ระบุเวลาในรูปแบบ HH:MM เช่น 06:00').setRequired(true)).addChannelOption(option => option.setName('channel').setDescription('เลือกห้องที่ต้องการให้ลบข้อความอัตโนมัติ').addChannelTypes(ChannelType.GuildText)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
   ].map(command => command.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 
   try {
-    await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
-    console.log('ลงทะเบียนคำสั่งทั้งหมดสำเร็จเรียบร้อย!');
+    if (TEST_GUILD_ID) {
+      await rest.put(Routes.applicationGuildCommands(client.user.id, TEST_GUILD_ID), { body: commands });
+      console.log(`ลงทะเบียนคำสั่งสำหรับ guild ${TEST_GUILD_ID} สำเร็จ!`);
+    } else {
+      await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
+      console.log('ลงทะเบียนคำสั่งทั้งหมดสำเร็จเรียบร้อย!');
+    }
   } catch (error) {
-    console.error(error);
+    console.error('Command register failed:', error);
   }
 
   for (const guildId in serverConfigs) {
@@ -327,7 +327,7 @@ function setupCronJob(guildId, timeStr, channelId) {
     } catch (err) {
       console.error(`❌ เกิดข้อผิดพลาดในการลบข้อความอัตโนมัติ (Guild: ${guildId}):`, err);
     }
-  }, { timezone: "Asia/Bangkok" });
+  }, { timezone: 'Asia/Bangkok' });
 }
 
 client.on('messageCreate', async message => {
@@ -375,7 +375,7 @@ client.on('guildMemberAdd', async member => {
     if (!channel) return;
 
     const attachment = await generateWelcomeCard(member);
-    const defaultDesc = '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!';
+    const defaultDesc = '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}**';
     const finalDesc = (config.embed?.description || defaultDesc)
       .replace('{user}', `${member}`)
       .replace('{server}', member.guild.name);
@@ -387,6 +387,14 @@ client.on('guildMemberAdd', async member => {
 });
 
 client.on('interactionCreate', async interaction => {
+  debugLog('Interaction received', {
+    type: interaction.type,
+    commandName: interaction.isChatInputCommand() ? interaction.commandName : null,
+    customId: interaction.isButton() || interaction.isStringSelectMenu() || interaction.isChannelSelectMenu() || interaction.isRoleSelectMenu() || interaction.isModalSubmit() ? interaction.customId : null,
+    guildId: interaction.guildId,
+    userId: interaction.user?.id
+  });
+
   const guildId = interaction.guildId;
   if (!guildId) return;
 
@@ -428,20 +436,28 @@ client.on('interactionCreate', async interaction => {
 
     const cmd = interaction.commandName;
 
-    if (cmd === 'pet-shop') return await handlePetShopCommand(interaction);
-    if (cmd === 'pet') return await handlePetCommand(interaction, serverConfigs, saveConfigs, client);
-    if (cmd === 'pet-battle') return await handlePetBattleCommand(interaction, serverConfigs, client);
-    if (cmd === 'pet-leaderboard') return await handlePetLeaderboardCommand(interaction, serverConfigs);
-    if (cmd === 'set-pet-channel') {
-      if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-        return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
-      }
-      const channel = interaction.options.getChannel('channel');
-      config.petChannelId = channel.id;
-      await saveConfigs(serverConfigs);
-      return await interaction.reply({ content: `✅ ตั้งค่าห้องแจ้งเตือนสัตว์เลี้ยงเรียบร้อยที่: ${channel}`, ephemeral: true });
+    if (cmd === 'ping') {
+      return await interaction.reply({ content: 'Pong! 🏓 บอททำงานระบบ Slash Command ปกติบน Render ครับ 🚀', ephemeral: true });
     }
-    if (cmd === 'set-pet-role') return await handleSetPetRoleCommand(interaction, serverConfigs, saveConfigs);
+    if (cmd === 'bot-info') {
+      const embed = new EmbedBuilder()
+        .setTitle('🤖 𝙕𝙀𝙉 𝘽𝙊𝙏 • OFFICIAL PRESENTATION')
+        .setDescription('**ระบบจัดการและปกป้องเซิร์ฟเวอร์แบบครบวงจร** ✨\n\n' +
+          '🚀 **ฟีเจอร์เด่นภายในบอท:**\n' +
+          '> 🛡️ **Advanced Security:** ระบบป้องกันลิงก์สแปม และบอทหลอกลวงพร้อมบทลงโทษอัตโนมัติ\n' +
+          '> 📊 **Leveling & Voice XP:** ระบบเก็บเลเวลทั้งแชทและห้องเสียงพร้อมการ์ดโปรไฟล์\n' +
+          '> 🐾 **Zen Pet System:** ระบบเลี้ยงสัตว์และลานประลอง\n' +
+          '> 🎁 **Daily Quest:** เควสต์สุ่มแจก Zen Coins ฟรี\n' +
+          '> 🛒 **Automated Store:** ระบบร้านค้าสกินและยศ\n' +
+          '> 🛠️ **Dev Stream:** ระบบสตรีมโค้ดและรายงาน Commit สดจาก GitHub')
+        .setColor(COLORS.PRIMARY)
+        .setImage(IMAGES.BOT_PRESENTATION)
+        .setTimestamp()
+        .setFooter({ text: 'Powered by Zen Bot Technology' });
+
+      return await interaction.reply({ embeds: [embed], ephemeral: true });
+    }
+
     if (cmd === 'set-dev-log') {
       if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
         return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
@@ -450,47 +466,6 @@ client.on('interactionCreate', async interaction => {
       config.devLogChannelId = channel.id;
       await saveConfigs(serverConfigs);
       return await interaction.reply({ content: `✅ ตั้งค่าห้องรับแจ้งเตือน GitHub Dev Stream เรียบร้อยที่: ${channel}`, ephemeral: true });
-    }
-
-    const adminCommands = [
-      'setup-quest', 'setup-in-game-shop', 'setup-order-ticket', 'add-coins',
-      'grant-premium', 'setup-artist-card', 'setup-media-guard', 'setup-showcase',
-      'cinema-setup', 'cinema-broadcast', 'auto-cinema', 'set-level', 'set-security',
-      'set-autoclear', 'set-welcome', 'set-autorole', 'set-role-reward', 'set-dev-log',
-      'pet-shop', 'set-pet-channel', 'set-pet-role'
-    ];
-
-    if (adminCommands.includes(cmd)) {
-      if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-        return await interaction.reply({ content: '❌ เฉพาะผู้ดูแลระบบ (Administrator) เท่านั้นถึงจะใช้คำสั่งนี้ได้!', ephemeral: true });
-      }
-    }
-
-    if (cmd === 'ping') {
-      return await interaction.reply({ content: 'Pong! 🏓 บอททำงานระบบ Slash Command ปกติบน Render ครับ 🚀', ephemeral: true });
-    }
-    if (cmd === 'bot-info') {
-      const embed = new EmbedBuilder()
-        .setTitle('🤖 𝙕𝙀𝙉 𝘽𝙊𝙏 • OFFICIAL PRESENTATION')
-        .setDescription(
-          '**ระบบจัดการและปกป้องเซิร์ฟเวอร์แบบครบวงจร** ✨\n\n' +
-          '🚀 **ฟีเจอร์เด่นภายในบอท:**\n' +
-          '> 🛡️ **Advanced Security:** ระบบป้องกันลิงก์สแปม และบอทหลอกลวงพร้อมบทลงโทษอัตโนมัติ\n' +
-          '> 📊 **Leveling & Voice XP:** ระบบเก็บเลเวลทั้งแชทและห้องเสียง พร้อมการ์ดโปรไฟล์ Canvas สุดพรีเมียม\n' +
-          '> 🎬 **Zen Cinema:** ระบบจัดการรอบฉายหนังอัตโนมัติ (Coming Soon & Now Showing) พร้อมระบบขายตั๋วหักเหรียญ\n' +
-          '> 🛒 **Automated Store:** ระบบร้านค้าสกิน/ยศ และระบบห้องออร์เดอร์พร้อมใบเสร็จอัตโนมัติ\n' +
-          '> 🎨 **Artist Showcase:** ระบบห้องโชว์ผลงานพร้อมรีแอคชันอัตโนมัติ\n' +
-          '> 🎁 **Daily Quest:** เควสต์สุ่มแจก Zen Coins ฟรีทุก 19 ชั่วโมง (แบบ 50/50)\n' +
-          '> 🐾 **Zen Pet System:** ระบบเลี้ยงสัตว์ ฟักไข่ และลานประลองชิง Orbs สุดมันส์!\n' +
-          '> 🛠️ **Dev Stream:** ระบบสตรีมโค้ดและรายงาน Commit สดจาก GitHub เข้าห้องดิสคอร์ด\n\n' +
-          '💎 สนใจใช้งานระบบพรีเมียมติดต่อผู้พัฒนาบอทได้เลยครับ!'
-        )
-        .setColor(COLORS.PRIMARY)
-        .setImage(IMAGES.BOT_PRESENTATION)
-        .setTimestamp()
-        .setFooter({ text: 'Powered by Zen Bot Technology' });
-
-      return await interaction.reply({ embeds: [embed], ephemeral: true });
     }
     if (cmd === 'level') return await handleLevelCommand(interaction, serverConfigs);
     if (cmd === 'leaderboard') return await handleLeaderboardCommand(interaction, serverConfigs);
@@ -505,7 +480,7 @@ client.on('interactionCreate', async interaction => {
     if (cmd === 'setup-media-guard') return await handleSetupMediaGuardCommand(interaction, serverConfigs, saveConfigs);
     if (cmd === 'setup-showcase') return await handleSetupShowcaseCommand(interaction, serverConfigs, saveConfigs);
     if (cmd === 'cinema-setup') return await handleSetupCinemaCommand(interaction);
-    if (cmd === 'cinema-broadcast') return await handleCinemaBroadcastCommand(interaction, serverConfigs); // ✅ แก้ไขให้เรียกใช้ชื่อฟังก์ชันที่ถูกต้อง
+    if (cmd === 'cinema-broadcast') return await handleCinemaBroadcastCommand(interaction, serverConfigs);
     if (cmd === 'auto-cinema') return await handleAutoCinemaCommand(interaction, serverConfigs);
     if (cmd === 'set-level') return await handleSetLevelCommand(interaction, serverConfigs);
     if (cmd === 'set-security') {
@@ -522,7 +497,7 @@ client.on('interactionCreate', async interaction => {
         await interaction.channel.bulkDelete(messages, true);
         await interaction.editReply({ content: `🧹 ลบข้อความจำนวน **${amount}** เรียบร้อย!` });
       } catch (err) {
-        await interaction.editReply({ content: '❌ เกิดข้อผิดพลาด ไม่สามารถลบข้อความเก่าเกิน 14 วันได้!' });
+        await interaction.editReply({ content: '❌ เกิดข้อผิดพลาด ไม่สามารถลบข้อความเก่าเกิน 14 วันได้' });
       }
       return;
     }
@@ -549,20 +524,6 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isButton()) {
     const id = interaction.customId;
 
-    const adminActionIds = [
-      'toggle_welcome', 'toggle_autorole', 'toggle_level', 'toggle_voice_xp',
-      'edit_voice_amount', 'edit_level_rate', 'edit_level_card', 'edit_level_messages',
-      'set_role_reward', 'delete_role_reward', 'edit_welcome_msg', 'test_welcome',
-      'sec_toggle_main', 'sec_toggle_link', 'sec_toggle_spam', 'sec_toggle_mrbeast',
-      'sec_config_time', 'sec_reset'
-    ];
-
-    if (adminActionIds.includes(id) || id.startsWith('sec_')) {
-      if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-        return await interaction.reply({ content: '❌ เฉพาะผู้ดูแลระบบ (Administrator) เท่านั้นถึงจะกดใช้งานปุ่มตั้งค่านี้ได้!', ephemeral: true });
-      }
-    }
-
     if (await handleCinemaButton(interaction, serverConfigs, saveConfigs)) return;
     if (await handleAutoCinemaButton(interaction, serverConfigs, saveConfigs, client)) return;
     if (await handleOrderPaymentButton(interaction)) return;
@@ -571,12 +532,13 @@ client.on('interactionCreate', async interaction => {
     if (await handleShopButton(interaction, serverConfigs, saveConfigs)) return;
     if (await handleArtistButton(interaction, serverConfigs)) return;
 
-    const modalButtons = [
-      'edit_voice_amount', 'edit_level_rate', 'edit_level_card',
-      'edit_level_messages', 'set_role_reward', 'delete_role_reward',
-      'sec_config_time', 'edit_welcome_msg', 'test_welcome'
-    ];
+    if (['toggle_welcome', 'toggle_autorole', 'toggle_level', 'toggle_voice_xp', 'edit_voice_amount', 'edit_level_rate', 'edit_level_card', 'edit_level_messages', 'set_role_reward', 'delete_role_reward', 'edit_welcome_msg', 'test_welcome', 'sec_toggle_main', 'sec_toggle_link', 'sec_toggle_spam', 'sec_toggle_mrbeast', 'sec_config_time', 'sec_reset'].includes(id) || id.startsWith('sec_')) {
+      if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+        return await interaction.reply({ content: '❌ เฉพาะผู้ดูแลระบบ (Administrator) เท่านั้นถึงจะกดใช้งานปุ่มได้', ephemeral: true });
+      }
+    }
 
+    const modalButtons = ['edit_voice_amount', 'edit_level_rate', 'edit_level_card', 'edit_level_messages', 'set_role_reward', 'delete_role_reward', 'sec_config_time', 'edit_welcome_msg', 'test_welcome'];
     if (!modalButtons.includes(id)) {
       await interaction.deferUpdate().catch(() => {});
     }
@@ -612,7 +574,7 @@ client.on('interactionCreate', async interaction => {
       const minInput = new TextInputBuilder().setCustomId('minXp').setLabel('XP ต่ำสุด').setStyle(TextInputStyle.Short).setValue(config.levelConfig.minXp.toString()).setRequired(true);
       const maxInput = new TextInputBuilder().setCustomId('maxXp').setLabel('XP สูงสุด').setStyle(TextInputStyle.Short).setValue(config.levelConfig.maxXp.toString()).setRequired(true);
       const cmdInput = new TextInputBuilder().setCustomId('cmdXp').setLabel('XP จากคำสั่ง /').setStyle(TextInputStyle.Short).setValue(config.levelConfig.cmdXp?.toString() || '20').setRequired(true);
-      const multInput = new TextInputBuilder().setCustomId('multiplier').setLabel('ตัวคูณเลเวลอัป').setStyle(TextInputStyle.Short).setValue(config.levelConfig.xpMultiplier.toString()).setRequired(true);
+      const multInput = new TextInputBuilder().setCustomId('multiplier').setLabel('ตัวคูณเลเวลอัป').setStyle(TextInputStyle.Short).setValue(config.levelConfig.xpMultiplier?.toString() || '100').setRequired(true);
       modal.addComponents(new ActionRowBuilder().addComponents(minInput), new ActionRowBuilder().addComponents(maxInput), new ActionRowBuilder().addComponents(cmdInput), new ActionRowBuilder().addComponents(multInput));
       return await interaction.showModal(modal);
     }
@@ -647,28 +609,21 @@ client.on('interactionCreate', async interaction => {
     }
     if (id === 'edit_welcome_msg') {
       const modal = new ModalBuilder().setCustomId('editWelcomeMsgModal').setTitle('แก้ไขข้อความต้อนรับ');
-      const descInput = new TextInputBuilder()
-        .setCustomId('welcomeDesc')
-        .setLabel('ข้อความต้อนรับ (ใช้ {user} และ {server} ได้)')
-        .setStyle(TextInputStyle.Paragraph)
-        .setValue(config.embed?.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!')
-        .setRequired(true);
+      const descInput = new TextInputBuilder().setCustomId('welcomeDesc').setLabel('ข้อความต้อนรับ (ใช้ {user} และ {server} ได้)').setStyle(TextInputStyle.Paragraph).setValue(config.embed?.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}**').setRequired(true);
       modal.addComponents(new ActionRowBuilder().addComponents(descInput));
       return await interaction.showModal(modal);
     }
     if (id === 'test_welcome') {
       if (!config.channelId) {
-        return await interaction.reply({ content: '❌ กรุณาเลือกช่องสำหรับส่งข้อความต้อนรับก่อนกดทดสอบครับ!', ephemeral: true });
+        return await interaction.reply({ content: '❌ กรุณาเลือกช่องสำหรับส่งข้อความต้อนรับก่อนกดทดสอบ', ephemeral: true });
       }
-      await interaction.reply({ content: `🔄 กำลังส่งการ์ดต้อนรับทดสอบ...`, ephemeral: true });
+      await interaction.reply({ content: '🔄 กำลังส่งการ์ดต้อนรับทดสอบ...', ephemeral: true });
       try {
         const channel = await interaction.guild.channels.fetch(config.channelId);
         if (channel) {
           const attachment = await generateWelcomeCard(interaction.member);
-          const defaultDesc = '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!';
-          const finalDesc = (config.embed?.description || defaultDesc)
-            .replace('{user}', `${interaction.user}`)
-            .replace('{server}', interaction.guild.name);
+          const defaultDesc = '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}**';
+          const finalDesc = (config.embed?.description || defaultDesc).replace('{user}', `${interaction.user}`).replace('{server}', interaction.guild.name);
           await channel.send({ content: finalDesc, files: [attachment] });
         }
       } catch (err) {
@@ -783,8 +738,9 @@ client.on('interactionCreate', async interaction => {
       pendingRoleRewardImages.delete(`${interaction.user.id}_${levelNum}`);
 
       return await interaction.editReply({
-        content: `✅ ตั้งค่ายศรางวัลสำเร็จ! ยศ <@&${selectedRoleId}> ถูกย้ายมาอยู่ที่ Level ${levelNum} เรียบร้อยแล้ว`,
-        ...getLevelDashboardContent(config)
+        content: `✅ ตั้งค่ายศรางวัลสำเร็จ! ยศ <@&${selectedRoleId}> ถูกย้ายมาอยู่ที่ Level ${levelNum} เรียบร้อย`,
+        embeds: [getLevelDashboardContent(config).embeds[0]],
+        components: getLevelDashboardContent(config).components
       });
     }
   }
@@ -851,7 +807,7 @@ client.on('interactionCreate', async interaction => {
       const targetLevel = interaction.fields.getTextInputValue('targetLevel').trim();
       const rewardImage = interaction.fields.getTextInputValue('rewardImage') || '';
       if (isNaN(targetLevel) || parseInt(targetLevel) < 1) {
-        return await interaction.reply({ content: '❌ กรุณากรอกเป็นตัวเลขเลเวลที่ถูกต้อง (ตั้งแต่ 1 ขึ้นไป)!', ephemeral: true });
+        return await interaction.reply({ content: '❌ กรุณากรอกเป็นตัวเลขเลเวลที่ถูกต้อง (ตั้งแต่ 1 ขึ้นไป)', ephemeral: true });
       }
       pendingRoleRewardImages.set(`${interaction.user.id}_${targetLevel}`, rewardImage);
       const roleSelectMenu = new RoleSelectMenuBuilder().setCustomId(`select_reward_role_${targetLevel}`).setPlaceholder(`👑 เลือกยศ Level ${targetLevel}`);
@@ -873,11 +829,11 @@ client.on('interactionCreate', async interaction => {
 function getDashboardContent(config) {
   const channelName = config.channelId ? `<#${config.channelId}>` : 'ยังไม่ได้เลือกช่อง';
   const statusText = config.welcomeEnabled ? '✅ เปิดอยู่' : '❌ ปิดอยู่';
-  const msgPreview = config.embed?.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}** ครับ!';
+  const msgPreview = config.embed?.description || '**𑣲⋆ 𝙉𝙀𝙒 𝙈𝙚𝙢𝙗𝙚𝙧!** ✨\n🎉 ยินดีต้อนรับคุณ {user} สู่เซิร์ฟเวอร์ **{server}**';
 
   const embed = new EmbedBuilder()
     .setTitle('⚙️ ตั้งค่าระบบต้อนรับ (Welcome Canvas)')
-    .setDescription('ระบบจะส่งข้อความต้อนรับพร้อมรูปการ์ด Canvas อัตโนมัติเมื่อมีสมาชิกใหม่เข้าเซิร์ฟเวอร์')
+    .setDescription('ระบบจะส่งข้อความต้อนรับพร้อมรูปการ์ด Canvas อัตโนมัติเมื่อมีสมาชิกใหม่เข้ามา')
     .setColor(COLORS.DISCORD_BLURPLE)
     .addFields(
       { name: '📥 สถานะ', value: statusText, inline: true },
@@ -893,7 +849,7 @@ function getDashboardContent(config) {
   const channelRow = new ActionRowBuilder().addComponents(
     new ChannelSelectMenuBuilder().setCustomId('select_channel').setPlaceholder('📂 เลือกห้องต้อนรับ').addChannelTypes(ChannelType.GuildText)
   );
-  return { embeds: [embed], components: [row1, channelRow] }
+  return { embeds: [embed], components: [row1, channelRow] };
 }
 
 function getAutoroleDashboardContent(config) {
@@ -901,7 +857,7 @@ function getAutoroleDashboardContent(config) {
   const statusText = config.autoroleEnabled ? '✅ เปิดอยู่' : '❌ ปิดอยู่';
   const embed = new EmbedBuilder()
     .setTitle('🛡️ ตั้งค่าระบบ Autorole')
-    .setDescription('เมื่อเลือกยศด้านล่าง ระบบจะเปิดใช้งานการแจกยศอัตโนมัติให้ทันที (หรือกดปุ่มเพื่อปิดชั่วคราว)')
+    .setDescription('เมื่อเลือกยศด้านล่าง ระบบจะเปิดใช้งานการแจกยศอัตโนมัติให้สมาชิกใหม่')
     .setColor(COLORS.DISCORD_BLURPLE)
     .addFields(
       { name: '📥 สถานะ', value: statusText, inline: true },
@@ -911,7 +867,7 @@ function getAutoroleDashboardContent(config) {
     new ButtonBuilder().setCustomId('toggle_autorole').setLabel(config.autoroleEnabled ? '🔴 ปิดระบบชั่วคราว' : '🟢 เปิดระบบ').setStyle(config.autoroleEnabled ? ButtonStyle.Danger : ButtonStyle.Success)
   );
   const roleRow = new ActionRowBuilder().addComponents(
-    new RoleSelectMenuBuilder().setCustomId('select_autorole').setPlaceholder('👑 เลือกยศแจกสมาชิกใหม่ (เลือกแล้วเปิดระบบทันที)')
+    new RoleSelectMenuBuilder().setCustomId('select_autorole').setPlaceholder('👑 เลือกยศแจกสมาชิกใหม่')
   );
   return { embeds: [embed], components: [row1, roleRow] };
 }
@@ -939,3 +895,4 @@ async function sendAutoroleDashboard(target) {
 }
 
 client.login(process.env.DISCORD_TOKEN);
+
