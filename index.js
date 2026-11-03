@@ -72,12 +72,11 @@ const {
   petShopCommand,
   handlePetShopCommand,
   setPetChannelCommand,
+  handleSetPetChannelCommand,
   setPetRoleCommand,
   handleSetPetRoleCommand,
   petCommand,
   handlePetCommand,
-  coinsCommand: petCoinsCommand,
-  handleCoinsCommand: handlePetCoinsCommand,
   handleCompanionButton,
   petBattleCommand,
   handlePetBattleCommand,
@@ -427,14 +426,6 @@ client.on('interactionCreate', async interaction => {
     bootHealth.lastCommandName = interaction.commandName;
   }
 
-  debugLog('Interaction received', {
-    type: interaction.type,
-    commandName: interaction.isChatInputCommand() ? interaction.commandName : null,
-    customId: interaction.isButton() || interaction.isStringSelectMenu() || interaction.isChannelSelectMenu() || interaction.isRoleSelectMenu() || interaction.isModalSubmit() ? interaction.customId : null,
-    guildId: interaction.guildId,
-    userId: interaction.user?.id
-  });
-
   const guildId = interaction.guildId;
   if (!guildId) return;
 
@@ -477,7 +468,7 @@ client.on('interactionCreate', async interaction => {
     const cmd = interaction.commandName;
 
     if (cmd === 'ping') {
-      return await interaction.reply({ content: 'Pong! 🏓 บอททำงานระบบ Slash Command ปกติบน Render ครับ 🚀', ephemeral: true });
+      return await interaction.reply({ content: 'Pong! 🏓 บอททำงานระบบ Slash Command ปกติครับ 🚀', ephemeral: true });
     }
     if (cmd === 'bot-info') {
       const embed = new EmbedBuilder()
@@ -523,6 +514,15 @@ client.on('interactionCreate', async interaction => {
     if (cmd === 'cinema-broadcast') return await handleCinemaBroadcastCommand(interaction, serverConfigs);
     if (cmd === 'auto-cinema') return await handleAutoCinemaCommand(interaction, serverConfigs);
     if (cmd === 'set-level') return await handleSetLevelCommand(interaction, serverConfigs);
+
+    // 🐾 PET SYSTEM COMMANDS (ส่ง client ครบถ้วนแล้ว)
+    if (cmd === 'pet-shop') return await handlePetShopCommand(interaction);
+    if (cmd === 'set-pet-channel') return await handleSetPetChannelCommand(interaction, serverConfigs, saveConfigs);
+    if (cmd === 'set-pet-role') return await handleSetPetRoleCommand(interaction, serverConfigs, saveConfigs);
+    if (cmd === 'pet') return await handlePetCommand(interaction, serverConfigs, saveConfigs, client);
+    if (cmd === 'pet-battle') return await handlePetBattleCommand(interaction, serverConfigs, client);
+    if (cmd === 'pet-leaderboard') return await handlePetLeaderboardCommand(interaction, serverConfigs);
+
     if (cmd === 'set-security') {
       if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
       return await interaction.reply({ ...getSecurityDashboardContent(config), ephemeral: true });
