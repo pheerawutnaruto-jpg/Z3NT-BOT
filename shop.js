@@ -1,8 +1,13 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
+const { Redis } = require('@upstash/redis');
 const { generateWalletCard } = require('./canvas_card');
 const { isServerPremium } = require('./license');
 const { ROLES, IMAGES, COLORS } = require('./constants');
 
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN
+});
 const userCooldowns = new Map();
 const purchaseLocks = new Set();
 
@@ -37,6 +42,12 @@ function ensureUserStat(serverConfigs, guildId, userId) {
   return serverConfigs[guildId].levels[userId];
 }
 
+// Critical shop/admin coin writes must wait for Redis and propagate failures.
+async function persistConfigsNow(configs) {
+  const serialized = JSON.stringify(configs);
+  await redis.set('server_configs', serialized);
+}
+
 async function handleCoinsCommand(interaction, serverConfigs) {
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
@@ -65,7 +76,7 @@ async function handleAddCoinsCommand(interaction, serverConfigs, saveConfigs) {
   const previousBalance = userStat.orbs || 0;
   userStat.orbs = Math.max(0, previousBalance + amount);
   try {
-    await saveConfigs(serverConfigs);
+    await persistConfigsNow(serverConfigs);
   } catch (error) {
     userStat.orbs = previousBalance;
     throw error;
@@ -163,9 +174,9 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
       return true;
     }
 
-    const nowForPurchase = Date.now();
-    if (item.type === 'role_temp' && userStat.artistUntil > nowForPurchase) {
-      const remainingDays = Math.ceil((userStat.artistUntil - nowForPurchase) / 86400000);
+    const purchaseTime = Date.now();
+    if (item.type === 'role_temp' && userStat.artistUntil > purchaseTime) {
+      const remainingDays = Math.ceil((userStat.artistUntil - purchaseTime) / 86400000);
       await interaction.editReply({ content: `⚠️ สิทธิ์ Artist ยังใช้งานอยู่ (เหลือประมาณ ${remainingDays} วัน)` });
       return true;
     }
@@ -174,7 +185,6 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
     let role = null;
     let addedRole = false;
     if (item.type === 'buff' || item.type === 'role_temp') {
-      // Do not charge when the role cannot actually be fetched or assigned.
       member = await interaction.guild.members.fetch(userId);
       if (item.type === 'role_temp' && member.roles.cache.has(ROLES.ARTIST_PERM)) {
         await interaction.editReply({ content: '❌ คุณมียศ **Artist ถาวร** อยู่แล้วครับ!' });
@@ -207,18 +217,18 @@ async function handleShopButton(interaction, serverConfigs, saveConfigs) {
       userStat.orbs += roll.reward;
       responseText = `<a:emoji_142:1564170617240948767> **กาชาปอง**\n${roll.text}\n\`Wallet: ${userStat.orbs.toLocaleString()} coins\``;
     } else if (item.type === 'buff') {
-      userStat.boostUntil = Math.max(userStat.boostUntil || 0, nowForPurchase) + 60 * 60 * 1000;
-      const remainingMins = Math.ceil((userStat.boostUntil - nowForPurchase) / 60000);
+      userStat.boostUntil = Math.max(userStat.boostUntil || 0, purchaseTime) + 60 * 60 * 1000;
+      const remainingMins = Math.ceil((userStat.boostUntil - purchaseTime) / 60000);
       responseText = `<:xp_active:1564107060021432370> เปิดใช้งาน XP x2 สำเร็จ! เหลือเวลา ${remainingMins} นาที\n\`Wallet: ${userStat.orbs.toLocaleString()} coins\``;
     } else if (item.type === 'role_temp') {
-      userStat.artistUntil = Math.max(userStat.artistUntil || 0, nowForPurchase) + 3 * 24 * 60 * 60 * 1000;
+      userStat.artistUntil = Math.max(userStat.artistUntil || 0, purchaseTime) + 3 * 24 * 60 * 60 * 1000;
       responseText = `🎉 เช่าสำเร็จ! คุณได้รับยศ Artist และสิทธิ์แต่งการ์ดส่วนตัว 3 วัน\n\`Wallet: ${userStat.orbs.toLocaleString()} coins\``;
     } else {
       throw new Error(`Unsupported shop item type: ${item.type}`);
     }
 
     try {
-      await saveConfigs(serverConfigs);
+      await persistConfigsNow(serverConfigs);
     } catch (error) {
       userStat.orbs = previousState.orbs;
       userStat.boostUntil = previousState.boostUntil;
