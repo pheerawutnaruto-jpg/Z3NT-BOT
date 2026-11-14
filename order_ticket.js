@@ -76,7 +76,7 @@ async function sendOrderReceipt(channel, customerUser, adminUser, product, payme
 }
 
 async function handleOrderTicketSelect(interaction, serverConfigs) {
-  if (interaction.customId !== 'select_product_order') return false;
+  if (!interaction || !interaction.isStringSelectMenu() || interaction.customId !== 'select_product_order') return false;
 
   const guildId = interaction.guildId;
   if (!(await isServerPremium(guildId, serverConfigs))) {
@@ -186,6 +186,9 @@ async function handleOrderTicketSelect(interaction, serverConfigs) {
 }
 
 async function handleOrderPaymentButton(interaction) {
+  // ป้องกัน Error กรณีที่ interaction ไม่มี customId หรือไม่ใช่ปุ่มกด
+  if (!interaction || !interaction.isButton() || !interaction.customId) return false;
+  
   const customId = interaction.customId;
 
   if (customId.startsWith('pay_promptpay_')) {
@@ -285,7 +288,7 @@ async function handleOrderPaymentButton(interaction) {
 }
 
 async function handleCloseTicketButton(interaction) {
-  if (interaction.customId !== 'close_order_ticket') return false;
+  if (!interaction || !interaction.isButton() || interaction.customId !== 'close_order_ticket') return false;
 
   await interaction.reply({ content: '🔒 กำลังปิดห้องออร์เดอร์ใน 5 วินาที...' });
   setTimeout(() => {
