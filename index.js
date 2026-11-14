@@ -2,7 +2,11 @@ process.on('unhandledRejection', error => {
   console.error('Unhandled promise rejection:', error);
 });
 
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
+process.on('uncaughtException', error => {
+  console.error('Uncaught exception:', error);
+});
+
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
 const http = require('http');
 const { Redis } = require('@upstash/redis');
 
@@ -83,7 +87,6 @@ const {
   startPetHatchCron
 } = require('./companion');
 
-// นำเข้าโมดูล Welcome/Autorole และ Utility ที่แยกออกไป
 const { setWelcomeCommand, setAutoroleCommand, handleWelcomeAutoroleCommands, handleWelcomeAutoroleInteraction, handleGuildMemberAdd } = require('./welcome_autorole');
 const { utilityCommands, loadAllAutoClearCrons, handleUtilityCommands } = require('./utility');
 
@@ -310,122 +313,150 @@ client.on('guildMemberAdd', async member => {
 });
 
 client.on('interactionCreate', async interaction => {
-  bootHealth.lastInteractionAt = Date.now();
-  if (interaction.isChatInputCommand()) bootHealth.lastCommandName = interaction.commandName;
+  try {
+    bootHealth.lastInteractionAt = Date.now();
+    if (interaction.isChatInputCommand()) bootHealth.lastCommandName = interaction.commandName;
 
-  const guildId = interaction.guildId;
-  if (!guildId) return;
-  const config = ensureGuildConfig(guildId);
+    const guildId = interaction.guildId;
+    if (!guildId) return;
+    const config = ensureGuildConfig(guildId);
 
-  if (await handleCompanionButton(interaction, serverConfigs, saveConfigs)) return;
-  if (await handleBattleButtons(interaction, serverConfigs, saveConfigs)) return;
-  if (await handleCinemaButton(interaction, serverConfigs, saveConfigs)) return;
-  if (await handleAutoCinemaButton(interaction, serverConfigs, saveConfigs, client)) return;
-  if (await handleOrderPaymentButton(interaction)) return;
-  if (await handleCloseTicketButton(interaction)) return;
-  if (await handleQuestButton(interaction, serverConfigs, saveConfigs)) return;
-  if (await handleShopButton(interaction, serverConfigs, saveConfigs)) return;
-  if (await handleArtistButton(interaction, serverConfigs)) return;
-  if (await handleWelcomeAutoroleInteraction(interaction, serverConfigs, saveConfigs)) return;
+    // 1. แยกจัดการเฉพาะปุ่มกด (Buttons) เท่านั้น ไม่ให้ชนกับคำสั่ง Slash Command
+    if (interaction.isButton()) {
+      if (await handleCompanionButton(interaction, serverConfigs, saveConfigs)) return;
+      if (await handleBattleButtons(interaction, serverConfigs, saveConfigs)) return;
+      if (await handleCinemaButton(interaction, serverConfigs, saveConfigs)) return;
+      if (await handleAutoCinemaButton(interaction, serverConfigs, saveConfigs, client)) return;
+      if (await handleOrderPaymentButton(interaction)) return;
+      if (await handleCloseTicketButton(interaction)) return;
+      if (await handleQuestButton(interaction, serverConfigs, saveConfigs)) return;
+      if (await handleShopButton(interaction, serverConfigs, saveConfigs)) return;
+      if (await handleArtistButton(interaction, serverConfigs)) return;
+      if (await handleWelcomeAutoroleInteraction(interaction, serverConfigs, saveConfigs)) return;
 
-  const premiumCommands = [
-    'setup-quest', 'setup-in-game-shop', 'coins', 'setup-order-ticket',
-    'add-coins', 'setup-media-guard', 'setup-showcase', 'set-autoclear',
-    'setup-artist-card', 'boost-status', 'cinema-setup', 'cinema-broadcast',
-    'auto-cinema'
-  ];
-
-  if (interaction.isChatInputCommand() && premiumCommands.includes(interaction.commandName)) {
-    const hasPremium = await isServerPremium(guildId, serverConfigs);
-    if (!hasPremium) {
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setLabel('💎 สนใจติดต่อซื้อระบบพรีเมียม').setStyle(ButtonStyle.Link).setURL('https://discord.gg/your-invite-link')
-      );
-      return await interaction.reply({ content: '❌ คำสั่งนี้ใช้ได้เฉพาะเซิร์ฟเวอร์พรีเมียมเท่านั้น', components: [row], ephemeral: true });
+      if (interaction.customId && interaction.customId.startsWith('sec_')) {
+        if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+          return await interaction.reply({ content: '❌ เฉพาะผู้ดูแลระบบเท่านั้น', ephemeral: true });
+        }
+        await interaction.deferUpdate().catch(() => {});
+        const id = interaction.customId;
+        if (id === 'sec_toggle_main') config.security.enabled = !config.security.enabled;
+        else if (id === 'sec_toggle_link') config.security.antiLink = !config.security.antiLink;
+        else if (id === 'sec_toggle_spam') config.security.antiSpam = !config.security.antiSpam;
+        else if (id === 'sec_toggle_mrbeast') config.security.antiMrBeast = !config.security.antiMrBeast;
+        else if (id === 'sec_reset') {
+          config.security = {
+            enabled: false, antiLink: true, antiSpam: true, antiMrBeast: true, spamCount: 3, spamSeconds: 6, timeoutSeconds: 60,
+            actions: { invite: { timeout: true, kick: false, ban: false }, spam: { timeout: true, kick: false, ban: false }, mrbeast: { timeout: true, kick: false, ban: false } },
+            ignoredChannels: []
+          };
+        }
+        await saveConfigs(serverConfigs);
+        return await interaction.editReply(getSecurityDashboardContent(config));
+      }
+      return;
     }
-  }
 
-  if (interaction.isChatInputCommand()) {
-    handleCommandLeveling(interaction, serverConfigs, saveConfigs, client);
-    const cmd = interaction.commandName;
+    // 2. แยกจัดการเมนูเลือก (Select Menus) และ Modal
+    if (interaction.isAnySelectMenu()) {
+      if (await handleOrderTicketSelect(interaction, serverConfigs)) return;
+      if (await handleCinemaSelect(interaction, serverConfigs, saveConfigs)) return;
+      if (await handleAutoCinemaSelect(interaction, serverConfigs, saveConfigs)) return;
+      if (await handleWelcomeAutoroleInteraction(interaction, serverConfigs, saveConfigs)) return;
 
-    if (await handleUtilityCommands(interaction, serverConfigs, saveConfigs, client)) return;
-    if (cmd === 'set-welcome' || cmd === 'set-autorole') return await handleWelcomeAutoroleCommands(interaction, serverConfigs);
+      if (interaction.isStringSelectMenu()) {
+        if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
+        await interaction.deferUpdate().catch(() => {});
+        const vals = interaction.values;
+        if (interaction.customId === 'act_invite_select') {
+          config.security.actions.invite.timeout = vals.includes('timeout');
+          config.security.actions.invite.kick = vals.includes('kick');
+          config.security.actions.invite.ban = vals.includes('ban');
+        } else if (interaction.customId === 'act_spam_select') {
+          config.security.actions.spam.timeout = vals.includes('timeout');
+          config.security.actions.spam.kick = vals.includes('kick');
+          config.security.actions.spam.ban = vals.includes('ban');
+        }
+        await saveConfigs(serverConfigs);
+        return await interaction.editReply(getSecurityDashboardContent(config));
+      }
 
-    if (cmd === 'level') return await handleLevelCommand(interaction, serverConfigs);
-    if (cmd === 'leaderboard') return await handleLeaderboardCommand(interaction, serverConfigs);
-    if (cmd === 'setup-quest') return await handleSetupQuestCommand(interaction);
-    if (cmd === 'setup-in-game-shop') return await handleSetupShopCommand(interaction);
-    if (cmd === 'setup-order-ticket') return await handleSetupOrderTicketCommand(interaction);
-    if (cmd === 'coins') return await handleCoinsCommand(interaction, serverConfigs);
-    if (cmd === 'grant-premium') return await handleGrantPremiumCommand(interaction, serverConfigs, saveConfigs);
-    if (cmd === 'add-coins') return await handleAddCoinsCommand(interaction, serverConfigs, saveConfigs);
-    if (cmd === 'boost-status') return await handleBoostStatusCommand(interaction, serverConfigs);
-    if (cmd === 'setup-artist-card') return await handleSetupArtistCommand(interaction);
-    if (cmd === 'setup-media-guard') return await handleSetupMediaGuardCommand(interaction, serverConfigs, saveConfigs);
-    if (cmd === 'setup-showcase') return await handleSetupShowcaseCommand(interaction, serverConfigs, saveConfigs);
-    if (cmd === 'cinema-setup') return await handleSetupCinemaCommand(interaction);
-    if (cmd === 'cinema-broadcast') return await handleCinemaBroadcastCommand(interaction, serverConfigs);
-    if (cmd === 'auto-cinema') return await handleAutoCinemaCommand(interaction, serverConfigs);
-    if (cmd === 'set-level') return await handleSetLevelCommand(interaction, serverConfigs);
-
-    if (cmd === 'pet-shop') return await handlePetShopCommand(interaction);
-    if (cmd === 'set-pet-channel') return await handleSetPetChannelCommand(interaction, serverConfigs, saveConfigs);
-    if (cmd === 'set-pet-role') return await handleSetPetRoleCommand(interaction, serverConfigs, saveConfigs);
-    if (cmd === 'pet') return await handlePetCommand(interaction, serverConfigs, saveConfigs, client);
-    if (cmd === 'pet-battle') return await handlePetBattleCommand(interaction, serverConfigs, client);
-    if (cmd === 'pet-leaderboard') return await handlePetLeaderboardCommand(interaction, serverConfigs);
-
-    if (cmd === 'set-security') {
-      if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
-      return await interaction.reply({ ...getSecurityDashboardContent(config), ephemeral: true });
+      if (interaction.isChannelSelectMenu() && interaction.customId === 'sec_select_ignored') {
+        if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return;
+        await interaction.deferUpdate().catch(() => {});
+        config.security.ignoredChannels = interaction.values;
+        await saveConfigs(serverConfigs);
+        return await interaction.editReply(getSecurityDashboardContent(config));
+      }
+      return;
     }
-  }
 
-  if (interaction.isStringSelectMenu() && !interaction.customId.startsWith('order')) {
-    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
-    await interaction.deferUpdate().catch(() => {});
-    const vals = interaction.values;
-    if (interaction.customId === 'act_invite_select') {
-      config.security.actions.invite.timeout = vals.includes('timeout');
-      config.security.actions.invite.kick = vals.includes('kick');
-      config.security.actions.invite.ban = vals.includes('ban');
-    } else if (interaction.customId === 'act_spam_select') {
-      config.security.actions.spam.timeout = vals.includes('timeout');
-      config.security.actions.spam.kick = vals.includes('kick');
-      config.security.actions.spam.ban = vals.includes('ban');
+    if (interaction.isModalSubmit()) {
+      if (await handleArtistModalSubmit(interaction, serverConfigs)) return;
+      if (await handleCinemaModal(interaction, serverConfigs, saveConfigs)) return;
+      if (await handleAutoCinemaModal(interaction, serverConfigs, saveConfigs, client)) return;
+      return;
     }
-    await saveConfigs(serverConfigs);
-    return await interaction.editReply(getSecurityDashboardContent(config));
-  }
 
-  if (interaction.isChannelSelectMenu() && interaction.customId === 'sec_select_ignored') {
-    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return;
-    await interaction.deferUpdate().catch(() => {});
-    config.security.ignoredChannels = interaction.values;
-    await saveConfigs(serverConfigs);
-    return await interaction.editReply(getSecurityDashboardContent(config));
-  }
+    // 3. แยกจัดการเฉพาะคำสั่ง Slash Command
+    if (interaction.isChatInputCommand()) {
+      const premiumCommands = [
+        'setup-quest', 'setup-in-game-shop', 'coins', 'setup-order-ticket',
+        'add-coins', 'setup-media-guard', 'setup-showcase', 'set-autoclear',
+        'setup-artist-card', 'boost-status', 'cinema-setup', 'cinema-broadcast',
+        'auto-cinema'
+      ];
 
-  if (interaction.isButton() && interaction.customId.startsWith('sec_')) {
-    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-      return await interaction.reply({ content: '❌ เฉพาะผู้ดูแลระบบเท่านั้น', ephemeral: true });
+      if (premiumCommands.includes(interaction.commandName)) {
+        const hasPremium = await isServerPremium(guildId, serverConfigs);
+        if (!hasPremium) {
+          const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setLabel('💎 สนใจติดต่อซื้อระบบพรีเมียม').setStyle(ButtonStyle.Link).setURL('https://discord.gg/your-invite-link')
+          );
+          return await interaction.reply({ content: '❌ คำสั่งนี้ใช้ได้เฉพาะเซิร์ฟเวอร์พรีเมียมเท่านั้น', components: [row], ephemeral: true });
+        }
+      }
+
+      handleCommandLeveling(interaction, serverConfigs, saveConfigs, client);
+      const cmd = interaction.commandName;
+
+      if (await handleUtilityCommands(interaction, serverConfigs, saveConfigs, client)) return;
+      if (cmd === 'set-welcome' || cmd === 'set-autorole') return await handleWelcomeAutoroleCommands(interaction, serverConfigs);
+
+      if (cmd === 'level') return await handleLevelCommand(interaction, serverConfigs);
+      if (cmd === 'leaderboard') return await handleLeaderboardCommand(interaction, serverConfigs);
+      if (cmd === 'setup-quest') return await handleSetupQuestCommand(interaction);
+      if (cmd === 'setup-in-game-shop') return await handleSetupShopCommand(interaction);
+      if (cmd === 'setup-order-ticket') return await handleSetupOrderTicketCommand(interaction);
+      if (cmd === 'coins') return await handleCoinsCommand(interaction, serverConfigs);
+      if (cmd === 'grant-premium') return await handleGrantPremiumCommand(interaction, serverConfigs, saveConfigs);
+      if (cmd === 'add-coins') return await handleAddCoinsCommand(interaction, serverConfigs, saveConfigs);
+      if (cmd === 'boost-status') return await handleBoostStatusCommand(interaction, serverConfigs);
+      if (cmd === 'setup-artist-card') return await handleSetupArtistCommand(interaction);
+      if (cmd === 'setup-media-guard') return await handleSetupMediaGuardCommand(interaction, serverConfigs, saveConfigs);
+      if (cmd === 'setup-showcase') return await handleSetupShowcaseCommand(interaction, serverConfigs, saveConfigs);
+      if (cmd === 'cinema-setup') return await handleSetupCinemaCommand(interaction);
+      if (cmd === 'cinema-broadcast') return await handleCinemaBroadcastCommand(interaction, serverConfigs);
+      if (cmd === 'auto-cinema') return await handleAutoCinemaCommand(interaction, serverConfigs);
+      if (cmd === 'set-level') return await handleSetLevelCommand(interaction, serverConfigs);
+
+      if (cmd === 'pet-shop') return await handlePetShopCommand(interaction);
+      if (cmd === 'set-pet-channel') return await handleSetPetChannelCommand(interaction, serverConfigs, saveConfigs);
+      if (cmd === 'set-pet-role') return await handleSetPetRoleCommand(interaction, serverConfigs, saveConfigs);
+      if (cmd === 'pet') return await handlePetCommand(interaction, serverConfigs, saveConfigs, client);
+      if (cmd === 'pet-battle') return await handlePetBattleCommand(interaction, serverConfigs, client);
+      if (cmd === 'pet-leaderboard') return await handlePetLeaderboardCommand(interaction, serverConfigs);
+
+      if (cmd === 'set-security') {
+        if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
+        return await interaction.reply({ ...getSecurityDashboardContent(config), ephemeral: true });
+      }
     }
-    await interaction.deferUpdate().catch(() => {});
-    const id = interaction.customId;
-    if (id === 'sec_toggle_main') config.security.enabled = !config.security.enabled;
-    else if (id === 'sec_toggle_link') config.security.antiLink = !config.security.antiLink;
-    else if (id === 'sec_toggle_spam') config.security.antiSpam = !config.security.antiSpam;
-    else if (id === 'sec_toggle_mrbeast') config.security.antiMrBeast = !config.security.antiMrBeast;
-    else if (id === 'sec_reset') {
-      config.security = {
-        enabled: false, antiLink: true, antiSpam: true, antiMrBeast: true, spamCount: 3, spamSeconds: 6, timeoutSeconds: 60,
-        actions: { invite: { timeout: true, kick: false, ban: false }, spam: { timeout: true, kick: false, ban: false }, mrbeast: { timeout: true, kick: false, ban: false } },
-        ignoredChannels: []
-      };
+  } catch (err) {
+    console.error('Interaction Error:', err);
+    if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
+      await interaction.reply({ content: '❌ เกิดข้อผิดพลาดในการทำงานของคำสั่ง กรุณาลองใหม่อีกครั้ง', ephemeral: true }).catch(() => {});
     }
-    await saveConfigs(serverConfigs);
-    return await interaction.editReply(getSecurityDashboardContent(config));
   }
 });
 
