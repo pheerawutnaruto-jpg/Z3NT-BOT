@@ -104,6 +104,32 @@ const bootHealth = {
   lastCommandName: null,
 };
 
+let serverConfigs = {};
+let saveTimeout = null;
+
+async function loadConfigs() {
+  try {
+    const data = await redis.get('server_configs');
+    if (data) {
+      return typeof data === 'string' ? JSON.parse(data) : data;
+    }
+  } catch (e) {
+    debugError('Error loading config from Redis', e);
+  }
+  return {};
+}
+
+async function saveConfigs(configs) {
+  if (saveTimeout) clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(async () => {
+    try {
+      await redis.set('server_configs', JSON.stringify(configs));
+    } catch (e) {
+      debugError('Error saving config to Redis', e);
+    }
+  }, 1500);
+}
+
 const httpServer = http.createServer((req, res) => {
   if (req.method === 'GET' && req.url === '/health') {
     const uptimeSeconds = Math.max(0, Math.floor((Date.now() - bootHealth.startedAt) / 1000));
@@ -184,32 +210,6 @@ const client = new Client({
     GatewayIntentBits.GuildVoiceStates
   ]
 });
-
-let serverConfigs = {};
-let saveTimeout = null;
-
-async function loadConfigs() {
-  try {
-    const data = await redis.get('server_configs');
-    if (data) {
-      return typeof data === 'string' ? JSON.parse(data) : data;
-    }
-  } catch (e) {
-    debugError('Error loading config from Redis', e);
-  }
-  return {};
-}
-
-async function saveConfigs(configs) {
-  if (saveTimeout) clearTimeout(saveTimeout);
-  saveTimeout = setTimeout(async () => {
-    try {
-      await redis.set('server_configs', JSON.stringify(configs));
-    } catch (e) {
-      debugError('Error saving config to Redis', e);
-    }
-  }, 1500);
-}
 
 function ensureGuildConfig(guildId) {
   if (!serverConfigs[guildId]) serverConfigs[guildId] = {};
@@ -336,7 +336,7 @@ client.on('interactionCreate', async interaction => {
 
       if (interaction.customId && interaction.customId.startsWith('sec_')) {
         if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-          return await interaction.reply({ content: '❌ เฉพาะผู้ดูแลระบบเท่านั้น', ephemeral: true });
+          return await interaction.reply({ content: '❌ เฉพาะผู้ดูแลระบบเท่านั้น', ephemeral: true }).catch(() => {});
         }
         await interaction.deferUpdate().catch(() => {});
         const id = interaction.customId;
@@ -352,7 +352,7 @@ client.on('interactionCreate', async interaction => {
           };
         }
         await saveConfigs(serverConfigs);
-        return await interaction.editReply(getSecurityDashboardContent(config));
+        return await interaction.editReply(getSecurityDashboardContent(config)).catch(() => {});
       }
       return;
     }
@@ -365,7 +365,9 @@ client.on('interactionCreate', async interaction => {
       if (await handleWelcomeAutoroleInteraction(interaction, serverConfigs, saveConfigs)) return;
 
       if (interaction.isStringSelectMenu()) {
-        if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
+        if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+          return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true }).catch(() => {});
+        }
         await interaction.deferUpdate().catch(() => {});
         const vals = interaction.values;
         if (interaction.customId === 'act_invite_select') {
@@ -378,7 +380,7 @@ client.on('interactionCreate', async interaction => {
           config.security.actions.spam.ban = vals.includes('ban');
         }
         await saveConfigs(serverConfigs);
-        return await interaction.editReply(getSecurityDashboardContent(config));
+        return await interaction.editReply(getSecurityDashboardContent(config)).catch(() => {});
       }
 
       if (interaction.isChannelSelectMenu() && interaction.customId === 'sec_select_ignored') {
@@ -386,7 +388,7 @@ client.on('interactionCreate', async interaction => {
         await interaction.deferUpdate().catch(() => {});
         config.security.ignoredChannels = interaction.values;
         await saveConfigs(serverConfigs);
-        return await interaction.editReply(getSecurityDashboardContent(config));
+        return await interaction.editReply(getSecurityDashboardContent(config)).catch(() => {});
       }
       return;
     }
@@ -413,7 +415,7 @@ client.on('interactionCreate', async interaction => {
           const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setLabel('💎 สนใจติดต่อซื้อระบบพรีเมียม').setStyle(ButtonStyle.Link).setURL('https://discord.gg/your-invite-link')
           );
-          return await interaction.reply({ content: '❌ คำสั่งนี้ใช้ได้เฉพาะเซิร์ฟเวอร์พรีเมียมเท่านั้น', components: [row], ephemeral: true });
+          return await interaction.reply({ content: '❌ คำสั่งนี้ใช้ได้เฉพาะเซิร์ฟเวอร์พรีเมียมเท่านั้น', components: [row], ephemeral: true }).catch(() => {});
         }
       }
 
@@ -448,11 +450,18 @@ client.on('interactionCreate', async interaction => {
       if (cmd === 'pet-leaderboard') return await handlePetLeaderboardCommand(interaction, serverConfigs);
 
       if (cmd === 'set-security') {
-        if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true });
-        return await interaction.reply({ ...getSecurityDashboardContent(config), ephemeral: true });
+        if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+          return await interaction.reply({ content: '❌ เฉพาะ Administrator เท่านั้น', ephemeral: true }).catch(() => {});
+        }
+        return await interaction.reply({ ...getSecurityDashboardContent(config), ephemeral: true }).catch(() => {});
       }
     }
   } catch (err) {
+    if (err?.code === 10062 || err?.code === 40060) {
+      console.warn(`Interaction skipped (code ${err.code}): ${interaction.commandName || interaction.customId}`);
+      return;
+    }
+
     console.error('Interaction Error:', err);
     if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
       await interaction.reply({ content: '❌ เกิดข้อผิดพลาดในการทำงานของคำสั่ง กรุณาลองใหม่อีกครั้ง', ephemeral: true }).catch(() => {});
